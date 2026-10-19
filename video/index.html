@@ -1,0 +1,43 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  @font-face { font-family: "PT Mono"; src: url(/video/fonts/PTMono.ttf); }
+  @font-face { font-family: "Old Standard TT"; src: url(/video/fonts/OldStandard-Regular.ttf); }
+  @font-face { font-family: "Old Standard TT"; font-style: italic; src: url(/video/fonts/OldStandard-Italic.ttf); }
+  @font-face { font-family: "Caveat"; src: url(/video/fonts/Caveat.ttf); }
+  @font-face { font-family: "Cormorant Garamond"; src: url(/video/fonts/CormorantGaramond.ttf); }
+  @font-face { font-family: "Cormorant Garamond"; font-style: italic; src: url(/video/fonts/CormorantGaramond-Italic.ttf); }
+  @font-face { font-family: "Oswald"; src: url(/video/fonts/Oswald.ttf); }
+  html, body { margin: 0; background: #000; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c" width="1080" height="1920"></canvas>
+<script src="/video/engine/core.js"></script>
+<script>
+  const v = new URLSearchParams(location.search).get('v') || 'a';
+  window.ready = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = `/video/versions/${v}.js`;
+    s.onload = async () => {
+      try {
+        K.init(document.getElementById('c'));
+        const fams = ['PT Mono', 'Old Standard TT', 'Caveat', 'Cormorant Garamond', 'Oswald'];
+        await Promise.all(fams.map(f => document.fonts.load(`40px "${f}"`, 'Жж')));
+        await document.fonts.load('italic 40px "Old Standard TT"', 'Жж');
+        await document.fonts.load('italic 40px "Cormorant Garamond"', 'Жж');
+        await document.fonts.load('bold 40px "Oswald"', 'Жж');
+        await K.loadImages(VERSION.images);
+        resolve({ duration: VERSION.duration });
+      } catch (e) { reject(e); }
+    };
+    s.onerror = () => reject(new Error('version script failed'));
+    document.head.appendChild(s);
+  });
+  window.renderAt = (t, frame) => VERSION.render(K.ctx, t, frame);
+</script>
+</body>
+</html>
