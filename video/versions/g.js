@@ -60,8 +60,57 @@
     ctx.drawImage(g.c, -w / 2 - g.pad, -g.asc);
     ctx.restore();
   };
-  const serif = (ctx, s, x, y, o = {}) => K.text(ctx, s, x, y, { font: `italic ${o.size || 50}px "Cormorant Garamond"`, color: o.color || '#e9e4ff', alpha: o.alpha ?? 1, shadow: false });
-  const term = (ctx, s, t, t0, x, y, o = {}) => { if (t < t0) return; const n = Math.floor(K.clamp((t - t0) * (o.cps || 30), 0, s.length)); K.text(ctx, s.slice(0, n), x, y, { font: `${o.size || 34}px "PT Mono"`, align: 'left', color: o.color || '#d8d4ff', shadow: false }); };
+  // legible subtitle: words rise in one by one, heavier italic, dark halo baked into cached glyphs
+  const sub = (ctx, s, t, t0, y, o = {}) => {
+    if (t < t0) return;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,10,0.95)';
+    K.words(ctx, s, t, t0, { y, font: `italic 600 ${o.size || 62}px "Cormorant Garamond"`, color: o.color || '#f3f0ff', wps: o.wps || 0.07, shadow: true, maxW: 940, lh: 74, alpha: o.alpha ?? 1 });
+    ctx.restore();
+  };
+  // terminal line with a blinking block cursor
+  const term = (ctx, s, t, t0, x, y, o = {}) => {
+    if (t < t0) return;
+    const n = Math.floor(K.clamp((t - t0) * (o.cps || 32), 0, s.length)), str = s.slice(0, n);
+    ctx.save(); ctx.font = `${o.size || 42}px "PT Mono"`; ctx.textAlign = 'left'; ctx.fillStyle = o.color || '#ecebff';
+    ctx.shadowColor = 'rgba(0,0,10,0.9)'; ctx.shadowBlur = 0; ctx.fillText(str, x, y);
+    if (Math.floor(t * 3) % 2 === 0 || n < s.length) ctx.fillRect(x + ctx.measureText(str).width + 6, y - 34, 22, 40);
+    ctx.restore();
+  };
+  // title that flies in letter by letter (each glyph cached), with a small overshoot
+  const title = (ctx, s, x, y, t, t0, o = {}) => {
+    if (t < t0) return;
+    ctx.save(); ctx.font = `800 ${o.size || 120}px Manrope`; ctx.fillStyle = o.color || '#f2f0ff';
+    ctx.shadowColor = o.glow || 'rgba(150,140,255,0.95)'; ctx.shadowBlur = o.blur ?? 36;
+    const chars = [...s], widths = chars.map(c => ctx.measureText(c).width), total = widths.reduce((a, b) => a + b, 0);
+    let cx = x - total / 2;
+    chars.forEach((c, i) => {
+      const lt = t - t0 - i * (o.stagger ?? 0.035), q = K.clamp(lt / 0.32);
+      if (q > 0 && c !== ' ') {
+        const g = K.glyphs(ctx, c), e2 = K.ease.outBack(q), fl = Math.sin(t * 2 + i * 0.6) * (o.float ?? 4);
+        ctx.save(); ctx.globalAlpha = Math.min(1, q * 1.5) * (o.alpha ?? 1); ctx.shadowBlur = 0;
+        ctx.translate(cx + widths[i] / 2, y + (1 - e2) * 60 + fl); ctx.scale(0.6 + 0.4 * e2, 0.6 + 0.4 * e2); ctx.rotate((1 - e2) * 0.25);
+        ctx.drawImage(g.c, -widths[i] / 2 - g.pad, -g.asc); ctx.restore();
+      }
+      cx += widths[i];
+    });
+    ctx.restore();
+  };
+  // particles thrown out from a point at time t0
+  const debris = (ctx, x, y, t, t0, o = {}) => {
+    const q = (t - t0) / (o.life || 1.2); if (q < 0 || q > 1) return;
+    const r = K.rng(o.seed || 7);
+    for (let i = 0; i < (o.n || 70); i++) {
+      const a = r() * 6.283, sp = (o.speed || 700) * (0.3 + r()), d = sp * q * (1 - q * 0.35);
+      glowDot(ctx, x + Math.cos(a) * d, y + Math.sin(a) * d, (o.size || 14) * (1 - q * 0.6), o.col || [255, 200, 140], (1 - q) * 0.9);
+    }
+  };
+  const ring = (ctx, x, y, t, t0, o = {}) => {
+    const q = (t - t0) / (o.life || 0.8); if (q < 0 || q > 1) return;
+    ctx.strokeStyle = rgb(o.col || [255, 230, 210], (1 - q) * 0.9); ctx.lineWidth = (o.w || 8) * (1 - q) + 1;
+    ctx.beginPath(); ctx.arc(x, y, (o.r0 || 40) + (o.r1 || 700) * K.ease.outCubic(q), 0, 7); ctx.stroke();
+  };
+  // small spinning background galaxies for depth
+  const farGalaxies = (ctx, t, n = 5) => { const r = K.rng(17); for (let i = 0; i < n; i++) { const x = r() * W, y = 300 + r() * 1300, R = 50 + r() * 70; ctx.save(); ctx.globalAlpha = 0.45; galaxy(ctx, x, y, R, t * (0.3 + r()) * (i % 2 ? 1 : -1), i % 2 ? [255, 140, 200] : [140, 200, 255], 0.4 + r() * 0.3); ctx.restore(); } };
   const hud = (ctx, t, info) => {
     ctx.save(); ctx.font = '24px "PT Mono"'; ctx.fillStyle = 'rgba(210,205,255,0.55)';
     ctx.textAlign = 'left'; ctx.fillText('ОБСЕРВАТОРИЯ / 03:12', 60, 110);
@@ -198,121 +247,165 @@
   };
 
   const SCENES = [
-    { a: 17.17, b: 17.53, draw(ctx, t) { space(ctx, t); bubbleHold(ctx, t); } },
-    { a: 17.53, b: 18.78, hud: {}, draw(ctx, t) {
-      space(ctx, t);
-      const s = 0.6 + 0.4 * K.ease.outBack(K.clamp((t - 17.53) / 0.3)) + 0.04 * kick(t);
-      big(ctx, '2 ТРИЛЛИОНА', W / 2, 860, { size: 128, scale: s });
-      big(ctx, 'ГАЛАКТИК', W / 2, 1000, { size: 128, scale: s, color: '#bfe8ff', glow: 'rgba(90,200,255,0.95)' });
-      if (t > 17.88) serif(ctx, 'и почти все с кем-то воюют.', W / 2, 1130, { alpha: K.prog(t, 17.88, 18.2) });
-      glowDot(ctx, W / 2, 940, 300, [130, 120, 255], 0.25);
+    { a: 17.17, b: 17.53, draw(ctx, t) { space(ctx, t, { warp: 0.4 * (1 - K.prog(t, 17.17, 17.53)) }); bubbleHold(ctx, t); } },
+    { a: 17.53, b: 18.78, hud: {}, draw(ctx, t) { // the count rolls up to 2 trillion, title flies in
+      space(ctx, t); farGalaxies(ctx, t, 6);
+      glowDot(ctx, W / 2, 930, 360 + 40 * kick(t), [130, 120, 255], 0.28);
+      const n = Math.floor(2e12 * K.ease.outExpo(K.prog(t, 17.53, 18.1)));
+      K.text(ctx, n.toLocaleString('ru-RU'), W / 2, 700, { font: '500 44px "PT Mono"', color: 'rgba(220,220,255,0.75)', shadow: false });
+      title(ctx, '2 ТРИЛЛИОНА', W / 2, 880, t, 17.55, { size: 124 });
+      title(ctx, 'ГАЛАКТИК', W / 2, 1020, t, 17.75, { size: 124, color: '#c7ecff', glow: 'rgba(90,200,255,0.95)' });
+      sub(ctx, 'и почти все с кем-то воюют.', t, 17.95, 1170);
     } },
-    { a: 18.78, b: 19.73, hud: { cnt: 'СТОЛКНОВЕНИЙ: 1' }, draw(ctx, t) { // two comets crash
+    { a: 18.78, b: 19.73, hud: { cnt: 'СТОЛКНОВЕНИЙ: 1' }, draw(ctx, t) { // comets crash, debris, rings
       space(ctx, t);
-      const q = K.prog(t, 18.78, 19.27);
-      const ax = K.lerp(-100, W / 2, q), ay = K.lerp(300, 950, q), bx = K.lerp(W + 100, W / 2, q), by = K.lerp(1500, 950, q);
-      for (const [x, y, dx, dy, col] of [[ax, ay, -1, -0.9, CYAN], [bx, by, 1, 0.9, PINK]]) {
-        if (q >= 1) break;
-        const g = ctx.createLinearGradient(x, y, x + dx * 360, y + dy * 360); g.addColorStop(0, rgb(col, 0.9)); g.addColorStop(1, rgb(col, 0));
-        ctx.strokeStyle = g; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx * 360, y + dy * 360); ctx.stroke(); glowDot(ctx, x, y, 40, col);
+      const q = K.prog(t, 18.78, 19.27), cx = W / 2, cy = 900;
+      if (q < 1) for (const [sx, sy, col, sd] of [[80, 330, CYAN, 1], [W - 80, 1470, PINK, 2]]) {
+        const x = K.lerp(sx, cx, q), y = K.lerp(sy, cy, q), dx = sx - cx, dy = sy - cy, d = Math.hypot(dx, dy);
+        const r = K.rng(sd); for (let i = 0; i < 26; i++) { const k = i / 26; glowDot(ctx, x + dx / d * 420 * k + (r() - 0.5) * 30 * k, y + dy / d * 420 * k + (r() - 0.5) * 30 * k, 22 * (1 - k), col, 0.8 * (1 - k)); }
+        glowDot(ctx, x, y, 60, col);
       }
-      if (t >= 19.27) { const k = K.prog(t, 19.27, 19.73); glowDot(ctx, W / 2, 950, 120 + 700 * k, [255, 210, 160], 1 - k); ctx.strokeStyle = `rgba(255,230,200,${1 - k})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.arc(W / 2, 950, 60 + 600 * k, 0, 7); ctx.stroke(); }
-      serif(ctx, 'даже кометы не могут разминуться.', W / 2, 1380, { alpha: K.prog(t, 18.9, 19.2) });
+      if (t >= 19.27) { glowDot(ctx, cx, cy, 160 + 800 * K.prog(t, 19.27, 19.73), [255, 220, 180], 1 - K.prog(t, 19.27, 19.73)); ring(ctx, cx, cy, t, 19.27); ring(ctx, cx, cy, t, 19.36, { r1: 500, col: [255, 140, 190] }); debris(ctx, cx, cy, t, 19.27, { life: 0.9 }); }
+      sub(ctx, 'даже кометы не могут разминуться.', t, 18.85, 1440);
     } },
-    { a: 19.73, b: 20.82, hud: { sig: 'СИГНАЛ 9%' }, draw(ctx, t) { // supernova on the kick
+    { a: 19.73, b: 20.82, hud: { sig: 'СИГНАЛ 9%' }, draw(ctx, t) { // the star swells on the hats and blows on the kick
       space(ctx, t);
-      const k = K.prog(t, 20.40, 20.82);
-      if (t < 20.40) { glowDot(ctx, W / 2, 900, 120 + 20 * Math.sin(t * 30), [255, 200, 120], 1); }
-      else {
-        glowDot(ctx, W / 2, 900, 200 + 900 * k, [255, 190, 110], 1 - k * 0.8);
-        for (let i = 0; i < 24; i++) { const a = i / 24 * 6.283; ctx.strokeStyle = `rgba(255,220,170,${(1 - k) * 0.8})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(W / 2 + Math.cos(a) * 150, 900 + Math.sin(a) * 150); ctx.lineTo(W / 2 + Math.cos(a) * (200 + 900 * k), 900 + Math.sin(a) * (200 + 900 * k)); ctx.stroke(); }
+      const cx = W / 2, cy = 880;
+      if (t < 20.40) {
+        const sw = 1 + 0.25 * Math.exp(-since([19.99, 20.17], t) * 7) + 0.6 * K.prog(t, 19.73, 20.4);
+        glowDot(ctx, cx, cy, 150 * sw, [255, 190, 110], 1); glowDot(ctx, cx, cy, 60 * sw, [255, 255, 230], 1);
+        for (let i = 0; i < 40; i++) { const a = i / 40 * 6.283 + t * 0.6, rr = 260 + 40 * Math.sin(t * 9 + i); glowDot(ctx, cx + Math.cos(a) * rr * (1 - K.prog(t, 19.73, 20.4) * 0.5), cy + Math.sin(a) * rr * (1 - K.prog(t, 19.73, 20.4) * 0.5), 10, [255, 200, 140], 0.6); }
+      } else {
+        const k = K.prog(t, 20.40, 20.82);
+        glowDot(ctx, cx, cy, 250 + 1000 * k, [255, 180, 100], 1 - k * 0.7);
+        for (let i = 0; i < 28; i++) { const a = i / 28 * 6.283; ctx.strokeStyle = `rgba(255,225,180,${(1 - k) * 0.85})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * 160, cy + Math.sin(a) * 160); ctx.lineTo(cx + Math.cos(a) * (220 + 1000 * k), cy + Math.sin(a) * (220 + 1000 * k)); ctx.stroke(); }
+        ring(ctx, cx, cy, t, 20.40, { r1: 900 }); debris(ctx, cx, cy, t, 20.40, { n: 90, speed: 900 });
       }
-      serif(ctx, t < 20.40 ? 'звёзды держатся миллиарды лет…' : '…а потом взрываются.', W / 2, 1380);
+      sub(ctx, 'звёзды горят миллиарды лет…', t, 19.8, 1400);
+      sub(ctx, '…а потом взрываются.', t, 20.42, 1490, { color: '#ffd9b0' });
     } },
-    { a: 20.82, b: 22.42, hud: { ra: 'RA 19.04h  DEC -25.3°' }, draw(ctx, t) { // constellations
-      space(ctx, t);
-      constellation(ctx, CONST_ARCHER, 330, 640, 1.6, t, 20.9, LAV);
-      K.text(ctx, 'СТРЕЛЕЦ', 560, 1150, { font: '600 34px "PT Mono"', color: 'rgba(210,205,255,0.8)', letter: '8px', shadow: false });
-      if (t > 21.79) { constellation(ctx, CONST_MEDIC, 760, 1420, 1.3, t, 21.79, [255, 90, 110]); K.text(ctx, 'МЕДИК', 760, 1560, { font: '600 34px "PT Mono"', color: 'rgba(255,140,150,0.9)', letter: '8px', shadow: false }); }
-      serif(ctx, 'даже на небе — стрелок.', W / 2, 1720, { alpha: K.prog(t, 21.0, 21.3) });
+    { a: 20.82, b: 22.42, hud: { ra: 'RA 19.04h  DEC -25.3°' }, draw(ctx, t) { // pan across the sky: the Archer, then a tiny red Medic
+      const pan = e(t, 20.82, 22.42) * 260;
+      space(ctx, t); ctx.save(); ctx.translate(0, -pan);
+      constellation(ctx, CONST_ARCHER, 300, 640, 1.7, t, 20.9, LAV);
+      if (t > 21.33) title(ctx, 'СТРЕЛЕЦ', 560, 1170, t, 21.33, { size: 64, blur: 24 });
+      if (t > 21.79) {
+        const pul = 1 + 0.15 * kick(t); constellation(ctx, CONST_MEDIC, 760, 1520, 1.3 * pul, t, 21.79, [255, 90, 110]);
+        ring(ctx, 760, 1520, t, 21.79, { col: [255, 90, 110], r1: 260, w: 5 });
+        title(ctx, 'МЕДИК', 760, 1700, t, 21.85, { size: 56, color: '#ffd0d6', glow: 'rgba(255,70,100,0.95)', blur: 24 });
+      }
+      ctx.restore();
+      sub(ctx, 'даже на небе есть стрелок.', t, 20.95, 1720);
     } },
-    { a: 22.42, b: 24.10, hud: { cnt: 'СЛИЯНИЕ: 98%' }, draw(ctx, t) { // galaxies collide
+    { a: 22.42, b: 24.10, hud: { cnt: 'СЛИЯНИЕ: 98%' }, draw(ctx, t) { // galaxies spiral into each other
+      ctx.save(); ctx.translate(W / 2, 950); ctx.rotate((t - 22.42) * 0.12); ctx.translate(-W / 2, -950);
       space(ctx, t);
-      const q = e(t, 22.42, 23.82);
-      galaxy(ctx, K.lerp(260, W / 2 - 40, q), K.lerp(700, 900, q), 280, t * 0.8, [255, 110, 170]);
-      galaxy(ctx, K.lerp(820, W / 2 + 40, q), K.lerp(1150, 950, q), 300, -t * 0.7, [110, 200, 255]);
-      if (t > 23.82) { const k = K.prog(t, 23.82, 24.1); glowDot(ctx, W / 2, 920, 200 + 600 * k, [255, 240, 255], 1 - k); }
-      serif(ctx, 'галактики тоже сталкиваются.', W / 2, 1450, { alpha: K.prog(t, 22.6, 23.0) });
+      const q = e(t, 22.42, 23.82), ang = q * 2.4;
+      const d = K.lerp(380, 30, q);
+      galaxy(ctx, W / 2 + Math.cos(ang) * d, 950 + Math.sin(ang) * d * 0.8, 280, t * 1.4, [255, 110, 170]);
+      galaxy(ctx, W / 2 - Math.cos(ang) * d, 950 - Math.sin(ang) * d * 0.8, 300, -t * 1.2, [110, 200, 255]);
+      for (const h of [22.56, 22.87, 23.19, 23.42, 23.65]) if (t > h && t < h + 0.25) glowDot(ctx, W / 2 + Math.cos(ang) * d * 0.4, 950, 120, [255, 255, 255], 1 - (t - h) / 0.25);
+      if (t > 23.82) { const k = K.prog(t, 23.82, 24.1); glowDot(ctx, W / 2, 950, 220 + 700 * k, [255, 240, 255], 1 - k); ring(ctx, W / 2, 950, t, 23.82); }
+      ctx.restore();
+      sub(ctx, 'галактики тоже сталкиваются.', t, 22.5, 1460);
     } },
-    { a: 24.10, b: 26.60, hud: { sig: 'СИГНАЛ 41%' }, draw(ctx, t) { // a call goes out, an answer comes back
+    { a: 24.10, b: 26.60, hud: { sig: 'СИГНАЛ 41%' }, draw(ctx, t) { // a call goes out on the beat, an answer comes back
       space(ctx, t);
-      moon(ctx, 760, 560, 170);
-      for (let i = 0; i < 4; i++) { const k = ((t - 24.1) * 0.6 + i / 4) % 1; ctx.strokeStyle = `rgba(120,220,255,${0.5 * (1 - k)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(330, 1180, 40 + k * 520, 0, 7); ctx.stroke(); }
-      glowDot(ctx, 330, 1180, 30, CYAN);
-      term(ctx, '> передача: «есть раненые?»', t, 24.2, 120, 820);
-      term(ctx, '> ответ: да. много.', t, 25.39, 120, 880);
-      if (t > 26.16) K.text(ctx, 'ИДУ.', 120, 960, { font: '700 54px "PT Mono"', color: '#6dffa0', align: 'left', shadow: false });
+      ctx.save(); ctx.translate(780, 520); ctx.rotate(t * 0.15); ctx.translate(-780, -520); moon(ctx, 780, 520, 170); ctx.restore();
+      for (const h of [24.11, 24.43, 25.39, 26.16, 26.31]) ring(ctx, 300, 1230, t, h, { col: CYAN, r1: 620, life: 1.1, w: 5 });
+      glowDot(ctx, 300, 1230, 34 + 10 * kick(t), CYAN);
+      ctx.fillStyle = 'rgba(4,3,14,0.55)'; ctx.beginPath(); ctx.roundRect(80, 760, 920, 250, 24); ctx.fill();
+      term(ctx, '> передача: «есть раненые?»', t, 24.2, 120, 830);
+      term(ctx, '> ответ: да. много.', t, 25.39, 120, 900);
+      if (t > 26.16) { const sl = K.ease.outBack(K.clamp((t - 26.16) / 0.25)); ctx.save(); ctx.translate(120, 975); ctx.scale(sl, sl); K.text(ctx, 'ИДУ.', 0, 0, { font: '700 64px "PT Mono"', color: '#6dffa0', align: 'left', shadow: false }); ctx.restore(); }
     } },
-    { a: 26.60, b: 28.79, hud: {}, draw(ctx, t) { // zoom out: trench → front → universe
+    { a: 26.60, b: 28.79, hud: {}, draw(ctx, t) { // pull out: trench → front → the whole universe; blocks slide in on the hats
       space(ctx, t);
-      const z = 1 + 3.2 * (1 - e(t, 26.6, 28.4)); // start close on the trench, pull out to everything
-      const rings = [['ТВОЙ ОКОП', 60], ['ФРОНТ', 200], ['ВСЯ ВСЕЛЕННАЯ', 470]];
-      rings.forEach(([lab, r]) => {
+      const z = 1 + 3.2 * (1 - e(t, 26.6, 28.3));
+      [['ТВОЙ ОКОП', 60], ['ФРОНТ', 200], ['ВСЯ ВСЕЛЕННАЯ', 470]].forEach(([lab, r]) => {
         const R = r * z; if (R > 1400) return;
-        ctx.strokeStyle = 'rgba(210,205,255,0.4)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(W / 2, 960, R, 0, 7); ctx.stroke();
-        K.text(ctx, lab, W / 2, 960 - R - 18, { font: '30px "PT Mono"', color: 'rgba(225,220,255,0.85)', shadow: false });
+        ctx.strokeStyle = 'rgba(210,205,255,0.45)'; ctx.lineWidth = 3; ctx.setLineDash([12, 10]); ctx.lineDashOffset = -t * 40;
+        ctx.beginPath(); ctx.arc(W / 2, 960, R, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+        K.text(ctx, lab, W / 2, 960 - R - 18, { font: '600 34px "PT Mono"', color: '#ecebff', shadow: false });
       });
-      glowDot(ctx, W / 2, 960, 26, [255, 90, 110]);
-      const blk = count(HATS, t, 27.1, 28.3); // violet blocks wipe in on the hats, like the template
-      for (let i = 0; i < blk; i++) { ctx.fillStyle = 'rgba(120,90,255,0.85)'; ctx.fillRect((i * 337) % (W - 300), 300 + i * 260, 300 + (i % 2) * 200, 120); }
-      if (t > 27.9) { big(ctx, 'ВСЯ ВСЕЛЕННАЯ', W / 2, 1480, { size: 96 }); serif(ctx, 'стреляет.', W / 2, 1580); }
-    } },
-    { a: 28.79, b: 29.73, hud: { ra: 'RA 02.11h  DEC +08.7°' }, draw(ctx, t) { // even the moon: covered in scars
-      space(ctx, t);
-      const s = 1 + 0.06 * kick(t); moon(ctx, W / 2, 980, 330 * s);
-      big(ctx, 'ДАЖЕ ЛУНА', W / 2, 520, { size: 110 });
-      if (t > 29.27) serif(ctx, 'вся в шрамах от ударов.', W / 2, 1440);
-    } },
-    { a: 29.73, b: 30.81, hud: { cnt: 'ОБЪЕКТОВ БЕЗ ОРУЖИЯ: 1' }, draw(ctx, t) { // one object without a weapon
-      space(ctx, t);
-      glowDot(ctx, W / 2, 960, 140, [255, 210, 120], 1);
-      [[200, 0.9, [160, 170, 200]], [320, 0.55, [255, 120, 100]], [450, 0.35, [255, 90, 110]], [600, 0.22, [130, 190, 255]]].forEach(([r, sp, col], i) => {
-        ctx.strokeStyle = 'rgba(210,205,255,0.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(W / 2, 960, r, r * 0.4, 0, 0, 7); ctx.stroke();
-        const a = t * sp + i * 1.7, x = W / 2 + Math.cos(a) * r, y = 960 + Math.sin(a) * r * 0.4;
-        glowDot(ctx, x, y, i === 2 ? 34 : 22, col);
-        if (i === 2) { K.text(ctx, '✚', x, y + 12, { font: '700 34px Manrope', color: '#fff', shadow: false }); ctx.strokeStyle = '#ff5a6e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 54 + 8 * kick(t), 0, 7); ctx.stroke(); }
+      glowDot(ctx, W / 2, 960, 26 + 14 * kick(t), [255, 90, 110]);
+      HATS.filter(h => h >= 27.1 && h < 28.3).forEach((h, i) => {
+        if (t < h) return; const q = K.ease.outCubic(K.clamp((t - h) / 0.2)), w = 320 + (i % 2) * 180, y = 300 + i * 230, fromL = i % 2 === 0;
+        ctx.fillStyle = 'rgba(120,90,255,0.88)'; ctx.fillRect(fromL ? -w + q * (w + 40 + i * 30) : W - q * (w + 40 + i * 30), y, w, 110);
       });
-      if (t > 29.91) term(ctx, '> обнаружен 1 объект без оружия', t, 29.91, 110, 1500);
+      if (t > 27.9) { title(ctx, 'ВСЯ ВСЕЛЕННАЯ', W / 2, 1480, t, 27.9, { size: 98, stagger: 0.025 }); sub(ctx, 'стреляет.', t, 28.3, 1590); }
     } },
-    { a: 30.81, b: 32.57, hud: { sig: 'СИГНАЛ 77%' }, draw(ctx, t) { // the sky lights up with tracer "stars" — he is the one that lands softly
+    { a: 28.79, b: 29.73, hud: { ra: 'RA 02.11h  DEC +08.7°' }, draw(ctx, t) { // meteors hit the moon on the beat
       space(ctx, t);
-      const n = count(KICKS, t, 30.8, 32.6);
-      for (let i = 0; i < 6; i++) { const k = ((t - 30.81) * 1.4 + i / 6) % 1, x = 100 + i * 170; ctx.strokeStyle = `rgba(255,200,120,${0.7 * (1 - k)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x, 1700 - k * 1500); ctx.lineTo(x - 30, 1760 - k * 1500); ctx.stroke(); }
-      big(ctx, String(312 + n * 7), W / 2, 950, { size: 200, color: '#dfffe9', glow: 'rgba(80,255,150,0.9)', scale: 1 + 0.08 * kick(t) });
-      serif(ctx, 'спасённых. и ни одного выстрела.', W / 2, 1100);
+      const s = 1 + 0.05 * kick(t) + 0.04 * K.prog(t, 28.79, 29.73), cx = W / 2, cy = 1000;
+      moon(ctx, cx, cy, 320 * s);
+      [[28.82, -0.9], [29.27, 0.6], [29.5, -0.2]].forEach(([h, ang], i) => {
+        const q = K.prog(t, h - 0.18, h), hx = cx + Math.cos(ang) * 200, hy = cy + Math.sin(ang) * 180 - 60;
+        if (q > 0 && q < 1) { const sx = hx + 500, sy = hy - 700; glowDot(ctx, K.lerp(sx, hx, q), K.lerp(sy, hy, q), 22, [255, 200, 150]); }
+        if (t >= h) { debris(ctx, hx, hy, t, h, { n: 30, speed: 260, life: 0.6, size: 9 }); ctx.fillStyle = 'rgba(50,50,75,0.55)'; ctx.beginPath(); ctx.arc(hx, hy, 34, 0, 7); ctx.fill(); }
+      });
+      title(ctx, 'ДАЖЕ ЛУНА', W / 2, 520, t, 28.82, { size: 112 });
+      sub(ctx, 'вся в шрамах от ударов.', t, 29.27, 1440);
+    } },
+    { a: 29.73, b: 30.81, hud: { cnt: 'ОБЪЕКТОВ БЕЗ ОРУЖИЯ: 1' }, draw(ctx, t) { // a reticle hunts across the orbits and locks on him
+      space(ctx, t);
+      const cx = W / 2, cy = 960;
+      glowDot(ctx, cx, cy, 150, [255, 210, 120], 1);
+      let tgt = null;
+      [[210, 1.6, [160, 170, 200]], [330, 1.0, [255, 120, 100]], [460, 0.6, [255, 90, 110]], [610, 0.4, [130, 190, 255]]].forEach(([r, sp, col], i) => {
+        ctx.strokeStyle = 'rgba(210,205,255,0.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(cx, cy, r, r * 0.42, 0, 0, 7); ctx.stroke();
+        const a = t * sp + i * 1.7, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.42;
+        glowDot(ctx, x, y, i === 2 ? 36 : 24, col); if (i === 2) tgt = [x, y];
+      });
+      const lock = K.ease.inOutCubic(K.prog(t, 29.75, 30.3)), rx = K.lerp(150, tgt[0], lock), ry = K.lerp(1500, tgt[1], lock), rs = 90 - 30 * lock + 10 * kick(t);
+      ctx.save(); ctx.strokeStyle = lock >= 1 ? '#ff5a6e' : '#e0dcff'; ctx.lineWidth = 4; ctx.translate(rx, ry); ctx.rotate(t * (1 - lock) * 4);
+      for (let k = 0; k < 4; k++) { ctx.rotate(Math.PI / 2); ctx.beginPath(); ctx.moveTo(rs, -16); ctx.lineTo(rs, 16); ctx.moveTo(rs - 22, 0); ctx.lineTo(rs + 14, 0); ctx.stroke(); }
+      ctx.beginPath(); ctx.arc(0, 0, rs * 0.7, 0, 7); ctx.stroke(); ctx.restore();
+      if (lock >= 1) { K.text(ctx, '✚', tgt[0], tgt[1] + 13, { font: '700 36px Manrope', color: '#fff', shadow: false }); ctx.fillStyle = 'rgba(4,3,14,0.55)'; ctx.beginPath(); ctx.roundRect(80, 1440, 920, 100, 20); ctx.fill(); term(ctx, '> 1 объект без оружия', t, 30.3, 120, 1505); }
+    } },
+    { a: 30.81, b: 32.57, hud: { sig: 'СИГНАЛ 77%' }, draw(ctx, t) { // the count of the saved rolls up with every kick
+      space(ctx, t);
+      for (let i = 0; i < 9; i++) { const k = ((t - 30.81) * 1.3 + i / 9) % 1, x = 80 + i * 115; ctx.strokeStyle = `rgba(255,200,120,${0.6 * (1 - k)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(x, 1800 - k * 1700); ctx.lineTo(x - 26, 1870 - k * 1700); ctx.stroke(); }
+      const n = count(KICKS, t, 30.8, 32.6), v = 312 + Math.floor((n + K.clamp(1 - Math.exp(-since(KICKS, t) * 10))) * 7);
+      glowDot(ctx, W / 2, 900, 380, [80, 255, 150], 0.18 + 0.12 * kick(t));
+      big(ctx, String(v), W / 2, 960, { size: 230, color: '#e4ffee', glow: 'rgba(80,255,150,0.9)', scale: 1 + 0.1 * kick(t) });
+      for (let i = 0; i < 18; i++) { const r = K.rng(i + 3), k = ((t * 0.6 + r()) % 1); glowDot(ctx, 200 + r() * 680, 1300 - k * 600, 10, [100, 255, 160], 0.7 * (1 - k)); }
+      sub(ctx, 'спасённых. и ни одного выстрела.', t, 30.9, 1130);
     } },
     { a: 32.57, b: 34.10, hud: {}, draw(ctx, t) { // make a wish
       space(ctx, t);
-      const q = K.prog(t, 32.57, 33.4);
-      if (q < 1) { const x = K.lerp(W + 100, 200, q), y = K.lerp(300, 700, q); const g = ctx.createLinearGradient(x, y, x + 400, y - 160); g.addColorStop(0, 'rgba(255,240,210,0.95)'); g.addColorStop(1, 'rgba(255,240,210,0)'); ctx.strokeStyle = g; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 400, y - 160); ctx.stroke(); glowDot(ctx, x, y, 34, [255, 230, 190]); }
-      serif(ctx, 'загадай желание.', W / 2, 960, { size: 64 });
-      term(ctx, '> выспаться', t, 33.38, W / 2 - 110, 1060, { cps: 14 });
+      const q = K.ease.inOutSine(K.prog(t, 32.57, 33.5)), x = K.lerp(W + 120, 140, q), y = K.lerp(260, 760, q);
+      if (q < 1) { const r = K.rng(4); for (let i = 0; i < 30; i++) { const k = i / 30; glowDot(ctx, x + 520 * k + (r() - 0.5) * 20, y - 200 * k + (r() - 0.5) * 20, 18 * (1 - k), [255, 235, 200], 0.9 * (1 - k)); } glowDot(ctx, x, y, 46, [255, 235, 200]); }
+      for (const h of [33.19, 33.38, 33.61, 33.82]) if (t > h) { const r = K.rng(Math.round(h * 100)); glowDot(ctx, 180 + r() * 720, 400 + r() * 500, 26 * (1 - K.clamp((t - h) / 0.5)), [255, 240, 220], 1 - K.clamp((t - h) / 0.5)); }
+      sub(ctx, 'загадай желание.', t, 32.65, 980, { size: 76 });
+      ctx.fillStyle = 'rgba(4,3,14,0.5)'; if (t > 33.3) { ctx.beginPath(); ctx.roundRect(W / 2 - 230, 1040, 460, 90, 20); ctx.fill(); }
+      term(ctx, '> выспаться', t, 33.38, W / 2 - 170, 1100, { cps: 12, size: 48 });
     } },
-    { a: 34.10, b: 36.29, hud: {}, draw(ctx, t) { // the moon, a tiny figure — "все"
-      ctx.fillStyle = '#d9d9e4'; ctx.fillRect(0, 0, W, H);
-      const g = ctx.createRadialGradient(W / 2, 700, 100, W / 2, 900, 1300); g.addColorStop(0, '#f4f4fb'); g.addColorStop(1, '#9a9aae'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    { a: 34.10, b: 36.29, hud: {}, draw(ctx, t) { // a pale moon, a tiny figure — "все"
+      const z = 1 + 0.08 * K.prog(t, 34.1, 36.29);
+      ctx.save(); ctx.translate(W / 2, 1100); ctx.scale(z, z); ctx.translate(-W / 2, -1100);
+      const g = ctx.createRadialGradient(W / 2, 700, 100, W / 2, 900, 1300); g.addColorStop(0, '#f4f4fb'); g.addColorStop(1, '#8f8fa6');
+      ctx.fillStyle = g; ctx.fillRect(-100, -100, W + 200, H + 200);
       ctx.save(); ctx.beginPath(); ctx.arc(W / 2 + 40, 1060, 470, 0, 7); ctx.clip(); ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W / 2 + 250, 940, 420, 0, 7); ctx.fill(); ctx.restore(); // crescent
-      ctx.fillStyle = '#5b5b6e'; ctx.beginPath(); ctx.arc(500, 1400, 13, 0, 7); ctx.fill(); ctx.fillRect(490, 1412, 20, 46); // tiny figure
-      ctx.fillStyle = '#ff4a5a'; ctx.fillRect(494, 1424, 12, 4); ctx.fillRect(498, 1420, 4, 12);
-      K.text(ctx, 'все'.slice(0, Math.floor(K.clamp((t - 34.45) * 5, 0, 3))), 150, 420, { font: 'italic 72px "Cormorant Garamond"', color: '#6a6a80', align: 'left', shadow: false });
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(W / 2 + 250, 940, 420, 0, 7); ctx.fill(); ctx.restore();
+      const r = K.rng(2); for (let i = 0; i < 20; i++) { const k = (t * 0.05 + r()) % 1; ctx.fillStyle = `rgba(120,120,150,${0.5 * (1 - k)})`; ctx.beginPath(); ctx.arc(r() * W, 1700 - k * 1500, 3, 0, 7); ctx.fill(); }
+      const fx = 500, fy = 1400;
+      ctx.fillStyle = '#4e4e62'; ctx.beginPath(); ctx.arc(fx, fy, 13, 0, 7); ctx.fill(); ctx.fillRect(fx - 10, fy + 12, 20, 46);
+      ctx.fillStyle = '#ff4a5a'; ctx.fillRect(fx - 6, fy + 24, 12, 4); ctx.fillRect(fx - 2, fy + 20, 4, 12);
+      glowDot(ctx, fx, fy + 26, 30 + 10 * kick(t), [255, 80, 100], 0.35);
+      ctx.restore();
+      K.words(ctx, 'все', t, 34.45, { y: 420, x: 150, align: 'left', font: 'italic 600 84px "Cormorant Garamond"', color: '#5a5a72', wps: 0.2 });
     } },
-    { a: 36.29, b: 37.85, draw(ctx, t) { // punchline
-      space(ctx, t);
-      const q = K.prog(t, 37.1, 37.75), s = 0.7 + 0.3 * K.ease.outBack(K.clamp((t - 36.29) / 0.3));
+    { a: 36.29, b: 37.85, draw(ctx, t) { // punchline with RGB split
+      space(ctx, t, { warp: 0.25 });
+      const q = K.prog(t, 37.1, 37.75), j = kick(t) * 14 + (Math.floor(t * 20) % 6 === 0 ? 10 : 0);
       ctx.save(); ctx.translate(W / 2, 960); ctx.rotate(q * 1.4); ctx.scale(1 - q * 0.6, 1 - q * 0.6); ctx.translate(-W / 2, -960);
-      big(ctx, '(КРОМЕ', W / 2, 920, { size: 140, scale: s, color: '#ffe6f0', glow: 'rgba(255,80,150,0.95)', alpha: 1 - q });
-      big(ctx, 'ТЕБЯ)', W / 2, 1080, { size: 140, scale: s, color: '#ffe6f0', glow: 'rgba(255,80,150,0.95)', alpha: 1 - q });
+      for (const [dx, col, glow, a] of [[-j, '#ff4a8a', 'rgba(255,60,120,0)', 0.6], [j, '#5ad8ff', 'rgba(60,200,255,0)', 0.6], [0, '#ffe6f0', 'rgba(255,80,150,0.95)', 1]]) {
+        ctx.save(); ctx.translate(dx, 0); ctx.globalCompositeOperation = a < 1 ? 'lighter' : 'source-over';
+        title(ctx, '(КРОМЕ', W / 2, 920, t, 36.3, { size: 146, color: col, glow, alpha: a * (1 - q), float: 0, stagger: 0.03 });
+        title(ctx, 'ТЕБЯ)', W / 2, 1090, t, 36.42, { size: 146, color: col, glow, alpha: a * (1 - q), float: 0, stagger: 0.03 });
+        ctx.restore();
+      }
       ctx.restore();
     } },
   ];
@@ -326,6 +419,7 @@
     duration: 37.8,
     images: {},
     render(ctx, t, frame) {
+      ctx.fillStyle = '#04030b'; ctx.fillRect(0, 0, W, H);
       if (t < 17.17) chat(ctx, t, frame);
       else {
         const s = SCENES.find(x => t >= x.a && t < x.b);
