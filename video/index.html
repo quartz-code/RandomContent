@@ -10,6 +10,7 @@
   @font-face { font-family: "Cormorant Garamond"; src: url(/video/fonts/CormorantGaramond.ttf); }
   @font-face { font-family: "Cormorant Garamond"; font-style: italic; src: url(/video/fonts/CormorantGaramond-Italic.ttf); }
   @font-face { font-family: "Oswald"; src: url(/video/fonts/Oswald.ttf); }
+  @font-face { font-family: "Manrope"; font-weight: 200 800; src: url(/video/fonts/Manrope.ttf); }
   html, body { margin: 0; background: #000; }
   canvas { display: block; }
 </style>
@@ -19,24 +20,27 @@
 <script src="/video/engine/core.js"></script>
 <script>
   const v = new URLSearchParams(location.search).get('v') || 'a';
-  window.ready = new Promise((resolve, reject) => {
+  // optional per-version data (e.g. the song's loudness envelope) is loaded first if it exists
+  const load = src => new Promise(res => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = res; document.head.appendChild(s); });
+  window.ready = load(`/video/versions/${v}-audio.js`).then(() => new Promise((resolve, reject) => {
     const s = document.createElement('script');
     s.src = `/video/versions/${v}.js`;
     s.onload = async () => {
       try {
         K.init(document.getElementById('c'));
-        const fams = ['PT Mono', 'Old Standard TT', 'Caveat', 'Cormorant Garamond', 'Oswald'];
+        const fams = ['PT Mono', 'Old Standard TT', 'Caveat', 'Cormorant Garamond', 'Oswald', 'Manrope'];
         await Promise.all(fams.map(f => document.fonts.load(`40px "${f}"`, 'Жж')));
         await document.fonts.load('italic 40px "Old Standard TT"', 'Жж');
         await document.fonts.load('italic 40px "Cormorant Garamond"', 'Жж');
         await document.fonts.load('bold 40px "Oswald"', 'Жж');
+        for (const w of [400, 600, 800]) await document.fonts.load(`${w} 40px "Manrope"`, 'Жж');
         await K.loadImages(VERSION.images);
         resolve({ duration: VERSION.duration });
       } catch (e) { reject(e); }
     };
     s.onerror = () => reject(new Error('version script failed'));
     document.head.appendChild(s);
-  });
+  }));
   window.renderAt = (t, frame) => VERSION.render(K.ctx, t, frame);
 </script>
 </body>

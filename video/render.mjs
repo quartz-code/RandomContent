@@ -46,7 +46,15 @@ const grab = (t, frame, type) => page.evaluate(([t, frame, type, scale]) => {
   return c.toDataURL(type, 0.92).split(',')[1];
 }, [t, frame, type, scale]);
 
-if (args.stills) {
+if (args.curves) {
+  // per-version automation curves (e.g. how well the radio is tuned) for the sound mix
+  const data = await page.evaluate(([dur]) => {
+    const out = { dt: 0.02, v: [] };
+    for (let t = 0; t <= dur; t += 0.02) out.v.push(VERSION.curves(t));
+    return out;
+  }, [duration]);
+  fs.writeFileSync(path.resolve(args.curves), JSON.stringify(data)); console.log(args.curves);
+} else if (args.stills) {
   const outdir = path.resolve(args.outdir || 'out'); fs.mkdirSync(outdir, { recursive: true });
   for (const s of String(args.stills).split(',')) {
     const t = Number(s), b64 = await grab(t, Math.round(t * fps), 'image/jpeg');
