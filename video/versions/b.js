@@ -11,16 +11,27 @@
   const BY = 470, BH = 980; // the film band
   const BAR = 2.88, B0 = 0.81, beat = n => B0 + n * BAR / 4; // beat grid of the song
 
+  // blurred backdrop is rendered once per image at low resolution (a full-frame blur per frame is slow)
+  const bgCache = {};
+  const backdrop = key => {
+    if (!bgCache[key]) {
+      const c = K.makeCanvas(270, 480), x = c.getContext('2d');
+      x.filter = 'blur(7px) brightness(0.32) saturate(0.6)';
+      K.cover(x, I(key), { x: -20, y: -20, w: 310, h: 520 }, 1.1);
+      bgCache[key] = c;
+    }
+    return bgCache[key];
+  };
   const band = (ctx, key, p, from, to, o = {}) => {
     const im = I(key);
-    ctx.filter = 'blur(28px) brightness(0.32) saturate(0.6)';
-    K.cover(ctx, im, { x: -80, y: -80, w: W + 160, h: H + 160 }, 1.1);
+    ctx.drawImage(backdrop(key), 0, 0, W, H);
     ctx.filter = o.grade || GRADE;
     ctx.save(); ctx.beginPath(); ctx.rect(0, BY, W, BH); ctx.clip();
     K.kenBurns(ctx, im, p, from, to, { x: 0, y: BY, w: W, h: BH }, o.src);
     ctx.filter = 'none';
     if (o.extra) o.extra(ctx);
     ctx.restore();
+    ctx.filter = 'none'; // restore() brings back the grade set before save()
     ctx.fillStyle = 'rgba(236,224,200,0.55)';
     ctx.fillRect(60, BY - 18, W - 120, 2); ctx.fillRect(60, BY + BH + 16, W - 120, 2);
   };

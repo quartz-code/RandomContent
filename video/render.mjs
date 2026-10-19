@@ -57,7 +57,7 @@ if (args.stills) {
   const from = Number(args.from || 0), to = Number(args.to || duration);
   const out = path.resolve(args.out || `out/${args.v || 'a'}-video.mp4`); fs.mkdirSync(path.dirname(out), { recursive: true });
   const ff = spawn('ffmpeg', ['-v', 'error', '-y', '-f', 'image2pipe', '-c:v', 'mjpeg', '-framerate', String(fps), '-i', '-',
-    '-c:v', 'libx264', '-preset', 'medium', '-crf', '18', '-pix_fmt', 'yuv420p', out], { stdio: ['pipe', 'inherit', 'inherit'] });
+    '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '17', '-pix_fmt', 'yuv420p', out], { stdio: ['pipe', 'inherit', 'inherit'] });
   const n = Math.round((to - from) * fps), t0 = Date.now();
   for (let i = 0; i < n; i++) {
     const t = from + i / fps, b64 = await grab(t, Math.round(t * fps), 'image/jpeg');

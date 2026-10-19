@@ -32,8 +32,11 @@
   K.hash = (a, b = 0) => K.rng(a * 7919 + b * 104729 + 13)();
 
   // ---------- canvases ----------
+  // Offscreen canvases are forced onto the CPU raster path: in headless Chromium the default
+  // (software-emulated GPU) path makes text and small draws on them ~100x slower.
   K.makeCanvas = (w = W, h = H) => {
-    const c = document.createElement('canvas'); c.width = w; c.height = h; return c;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d', { willReadFrequently: true }); return c;
   };
   K.init = canvas => {
     K.canvas = canvas; K.ctx = canvas.getContext('2d');
@@ -188,13 +191,28 @@
     lines.forEach((l, i) => ctx.fillText(l, x, y + i * (o.lh || 64)));
     ctx.restore();
   };
+  // A word rendered once per font/colour/shadow and reused: text rasterisation is the slow part.
+  K.glyphCache = new Map();
+  K.glyphs = (ctx, w) => {
+    const key = `${ctx.font}|${ctx.fillStyle}|${ctx.shadowBlur}|${w}`;
+    let g = K.glyphCache.get(key);
+    if (!g) {
+      const size = Number((ctx.font.match(/(\d+)px/) || [0, 50])[1]), pad = 24 + ctx.shadowBlur, asc = size * 1.1 + pad;
+      const c = K.makeCanvas(Math.ceil(ctx.measureText(w).width + pad * 2), Math.ceil(size * 1.5 + pad * 2)), x = c.getContext('2d');
+      x.font = ctx.font; x.fillStyle = ctx.fillStyle; x.shadowColor = ctx.shadowColor; x.shadowBlur = ctx.shadowBlur;
+      x.fillText(w, pad, asc);
+      g = { c, pad, asc }; K.glyphCache.set(key, g);
+    }
+    return g;
+  };
   // Word-by-word reveal: each word fades in and rises slightly.
   K.words = (ctx, text, t, t0, o = {}) => {
     if (t < t0) return;
     ctx.save();
     ctx.font = o.font || 'italic 58px "Cormorant Garamond"';
     ctx.fillStyle = o.color || '#efe6d6'; ctx.textAlign = 'left';
-    if (o.shadow !== false) { ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 16; }
+    // per-word shadowBlur is very slow in the software canvas, so it is opt-in
+    if (o.shadow) { ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = 16; }
     const lines = K.wrap(ctx, text, o.maxW || 900), lh = o.lh || 72, wps = o.wps || 0.16, base = ctx.globalAlpha * (o.alpha ?? 1);
     let k = 0;
     lines.forEach((L, i) => {
@@ -202,7 +220,10 @@
       let x = o.align === 'left' ? (o.x ?? 90) : (o.x ?? W / 2) - lw / 2;
       for (const w of L.split(' ')) {
         const p = K.ease.outCubic(K.clamp((t - t0 - k * wps) / 0.5));
-        if (p > 0) { ctx.globalAlpha = base * p; ctx.fillText(w, x, (o.y ?? 1500) + i * lh + (1 - p) * 14); }
+        if (p > 0) {
+          const g = K.glyphs(ctx, w);
+          ctx.globalAlpha = base * p; ctx.drawImage(g.c, x - g.pad, (o.y ?? 1500) + i * lh + (1 - p) * 14 - g.asc);
+        }
         x += ctx.measureText(w + ' ').width; k++;
       }
     });
