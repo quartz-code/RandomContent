@@ -85,13 +85,13 @@
 
   // ================= chat.log (0..17.17) =================
   const LOG = [
-    { who: 'артём', s: 'не спишь?', t: 0.4 },
-    { who: 'костя', s: 'смена. раненых везут', t: 3.2, wait: 2.0 },
-    { who: 'артём', s: 'можно тупой вопрос?', t: 6.4 },
-    { who: 'костя', s: 'давай', t: 8.0, wait: 7.2 },
-    { who: 'артём', s: 'ты там хоть раз стрелял?', t: 10.4 },
-    { who: 'костя', s: 'на войне все стреляют', t: 13.0, wait: 11.8 },
-    { who: 'костя', s: '(кроме меня)', t: 16.3, wait: 15.2, red: true },
+    { who: 'костя', s: 'не спится', t: 0.4 },
+    { who: 'артём', s: 'та же фигня. что такое?', t: 3.0, wait: 2.0 },
+    { who: 'костя', s: 'можно пройти войну и никого не убить?', t: 5.4 },
+    { who: 'артём', s: 'хм. к чему это?', t: 8.2, wait: 7.2 },
+    { who: 'костя', s: 'ну правда. неужели никто не смог?', t: 10.4 },
+    { who: 'артём', s: 'конечно нет. на войне стреляют все', t: 12.9, wait: 11.8 },
+    { who: 'артём', s: '(кроме тебя)', t: 16.3, wait: 15.2, red: true },
   ];
   const LINE_TIMES = LOG.map(m => m.t);
   const chatLog = (ctx, t, frame) => {
@@ -110,7 +110,7 @@
     for (const m of LOG) {
       const t0 = m.wait ?? m.t;
       if (t < t0) break;
-      const lab = m.who + '>', col = m.who === 'артём' ? RED : WHITE, lw = 44 + (m.who.length + 2) * 26.4;
+      const lab = m.who + '>', col = m.who === 'костя' ? RED : WHITE, lw = 44 + (m.who.length + 2) * 26.4;
       term(ctx, lab, 44, y, { color: col, size: 44 });
       const body = t < m.t ? '.'.repeat(1 + Math.floor((t - t0) * 3) % 3) : typed(m.s, t, m.t, m.red ? 18 : 26);
       const isLast = LOG.filter(q => t >= (q.wait ?? q.t)).pop() === m;
@@ -130,17 +130,31 @@
     sx.save(); sx.translate(x, y); sx.rotate(rot); sx.strokeStyle = col; sx.lineWidth = 1.3; sx.beginPath(); sx.arc(0, 0, r, 0, 7);
     sx.moveTo(-r - 3, 0); sx.lineTo(-r + 2, 0); sx.moveTo(r - 2, 0); sx.lineTo(r + 3, 0); sx.moveTo(0, -r - 3); sx.lineTo(0, -r + 2); sx.moveTo(0, r - 2); sx.lineTo(0, r + 3); sx.stroke(); sx.restore();
   };
-  const soldier = (x, y, s, col = '#bbb', flip = 1, recoil = 0) => {
-    x -= flip * recoil;
-    sx.fillStyle = col; sx.beginPath(); sx.arc(x, y - 9 * s, 2.2 * s, 0, 7); sx.fill();
-    sx.fillRect(x - 2.6 * s, y - 12.4 * s, 5.2 * s, 1.6 * s);
-    sx.fillRect(x - 2.2 * s, y - 6.5 * s, 4.4 * s, 8 * s); sx.fillRect(x - 2 * s, y + 1.5 * s, 1.6 * s, 6 * s); sx.fillRect(x + 0.4 * s, y + 1.5 * s, 1.6 * s, 6 * s);
-    sx.fillRect(flip > 0 ? x + 1 * s : x - 10 * s, y - 4.5 * s, 9 * s, 1.3 * s);
+  // a soldier in profile, aiming: domed helmet with a brim, forward lean, stance, rifle at the shoulder.
+  // local units: feet at (0,0), ~30 units tall, facing +x; dir flips, aim tilts the rifle up
+  const soldier = (x, y, s, col = '#cfcfcf', dir = 1, recoil = 0, aim = 0) => {
+    sx.save(); sx.translate(x - dir * recoil, y); sx.scale(dir * s, s);
+    sx.strokeStyle = col; sx.fillStyle = col; sx.lineCap = 'round'; sx.lineJoin = 'round';
+    sx.lineWidth = 3; sx.beginPath(); sx.moveTo(-1, -13); sx.lineTo(-6, 0); sx.moveTo(1.5, -13); sx.lineTo(4.5, -7); sx.lineTo(5.5, 0); sx.stroke(); // legs
+    sx.beginPath(); sx.moveTo(-3.2, -12.5); sx.lineTo(3.2, -12.5); sx.lineTo(4.2, -23.5); sx.lineTo(-1.8, -24.5); sx.closePath(); sx.fill();  // torso
+    sx.beginPath(); sx.arc(2.2, -27.5, 2.8, 0, 7); sx.fill();                                                                            // head
+    sx.beginPath(); sx.arc(2.0, -28.4, 4.4, Math.PI, 0); sx.fill(); sx.lineWidth = 1.3; sx.beginPath(); sx.moveTo(-2.9, -28.2); sx.lineTo(6.9, -28.2); sx.stroke(); // helmet + short rim
+    sx.save(); sx.translate(-1, -22); sx.rotate(-0.06 - aim); sx.lineWidth = 1.7; sx.beginPath(); sx.moveTo(-2, 0); sx.lineTo(14, 0); sx.stroke(); sx.fillRect(-3, -1.2, 5, 2.6); sx.restore(); // rifle
+    sx.lineWidth = 2; sx.beginPath(); sx.moveTo(2.5, -22.5); sx.lineTo(9, -22.5 - 9 * Math.sin(0.06 + aim)); sx.moveTo(-0.5, -21.5); sx.lineTo(1.5, -19.5); sx.stroke(); // arms
+    sx.restore();
   };
-  const medic = (x, y, s, glow = 1) => { // Kostya: no rifle, a red cross
-    sx.fillStyle = `rgba(255,255,255,${glow})`; sx.beginPath(); sx.arc(x, y - 9 * s, 2.3 * s, 0, 7); sx.fill();
-    sx.fillRect(x - 2.4 * s, y - 6.5 * s, 4.8 * s, 8 * s); sx.fillRect(x - 2 * s, y + 1.5 * s, 1.6 * s, 6 * s); sx.fillRect(x + 0.4 * s, y + 1.5 * s, 1.6 * s, 6 * s);
-    sx.fillStyle = '#ff3344'; sx.fillRect(x - 0.6 * s, y - 5.5 * s, 1.2 * s, 4.4 * s); sx.fillRect(x - 2 * s, y - 4 * s, 4 * s, 1.2 * s);
+  const MUZZLE = (x, y, s, dir, aim = 0) => [x + dir * s * (-1 + 14 * Math.cos(0.06 + aim)), y + s * (-22 - 14 * Math.sin(0.06 + aim))];
+  // Kostya, front-on: bare head, a red cross on the chest, a medic bag at his side, no rifle
+  const medic = (x, y, s, glow = 1) => {
+    sx.save(); sx.translate(x, y); sx.scale(s, s);
+    const c = `rgba(255,255,255,${glow})`; sx.fillStyle = c; sx.strokeStyle = c; sx.lineCap = 'round';
+    sx.lineWidth = 3; sx.beginPath(); sx.moveTo(-2, -13); sx.lineTo(-2.6, 0); sx.moveTo(2, -13); sx.lineTo(2.6, 0); sx.stroke();
+    sx.beginPath(); sx.moveTo(-4.5, -12.5); sx.lineTo(4.5, -12.5); sx.lineTo(4, -24.5); sx.lineTo(-4, -24.5); sx.closePath(); sx.fill();
+    sx.beginPath(); sx.arc(0, -28, 3.3, 0, 7); sx.fill();
+    sx.lineWidth = 2; sx.beginPath(); sx.moveTo(-4.4, -23); sx.lineTo(-6, -14); sx.moveTo(4.4, -23); sx.lineTo(6.5, -15); sx.stroke();
+    sx.fillStyle = '#ff3344'; sx.fillRect(-0.9, -22.5, 1.8, 7); sx.fillRect(-3.3, -20.1, 6.6, 1.8);                     // cross on the chest
+    sx.fillStyle = c; sx.fillRect(5, -15, 6, 5); sx.fillStyle = '#ff3344'; sx.fillRect(7.5, -14.3, 1, 3.6); sx.fillRect(6.2, -13, 3.6, 1); // bag
+    sx.restore();
   };
   // hands: drawn bright with a dark rim (top, the rescuer) and dim (bottom, the wounded) so they never merge
   const handShape = (c, curl = 1) => {
@@ -176,13 +190,16 @@
       ascii(ctx, frame, { scramble: Math.max(0, 0.6 - (t - 17.63) * 4) });
       decode(ctx, 'у каждого ( своя цель )', W / 2, H - 150, t, 18.0, { size: 40, color: SOFT, align: 'center' });
     } },
-    { a: 18.63, b: 19.27, draw(ctx, t, frame) { // two soldiers fire at each other, recoiling
+    { a: 18.63, b: 19.27, draw(ctx, t, frame) { // two soldiers in profile fire at each other across a clear gap
       begin();
-      const shots = [18.82, 18.98, 19.12], f = since(shots, t), rc = Math.exp(-f * 18) * 1.6;
-      soldier(17, 76, 2.5, '#d0d0d0', 1, rc); soldier(55, 76, 2.5, '#d0d0d0', -1, rc);
-      if (f < 0.08) { sx.fillStyle = '#ffe2a0'; sx.beginPath(); sx.arc(42.5, 64.5, 3.5, 0, 7); sx.arc(29.5, 64.5, 3.5, 0, 7); sx.fill(); }
-      for (let i = 0; i < 4; i++) { const q = ((t - 18.63) * 3 + i / 4) % 1; sx.fillStyle = '#fff'; sx.fillRect(28 + q * 16, 64.4, 2, 0.9); sx.fillRect(44 - q * 16, 65.4, 2, 0.9); }
-      ascii(ctx, frame, { scramble: f < 0.06 ? 0.25 : 0 });
+      const shots = [18.82, 18.98, 19.12], f = since(shots, t), rc = Math.exp(-f * 18) * 1.4, gy = 90, s = 1.2;
+      sx.fillStyle = '#3a3a3a'; sx.fillRect(0, gy + 0.5, COLS, 1);
+      soldier(10, gy, s, '#d6d6d6', 1, rc, 0.04); soldier(COLS - 10, gy, s, '#d6d6d6', -1, rc, 0.04);
+      const [lx, ly] = MUZZLE(10 - rc, gy, s, 1, 0.04), [rx, ry] = MUZZLE(COLS - 10 + rc, gy, s, -1, 0.04);
+      if (f < 0.08) { sx.fillStyle = '#ffe2a0'; sx.beginPath(); sx.arc(lx + 1.5, ly, 2.6, 0, 7); sx.arc(rx - 1.5, ry, 2.6, 0, 7); sx.fill(); }
+      for (let i = 0; i < 3; i++) { const q = ((t - 18.63) * 3.2 + i / 3) % 1; sx.fillStyle = '#ffffff'; sx.fillRect(K.lerp(lx + 2, rx - 2, q), K.lerp(ly, ry, q) - 0.4, 2.2, 0.8); sx.fillRect(K.lerp(rx - 2, lx + 2, q) - 2, K.lerp(ry, ly, q) + 1.2, 2.2, 0.8); }
+      ascii(ctx, frame, { scramble: f < 0.06 ? 0.2 : 0 });
+      decode(ctx, 'все стреляют во всех', W / 2, 1640, t, 18.7, { size: 40, color: SOFT, align: 'center' });
     } },
     { a: 19.27, b: 20.13, draw(ctx, t, frame) { // a cross of plus signs flies together, then beats
       begin();
@@ -220,18 +237,29 @@
       const p = K.clamp(0.15 + n * 0.11, 0, 0.7), m = Math.round(p * 16);
       term(ctx, '[' + '#'.repeat(m) + '.'.repeat(16 - m) + ']  ' + Math.round(p * 100) + '%', 70, 1100, { size: 42, color: SOFT });
     } },
-    { a: 22.63, b: 24.43, draw(ctx, t, frame) { // the sniper's eye sweeps the line, finds the one with the cross
+    { a: 22.63, b: 24.43, draw(ctx, t, frame) { // the sniper's eye sweeps the line and stops on the one without a rifle
       begin();
-      const cx = COLS / 2, cy = 38, open = K.ease.outCubic(K.prog(t, 22.63, 22.9)), blink = since([23.65], t) < 0.12 ? 0.15 : 1;
-      const look = t < 23.37 ? Math.sin((t - 22.63) * 5) * 7 : K.lerp(Math.sin(0.74 * 5) * 7, 0, K.clamp((t - 23.37) / 0.2));
-      sx.strokeStyle = '#e0e0e0'; sx.lineWidth = 1.6; sx.beginPath(); sx.ellipse(cx, cy, 27, 13 * open * blink, 0, 0, 7); sx.stroke();
-      if (open * blink > 0.5) { sx.fillStyle = '#cfcfcf'; sx.beginPath(); sx.arc(cx + look, cy, 8.5, 0, 7); sx.fill(); sx.fillStyle = '#000'; sx.beginPath(); sx.arc(cx + look, cy, 3.6, 0, 7); sx.fill(); sx.fillStyle = '#fff'; sx.fillRect(cx + look + 2, cy - 4, 2, 2); }
-      for (let i = 0; i < 6; i++) { const x = 6 + i * 12 + (i >= 3 ? 12 : 0); soldier(x, 106, 1.25, '#8f8f8f', i < 3 ? 1 : -1); }
-      medic(cx, 106, 1.35, 0.7 + 0.3 * kick(t));
-      // the sight finds him
-      if (t > 23.37) { const q = K.ease.outBack(K.clamp((t - 23.37) / 0.3)); CROSSH(cx, 96, 9 * (2 - q), '#ff3344', (1 - q) * 3); }
+      const cx = COLS / 2, cy = 34, open = K.ease.outCubic(K.prog(t, 22.63, 22.95)) * (since([23.65], t) < 0.14 ? 0.12 : 1);
+      const lock = K.clamp((t - 23.37) / 0.25), look = (1 - lock) * Math.sin((t - 22.63) * 4.2) * 9;
+      // almond eye: lids, white, iris with fibres, pupil, highlight, lashes
+      const lid = (k) => { sx.beginPath(); sx.moveTo(cx - 30, cy); sx.quadraticCurveTo(cx, cy - 24 * k, cx + 30, cy); sx.quadraticCurveTo(cx, cy + 17 * k, cx - 30, cy); sx.closePath(); };
+      sx.save(); lid(open); sx.fillStyle = '#4a4a4a'; sx.fill(); sx.clip();
+      sx.fillStyle = '#a9a9a9'; sx.beginPath(); sx.arc(cx + look, cy, 10, 0, 7); sx.fill();
+      sx.strokeStyle = '#6a6a6a'; sx.lineWidth = 0.7; for (let k = 0; k < 18; k++) { const a2 = k / 18 * 6.283; sx.beginPath(); sx.moveTo(cx + look + Math.cos(a2) * 4.5, cy + Math.sin(a2) * 4.5); sx.lineTo(cx + look + Math.cos(a2) * 9.5, cy + Math.sin(a2) * 9.5); sx.stroke(); }
+      sx.fillStyle = '#000'; sx.beginPath(); sx.arc(cx + look, cy, 4.2 - lock, 0, 7); sx.fill();
+      sx.fillStyle = '#fff'; sx.fillRect(cx + look + 2.5, cy - 4.5, 2.2, 2.2);
+      sx.restore();
+      lid(open); sx.strokeStyle = '#ececec'; sx.lineWidth = 1.8; sx.stroke();
+      sx.lineWidth = 1.1; for (let k = -4; k <= 4; k++) { const u = (k + 4) / 8, x0 = cx - 26 + u * 52, y0 = cy - 20 * open * (1 - Math.pow(2 * u - 1, 2)); sx.beginPath(); sx.moveTo(x0, y0); sx.lineTo(x0 + k * 0.6, y0 - 3.5 * open); sx.stroke(); }
+      // the line: soldiers in profile turned to the middle, rifles up so they never touch; Kostya in the centre
+      const gy = 116;
+      [5, 18].forEach(x => soldier(x, gy, 0.78, '#8e8e8e', 1, 0, 0.45));
+      [COLS - 5, COLS - 18].forEach(x => soldier(x, gy, 0.78, '#8e8e8e', -1, 0, 0.45));
+      medic(cx, gy, 0.9, 0.8 + 0.2 * kick(t));
+      if (lock > 0) { const q = K.ease.outBack(lock); CROSSH(cx, gy - 15, 9 + 10 * (1 - q), '#ff3344', (1 - q) * 3); }
       ascii(ctx, frame, { scramble: Math.max(0, 0.5 - (t - 22.63) * 3) });
-      decode(ctx, 'снайпер видит всех', W / 2, 1300, t, 22.85, { size: 40, color: SOFT, align: 'center' });
+      decode(ctx, 'снайпер видит всех', W / 2, 1060, t, 22.85, { size: 42, color: SOFT, align: 'center' });
+      if (t > 23.5) decode(ctx, 'без оружия', W / 2, 1290, t, 23.5, { size: 38, color: RED, align: 'center' });
     } },
     { a: 24.43, b: 25.13, draw(ctx, t, frame) { // ammo = NULL
       greyVignette(ctx, 0.6); ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
@@ -321,7 +349,7 @@
       const g = Math.floor(t * 18) % 5 === 0 ? 2 : 0, fall = K.prog(t, 37.2, 37.75);
       const q1 = K.ease.outBack(K.clamp((t - 36.29) / 0.25)), q2 = K.ease.outBack(K.clamp((t - 36.45) / 0.25));
       sx.save(); sx.translate(COLS / 2, 50); sx.scale(q1, q1); srcText('(КРОМЕ', g, 0, 15, '#ececec'); sx.restore();
-      sx.save(); sx.translate(COLS / 2, 72); sx.scale(q2, q2); srcText('НЕГО)', -g, 0, 18, '#ff3344'); sx.restore();
+      sx.save(); sx.translate(COLS / 2, 72); sx.scale(q2, q2); srcText('ТЕБЯ)', -g, 0, 18, '#ff3344'); sx.restore();
       if (fall > 0) { const img = sx.getImageData(0, 0, COLS, ROWS); begin(); sx.putImageData(img, 0, Math.round(fall * fall * 60)); }
       ascii(ctx, frame, { flicker: 0.08, scramble: since([36.29, 36.45, 36.93], t) < 0.08 ? 0.4 : fall * 0.6 });
     } },
