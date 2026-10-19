@@ -5,7 +5,7 @@
   const GRADE = 'sepia(0.32) saturate(0.6) contrast(1.08) brightness(0.9)';
   const INK = '#2b2420';
 
-  const up = n => `/video/assets/up/${n}.png`;
+  const up = n => `/video/assets/up/${n}.jpg`;
   const img = n => `/assets/images/${n}`;
 
   const shade = (ctx, from = 1150, a = 0.85) => {

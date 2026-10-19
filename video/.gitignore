@@ -1,4 +1,2 @@
 out/
-assets/c_*.png
-assets/p_*.png
-assets/up/
+assets/up/*.png

@@ -52,7 +52,7 @@
     im.onload = () => { K.images[k] = im; res(); };
     // upscaled crops may not exist yet: fall back to the original crop
     im.onerror = () => {
-      if (url.includes('/up/')) { url = url.replace('/up/', '/'); im.src = url; } else rej(new Error('image failed: ' + url));
+      if (url.includes('/up/')) { url = url.replace('/up/', '/').replace(/\.jpg$/, '.png'); im.src = url; } else rej(new Error('image failed: ' + url));
     };
     im.src = url;
   })));

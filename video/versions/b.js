@@ -5,7 +5,7 @@
 (function () {
   const { W, H } = K;
   const I = n => K.images[n];
-  const up = n => `/video/assets/up/${n}.png`;
+  const up = n => `/video/assets/up/${n}.jpg`;
   const img = n => `/assets/images/${n}`;
   const GRADE = 'sepia(0.25) saturate(0.75) contrast(1.12) brightness(0.92)';
   const BY = 470, BH = 980; // the film band

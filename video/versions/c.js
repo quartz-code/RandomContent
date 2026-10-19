@@ -4,7 +4,7 @@
 (function () {
   const { W, H } = K;
   const I = n => K.images[n];
-  const up = n => `/video/assets/up/${n}.png`;
+  const up = n => `/video/assets/up/${n}.jpg`;
   const img = n => `/assets/images/${n}`;
   const RED = '#d4231e';
   const BAR = 2.972, B0 = 0.23, bar = k => B0 + k * BAR;
