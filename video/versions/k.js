@@ -95,7 +95,7 @@
     { s: 'и что кричат?', t: bar(9), a: bar(9) - 0.5 },
   ];
   const PUNCH = { s: '(одно и то же)', a: bar(10) + 2.5 * BEAT, t: DROP };
-  const CLOCK = [[0, '03:12'], [bar(5), '03:13'], [bar(7), '03:14'], [bar(9), '03:15'], [bar(12), '03:19'], [bar(14), '03:23'], [bar(16), '03:28'], [bar(18), '03:40'], [BLAST, '03:41']];
+  const CLOCK = [[0, '03:12'], [bar(5), '03:13'], [bar(7), '03:14'], [bar(9), '03:15'], [bar(12), '03:19'], [bar(14), '03:23'], [bar(16), '03:28'], [bar(16) + 2 * BEAT, '03:31'], [bar(18), '03:40'], [BLAST, '03:41']];
   const clock = t => CLOCK.filter(c => t >= c[0]).pop()[1];
 
   // ---------------- morse: the key, the ticker, the decoded text ----------------
@@ -649,8 +649,8 @@
     const a = (o.alpha ?? 1) * K.prog(t, 0.9, 1.4);
     let c = clock(t);
     if (win(t, BLAST, BLAST + 1.4) && K.hash(Math.floor(t * 20), 2) > 0.5) c = '0' + Math.floor(K.hash(Math.floor(t * 20), 5) * 9) + ':' + Math.floor(K.hash(Math.floor(t * 20), 6) * 60);
-    txt(ctx, '— журнал приёма', 60, 84, { size: 32, color: GREYT, alpha: a });
-    txt(ctx, (t < BLAST ? 'КВ · 41 м   ' : '') + c, W - 60, 84, { size: 32, color: t > BLAST ? '#7d6a5a' : GREYT, alpha: a, align: 'right' });
+    txt(ctx, '— журнал приёма', 60, 88, { size: 40, color: '#b8ad9e', alpha: a });
+    txt(ctx, (t < BLAST ? 'КВ · 41 м   ' : '') + c, W - 60, 88, { size: 40, color: t > BLAST ? '#9a8470' : '#b8ad9e', alpha: a, align: 'right' });
     ctx.save(); ctx.globalAlpha = a * 0.5; ctx.fillStyle = GREYT; ctx.fillRect(60, 104, W - 120, 1); ctx.restore();
   };
   const cursor = t => (Math.floor(t / (BEAT / 2)) % 2 ? '▌' : ' ');
@@ -665,6 +665,9 @@
     if (o.white) { ctx.fillStyle = `rgba(255,248,235,${o.white})`; ctx.fillRect(0, 0, W, H); }
   };
   const ACT = t => { const p = K.ease.inOutSine(K.prog(t, bar(3), bar(10))); return [1.39 + 0.1 * p, 540, 1142 - 26 * p]; };
+  // the night log cuts between framings on each bar: his lines wide, their lines close on the eye and the dial
+  const LOGCAM = { 3: [1.39, 540, 1142], 4: [1.46, 520, 1130], 5: [1.8, 510, 990], 6: [1.42, 560, 1136], 7: [1.62, 540, 880], 8: [1.47, 530, 1126], 9: [1.85, 570, 1000] };
+  const logCam = t => { const k = Math.max(3, Math.min(9, Math.floor((t + 2.81 - 0.45) / BAR))), c = LOGCAM[k], p = K.prog(t, bar(k), bar(k + 1)); return [c[0] * (1 + 0.03 * p), c[1], c[2] - 10 * p]; };
   const DIALCAM = [1.55, 540, 1016];
 
   // ---- the log over the lower radio ----
@@ -689,7 +692,7 @@
       const y = LY + i * LH + nudge * 6, age = rows.length - off - 1 - i, dim = age > 2 ? 0.45 : age > 0 ? 0.75 : 1;
       const col = r.m.st ? GREYT : r.m.me ? AMBER : WARM, al = dim * (o.alpha ?? 1);
       if (r.first && !r.m.st) txt(ctx, r.m.me ? '>' : '<', 62, y, { size: 48, color: col, alpha: al });
-      txt(ctx, r.s, r.m.st ? 62 : LX, y, { size: r.m.st ? 40 : 48, color: col, alpha: al });
+      txt(ctx, r.s, r.m.st ? 62 : LX, y, { size: r.m.st ? 46 : 48, color: r.m.st ? '#a89d8f' : col, alpha: al });
     });
     return LY + Math.min(rows.length, ROWS_MAX) * LH;
   };
@@ -772,14 +775,15 @@
     ctx.save(); ctx.translate(kx, ky); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.fillStyle = '#0d0907';
     ctx.beginPath(); ctx.moveTo(18, 22); ctx.quadraticCurveTo(60, 2, 92, 14); ctx.lineTo(300, 300); ctx.lineTo(120, 360); ctx.closePath(); ctx.fill(); // sleeve
-    ctx.fillStyle = '#2a1a11';
+    ctx.fillStyle = '#6e4630';
     ctx.beginPath(); ctx.ellipse(40, 14, 44, 26, 0.45, 0, 7); ctx.fill();                                                                   // back of the hand
-    ctx.strokeStyle = '#2a1a11'; ctx.lineWidth = 15;
+    ctx.strokeStyle = '#6e4630'; ctx.lineWidth = 15;
     ctx.beginPath(); ctx.moveTo(18, -2); ctx.quadraticCurveTo(2, -12, -12, -6); ctx.stroke();                                                 // index finger on the knob
     ctx.beginPath(); ctx.moveTo(24, 10); ctx.quadraticCurveTo(6, 6, -6, 10); ctx.stroke();                                                     // middle finger
     ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(34, 26); ctx.quadraticCurveTo(14, 30, 4, 28); ctx.stroke();                               // thumb under
-    ctx.strokeStyle = `rgba(255,175,95,${0.65 * pw})`; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(-18, -10); ctx.quadraticCurveTo(2, -20, 22, -10); ctx.quadraticCurveTo(58, -18, 84, 2); ctx.lineTo(300, 290); ctx.stroke(); // rim
+    ctx.fillStyle = `rgba(255,190,130,${0.35 * pw})`; ctx.beginPath(); ctx.ellipse(36, 0, 26, 9, 0.35, 0, 7); ctx.fill();                  // light on the knuckles
+    ctx.strokeStyle = `rgba(255,185,110,${0.8 * pw})`; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(-18, -10); ctx.quadraticCurveTo(2, -20, 22, -10); ctx.quadraticCurveTo(58, -18, 84, 2); ctx.stroke(); // rim
     ctx.restore();
   };
 
@@ -789,10 +793,10 @@
     // eye lights up, the dial warms
     { a: 0, b: bar(2), draw(ctx, t, frame) { const p = K.ease.inOutSine(K.prog(t, 0, bar(2))); shot(ctx, t, frame, K.lerp(3.1, 2.4, p), 540, K.lerp(1020, 960, p)); header(ctx, t); } },
     // pull back: the needle hunts across the stations, the room appears
-    { a: bar(2), b: bar(3), draw(ctx, t, frame) { const p = K.ease.inOutCubic(K.prog(t, bar(2), bar(3) - 0.25)); shot(ctx, t, frame, K.lerp(2.4, 1.0, p), 540, K.lerp(960, 960, p)); header(ctx, t); } },
+    { a: bar(2), b: bar(3), draw(ctx, t, frame) { const p = K.ease.inOutCubic(K.prog(t, bar(2), bar(3) - 0.9)); shot(ctx, t, frame, K.lerp(2.4, 1.0, p), 540, 960); header(ctx, t); } },
     // the night log
     { a: bar(3), b: bar(10), draw(ctx, t, frame) {
-      const [z, cx, cy] = ACT(t); shot(ctx, t, frame, z, cx, cy);
+      const [z, cx, cy] = logCam(t); shot(ctx, t, frame, z, cx, cy);
       header(ctx, t); logView(ctx, t, frame);
       ticker(ctx, [...MY.map(m => ({ ...m, color: AMBER })), ...THEIR.map(m => ({ ...m, color: WARM }))], t, 60, 1110, W - 120);
     } },
@@ -812,7 +816,7 @@
     { a: DROP, b: DROP + 2.2, draw(ctx, t, frame) {
       const k = hit(t), z = 1.42 * (1 + 0.05 * k);
       shot(ctx, t, frame, z, 540, 1110, { dx: (K.hash(frame, 1) - 0.5) * 16 * k });
-      header(ctx, t); logView(ctx, t, frame, { alpha: 0.1 });
+      header(ctx, t);
       const sh = t > bar(11) + 3 * BEAT ? K.prog(t, bar(11) + 3 * BEAT, DROP + 2.2) : 0;
       ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 1180, W, 300); ctx.restore();
       if (sh <= 0) slam(ctx, PUNCH.s, W / 2, 1370, t, DROP, { size: 120, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.6)', blur: 30, from: 1.25 });
@@ -861,11 +865,14 @@
     { a: bar(17), b: bar(18), draw(ctx, t, frame) {
       shot(ctx, t, frame, DIALCAM[0] * (1 + 0.03 * hit(t)), DIALCAM[1], DIALCAM[2]); header(ctx, t);
       ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
-      const C = ['Hilfe!', 'Help!', 'Помогите!', '> иду', 'Sanitäter!', 'Medic!', 'Санитара!', 'Mama!', '> иду'];
+      const C = ['Hilfe!', 'Help!', '> иду', 'Помогите!', 'Sanitäter!', '> иду', 'Medic!', 'Санитара!', 'Mama!'];
+      let lane = 0;
       C.forEach((s, i) => {
         const t0 = bar(17) + i * BEAT / 2; if (t < t0) return;
-        const me = s[0] === '>', age = (t - t0) / BAR;
-        slam(ctx, s, 120 + K.hash(i, 11) * 520, 380 + K.hash(i, 12) * 1250, t, t0, { size: me ? 64 : 84 + K.hash(i, 13) * 40, color: me ? AMBER : WARM, bold: !me, alpha: Math.max(0.25, 1 - age * 0.8) });
+        const me = s[0] === '>', last = i === C.length - 1, age = (t - t0) / BAR, size = me ? 64 : last ? 130 : 84 + K.hash(i, 13) * 30;
+        ctx.save(); ctx.font = `${size}px ${MONO}`; const w = ctx.measureText(s).width; ctx.restore();
+        const x = me ? 70 : last ? W / 2 - w / 2 : 60 + K.hash(i, 11) * Math.max(0, W - 120 - w), y = me ? 1700 + (lane++) * 80 : last ? 1080 : [420, 640, 860, 1300, 1480, 560, 1180, 960][i % 8];
+        slam(ctx, s, x, y, t, t0, { size, color: me ? AMBER : WARM, bold: !me, alpha: last ? 1 : Math.max(0.3, 1 - age * 0.7) });
       });
     } },
     // overload: the glass goes white, the needle can't hold
@@ -895,7 +902,7 @@
     } },
     // the bridge: he carries a man
     { a: bar(129), b: FREEZE, draw(ctx, t, frame) {
-      const z = 1 + 0.03 * hit(t); ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
+      const z = (1 + 0.03 * hit(t)) * K.lerp(1, 1.14, K.ease.inQuad(K.prog(t, bar(129), FREEZE))); ctx.save(); ctx.translate(W / 2, 760); ctx.scale(z, z); ctx.translate(-W / 2, -760);
       sstv(ctx, t, frame, { img: 'carry', a: bar(129), shake: true }); ctx.restore();
       plate(ctx, 'ВАРШАВА', t, bar(129) - 1);
       const b2 = bar(130);
@@ -926,7 +933,7 @@
       return { a, b: a + 2 * BEAT, draw(ctx, t, frame) {
         sstv(ctx, t, frame, { img, a, broken: true, cold: true });
         plate(ctx, st, t, a, { dim: 0.55, flick: true });
-        caption(ctx, s, t, a + BEAT * 0.6, { size: 110, y: 1690, color: '#e9efe8' });
+        txt(ctx, decodeS(s, t, a + BEAT * 0.6, 0.25), W / 2, 1690, { size: 92, align: 'center', color: '#d3ddd3', alpha: 0.6 + 0.3 * K.hash(Math.floor(t * 12), 8) });
         if (t > a + 2 * BEAT - 0.08) staticBurst(ctx, frame, 0.7);
       } };
     }),
@@ -944,11 +951,13 @@
     // ТБИЛИСИ, home: the eye half closes and never locks
     { a: bar(156), b: bar(158), draw(ctx, t, frame) {
       const p = K.prog(t, bar(156), bar(158));
-      shot(ctx, t, frame, K.lerp(1.6, 1.5, p), 540, 1000, { cold: 0.5 }); header(ctx, t, { alpha: 0.8 });
+      shot(ctx, t, frame, K.lerp(1.6, 1.5, p), 540, 900, { cold: 0.5 });
+      const tg = ctx.createLinearGradient(0, 0, 0, 330); tg.addColorStop(0, 'rgba(0,0,0,0.95)'); tg.addColorStop(0.75, 'rgba(0,0,0,0.8)'); tg.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = tg; ctx.fillRect(0, 0, W, 330);
+      header(ctx, t, { alpha: 0.8 });
       const g = ctx.createLinearGradient(0, 1000, 0, 1200); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.82)'); ctx.fillStyle = g; ctx.fillRect(0, 1000, W, 920);
       if (t > bar(156) + 0.7 && t < bar(157) + 0.4) plate(ctx, 'ТБИЛИСИ', t, bar(156) + 0.7, { dim: 0.7 });
       ticker(ctx, MAMA.map(m => ({ ...m, color: AMBER })), t, 60, 1250, W - 120, { pxs: 420, h: 20 });
-      if (t > bar(157)) txt(ctx, decodeS('нет ответа', t, bar(157), 0.2), 62, 1400, { size: 56, color: GREYT });
+      if (t > bar(157)) txt(ctx, decodeS('нет ответа', t, bar(157), 0.2), 62, 1400, { size: 56, color: '#a89d8f' });
     } },
     // the valves die; the room in moonlight
     { a: bar(158), b: CLICK, draw(ctx, t, frame) {
@@ -969,8 +978,8 @@
         ctx.restore();
       }
       const fo = 1 - K.prog(t, END - 0.6, END);
-      if (t > CLICK + 0.8) slam(ctx, decodeS('(ОДНО', t, CLICK + 0.8, 0.25), W / 2, 900, t, CLICK + 0.8, { size: 140, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.55)', blur: 34, from: 1.1, alpha: fo });
-      if (t > CLICK + 1.1) slam(ctx, decodeS('И ТО ЖЕ)', t, CLICK + 1.1, 0.3), W / 2, 1070, t, CLICK + 1.1, { size: 140, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.55)', blur: 34, from: 1.1, alpha: fo });
+      if (t > CLICK + 0.8) slam(ctx, decodeS('(одно', t, CLICK + 0.8, 0.25), W / 2, 900, t, CLICK + 0.8, { size: 140, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.55)', blur: 34, from: 1.1, alpha: fo });
+      if (t > CLICK + 1.1) slam(ctx, decodeS('и то же)', t, CLICK + 1.1, 0.3), W / 2, 1070, t, CLICK + 1.1, { size: 140, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.55)', blur: 34, from: 1.1, alpha: fo });
     } },
   ];
   const CUTS = [bar(3), DROP, bar(12), bar(13), bar(14), bar(15), bar(16), bar(17), bar(128), bar(129), bar(154), bar(154) + 2 * BEAT, bar(155), bar(155) + 2 * BEAT, bar(156)];
