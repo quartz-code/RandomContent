@@ -22,7 +22,7 @@
   const bandY = i => DIAL.y + 120 + i * 96;
   const NX0 = DIAL.x + 120, NX1 = DIAL.x + DIAL.w - 40;
   const STATIONS = [
-    ['ТБИЛИСИ', 0, 0.12], ['КИЕВ', 0, 0.48], ['МИНСК', 0, 0.80],
+    ['ТБИЛИСИ', 0, 0.12], ['МОСКВА', 0, 0.48], ['КИЕВ', 0, 0.80],
     ['ОДЕССА', 1, 0.20], ['БУХАРЕСТ', 1, 0.55], ['СОФИЯ', 1, 0.86],
     ['ВАРШАВА', 2, 0.10], ['БЕРЛИН', 2, 0.42], ['ВЕНА', 2, 0.74],
     ['ПРАГА', 3, 0.16], ['ЛОНДОН', 3, 0.50], ['ПАРИЖ', 3, 0.82],
@@ -44,16 +44,17 @@
   // ---- the needle: [time, x, move duration, overshoot] ----
   const U = u => NX0 + u * (NX1 - NX0), SX = n => ST(n).x;
   const NK = [[0, U(0.62), 0, 0], [2.5, U(0.12), 0.45, 0], [3.05, U(0.55), 0.45, 0], [3.6, U(0.86), 0.4, 0], [4.15, U(0.30), 0.5, 1]];
-  NK.push([DROP + 2.2, SX('БЕРЛИН'), 0.16, 1], [bar(12) + 2.07, SX('ЛОНДОН'), 0.25, 1], [bar(13) + 2.07, SX('МИНСК'), 0.25, 1]);
-  NK.push([bar(15), SX('БЕРЛИН'), 0.12, 0.6], [bar(15) + BEAT, SX('ЛОНДОН'), 0.12, 0.6], [bar(15) + 2 * BEAT, SX('МИНСК'), 0.12, 0.6], [bar(15) + 3 * BEAT, U(0.63), 0.2, 1]);
-  const CROWD = ['ВЕНА', 'КИЕВ', 'ПАРИЖ', 'ОДЕССА', 'ВАРШАВА', 'СОФИЯ', 'ПРАГА', 'БЕРЛИН'];
+  NK.push([DROP + 2.2, SX('БЕРЛИН'), 0.16, 1], [bar(12) + 2.07, SX('ЛОНДОН'), 0.25, 1], [bar(13) + 2.07, SX('МОСКВА'), 0.25, 1]);
+  NK.push([bar(15), SX('БЕРЛИН'), 0.12, 0.6], [bar(15) + BEAT, SX('ЛОНДОН'), 0.12, 0.6], [bar(15) + 2 * BEAT, SX('МОСКВА'), 0.12, 0.6], [bar(15) + 3 * BEAT, U(0.63), 0.2, 1]);
+  const CROWD = ['БЕРЛИН', 'ЛОНДОН', 'МОСКВА', 'БЕРЛИН', 'ЛОНДОН', 'МОСКВА', 'БУХАРЕСТ', 'БЕРЛИН'];
   CROWD.forEach((n, i) => NK.push([bar(17) + i * BEAT / 2, SX(n), 0.1, 0.5]));
   NK.push([bar(18), U(0.5), 0.3, 0]);
-  NK.push([CODA - 0.17, SX('ВАРШАВА'), 0.17, 1]);
-  const PANIC = ['ВАРШАВА', 'БЕРЛИН', 'ЛОНДОН', 'МИНСК', 'ВЕНА', 'ПРАГА', 'КИЕВ', 'ВАРШАВА'];
+  const NOCALL = U(0.27); // a signal between the printed stations: no call sign
+  NK.push([CODA - 0.17, NOCALL, 0.17, 1]);
+  const PANIC = ['БЕРЛИН', 'ЛОНДОН', 'МОСКВА', 'БУХАРЕСТ', 'ТБИЛИСИ', 'БЕРЛИН', 'ЛОНДОН', 'МОСКВА'];
   PANIC.forEach((n, i) => NK.push([bar(128) + i * BEAT / 2, SX(n), 0.09, 0.4]));
   NK.push([BLAST, U(0.98), 0.08, 0], [BLAST + 0.12, U(0.02), 0.1, 0], [BLAST + 0.26, U(0.95), 0.1, 0], [BLAST + 0.42, U(0.47), 0.6, 1]);
-  NK.push([bar(154) - 0.2, SX('БЕРЛИН'), 0.3, 0.3], [bar(154) + 2 * BEAT - 0.2, SX('ЛОНДОН'), 0.3, 0.3], [bar(155) - 0.2, SX('МИНСК'), 0.3, 0.3], [bar(155) + 2 * BEAT, U(0.33), 0.5, 0]);
+  NK.push([bar(154) - 0.2, SX('БЕРЛИН'), 0.3, 0.3], [bar(154) + 2 * BEAT - 0.2, SX('ЛОНДОН'), 0.3, 0.3], [bar(155) - 0.2, SX('МОСКВА'), 0.3, 0.3], [bar(155) + 2 * BEAT, U(0.33), 0.5, 0]);
   NK.push([bar(156), SX('ТБИЛИСИ'), 1.1, 0.4], [bar(157) + 0.15, U(-0.11), 1.1, 0]);
   const needleBase = t => {
     let x = NK[0][1];
@@ -187,13 +188,14 @@
     if (win(t, DROP, DROP + 1.8)) v = 1;
     if (win(t, bar(15) + 3 * BEAT, bar(15) + 3 * BEAT + 0.35)) v = 1;
     if (win(t, bar(17), CODA)) v = 0.5 + 0.5 * Math.sin(t * 38);
+    if (win(t, CODA, BLAST)) v = 0.45 + 0.12 * Math.sin(t * 6); // a weak signal without a call sign
     if (t > BLAST) v = Math.min(v, 0.15);
     if (win(t, bar(156) + 0.9, bar(157))) v = 0.5 + 0.06 * Math.sin(t * 7);
     return v;
   };
   const dead = t => t < BLAST + 0.59 ? 0 : t < BLAST + 1.18 ? 0.35 : 0.55;
   const STATION_ON = [ // which band row is lit on the dial
-    [0, -1], [DROP + 2.2, 2], [bar(12) + 2.07, 3], [bar(13) + 2.07, 0], [bar(15) + 3 * BEAT, -1], [CODA - 0.17, 2], [bar(130), 2], [BLAST, -1], [bar(156), 0], [bar(157), -1],
+    [0, -1], [DROP + 2.2, 2], [bar(12) + 2.07, 3], [bar(13) + 2.07, 0], [bar(15) + 3 * BEAT, -1], [CODA - 0.17, -1], [bar(130), -1], [BLAST, -1], [bar(156), 0], [bar(157), -1],
   ];
   const bandOn = t => STATION_ON.filter(s => t >= s[0]).pop()[1];
 
@@ -271,7 +273,7 @@
 
   const eye = (ctx, t) => { // the magic eye tuning indicator
     const pw = power(t), tu = eyeTune(t), lvl = envS('rms', t, 0.08);
-    const open = K.lerp(1.9, 0.18, tu) * (1 - lvl * 0.25 * tu) + (1 - tu) * 0.25 * Math.sin(t * 13) * Math.sin(t * 5.3);
+    const open = K.lerp(1.9, 0.18, tu) * (1 - lvl * 0.25 * tu) + (1 - tu) * 0.12 * Math.sin(t * 5) * Math.sin(t * 2.3);
     ctx.save(); ctx.translate(EYE.x, EYE.y);
     const bz = ctx.createRadialGradient(-20, -24, 4, 0, 0, EYE.r + 18);
     bz.addColorStop(0, '#e8e2d4'); bz.addColorStop(0.5, '#7a7468'); bz.addColorStop(1, '#2a2622');
@@ -301,7 +303,7 @@
   const dial = (ctx, t, frame) => {
     const pw = power(t), lvl = envS('rms', t, 0.15), tu = tuned(t);
     ctx.save(); rr(ctx, DIAL.x, DIAL.y, DIAL.w, DIAL.h, 26); ctx.clip();
-    const glow = Math.min(1, pw * (0.75 + 0.18 * lvl + 0.07 * Math.sin(t * 31) * (1 - tu)));
+    const glow = Math.min(1, pw * (0.75 + 0.18 * lvl + 0.03 * Math.sin(t * 7) * (1 - tu)));
     const g = ctx.createRadialGradient(DIAL.x + DIAL.w / 2, DIAL.y + DIAL.h * 0.55, 20, DIAL.x + DIAL.w / 2, DIAL.y + DIAL.h * 0.55, DIAL.w * 0.75);
     g.addColorStop(0, rgb(mix([40, 20, 6], [255, 196, 110], glow)));
     g.addColorStop(0.6, rgb(mix([25, 12, 4], [214, 128, 40], glow)));
@@ -313,8 +315,8 @@
     const od = overdrive(t);
     if (od > 0) { ctx.fillStyle = `rgba(255,246,228,${od * 0.55})`; ctx.fillRect(DIAL.x, DIAL.y, DIAL.w, DIAL.h); }
     // static shimmer on the glass while untuned
-    ctx.save(); ctx.globalAlpha = 0.10 * pw * (1 - tu); ctx.globalCompositeOperation = 'overlay';
-    ctx.drawImage(K.noise[frame % 4], DIAL.x, DIAL.y, DIAL.w, DIAL.h); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.05 * pw * (1 - tu); ctx.globalCompositeOperation = 'overlay';
+    ctx.drawImage(K.noise[Math.floor(frame / 3) % 4], DIAL.x, DIAL.y, DIAL.w, DIAL.h); ctx.restore();
     // needle
     const nx = needleX(t);
     ctx.fillStyle = `rgba(255,90,40,${0.25 * pw})`; ctx.fillRect(nx - 9, DIAL.y, 18, DIAL.h);
@@ -667,14 +669,18 @@
   const ACT = t => { const p = K.ease.inOutSine(K.prog(t, bar(3), bar(10))); return [1.39 + 0.1 * p, 540, 1142 - 26 * p]; };
   // the night log cuts between framings on each bar: his lines wide, their lines close on the eye and the dial
   const LOGCAM = { 3: [1.39, 540, 1142], 4: [1.46, 520, 1130], 5: [1.8, 510, 990], 6: [1.42, 560, 1136], 7: [1.62, 540, 880], 8: [1.47, 530, 1126], 9: [1.85, 570, 1000] };
-  const logCam = t => { const k = Math.max(3, Math.min(9, Math.floor((t + 2.81 - 0.45) / BAR))), c = LOGCAM[k], p = K.prog(t, bar(k), bar(k + 1)); return [c[0] * (1 + 0.03 * p), c[1], c[2] - 10 * p]; };
+  const logCam = t => {
+    const k = Math.max(3, Math.min(9, Math.floor((t + 2.81 - 0.45) / BAR))), a = LOGCAM[Math.max(3, k - 1)], c = LOGCAM[k];
+    const q = K.ease.inOutSine(K.prog(t, bar(k), bar(k) + 1.0)), d = 1 + 0.01 * Math.sin(t * 0.4);
+    return [K.lerp(a[0], c[0], q) * d, K.lerp(a[1], c[1], q), K.lerp(a[2], c[2], q)];
+  };
   const DIALCAM = [1.55, 540, 1016];
 
   // ---- the log over the lower radio ----
   const ROWS_MAX = 6, LH = 64, LY = 1190, LX = 118;
   const logView = (ctx, t, frame, o = {}) => {
     const g = ctx.createLinearGradient(0, 980, 0, 1240); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.82)');
-    ctx.fillStyle = g; ctx.fillRect(0, 980, W, H - 980);
+    ctx.save(); ctx.globalAlpha = o.alpha ?? 1; ctx.fillStyle = g; ctx.fillRect(0, 980, W, H - 980); ctx.restore();
     const rows = [];
     ctx.save(); ctx.font = `48px ${MONO}`;
     for (const m of LOG) {
@@ -745,8 +751,8 @@
   };
   // the station plate: the name decodes out of static, a small scale with the needle settling under it
   const plate = (ctx, name, t, t0, o = {}) => {
-    const s = decodeS(name, t, t0, 0.2), u = (ST(name).x - NX0) / (NX1 - NX0), dim = o.dim ?? 1;
-    txt(ctx, s, W / 2, 200, { size: 96, font: SERIF, color: AMBER, align: 'center', ls: 12, glow: 'rgba(255,150,40,0.7)', blur: 30, alpha: dim * (o.flick ? 0.6 + 0.4 * K.hash(Math.floor(t * 24), 4) : 1) });
+    const s = decodeS(name, t, t0, 0.2), u = o.u ?? (ST(name).x - NX0) / (NX1 - NX0), dim = o.dim ?? 1;
+    txt(ctx, s, W / 2, 200, { size: name.length > 9 ? 70 : 96, font: SERIF, color: AMBER, align: 'center', ls: 12, glow: 'rgba(255,150,40,0.7)', blur: 30, alpha: dim * (o.flick ? 0.6 + 0.4 * K.hash(Math.floor(t * 24), 4) : 1) });
     ctx.save(); ctx.globalAlpha = 0.7 * dim; ctx.fillStyle = AMBER; ctx.fillRect(140, 262, 800, 2);
     for (let k = 0; k <= 40; k++) ctx.fillRect(140 + k * 20, 262 - (k % 5 ? 8 : 16), 2, k % 5 ? 8 : 16);
     const dt = t - t0, nx = 140 + u * 800 + (dt < 0.6 ? Math.sin(dt * 22) * 40 * Math.exp(-dt * 8) : 0);
@@ -790,12 +796,16 @@
   // ================= scenes =================
   const keyIsDown = t => keyDown(MY, t);
   const SCENES = [
-    // eye lights up, the dial warms
-    { a: 0, b: bar(2), draw(ctx, t, frame) { const p = K.ease.inOutSine(K.prog(t, 0, bar(2))); shot(ctx, t, frame, K.lerp(3.1, 2.4, p), 540, K.lerp(1020, 960, p)); header(ctx, t); } },
-    // pull back: the needle hunts across the stations, the room appears
-    { a: bar(2), b: bar(3), draw(ctx, t, frame) { const p = K.ease.inOutCubic(K.prog(t, bar(2), bar(3) - 0.9)); shot(ctx, t, frame, K.lerp(2.4, 1.0, p), 540, 960); header(ctx, t); } },
+    // the valves warm and the eye lights; one continuous move: back to the whole room, a breath, then onto the log
+    { a: 0, b: bar(3) + 1.0, draw(ctx, t, frame) {
+      const p1 = K.ease.inOutSine(K.prog(t, 0, 3.5)), p2 = K.ease.inOutSine(K.prog(t, 3.95, bar(3) + 1.0)), [z2, cx2, cy2] = LOGCAM[3];
+      shot(ctx, t, frame, K.lerp(K.lerp(3.1, 1.0, p1), z2, p2), K.lerp(540, cx2, p2), K.lerp(K.lerp(1030, 960, p1), cy2, p2));
+      header(ctx, t);
+      const la = K.prog(t, 3.9, 4.6);
+      if (la > 0) { logView(ctx, t, frame, { alpha: la }); ctx.save(); ctx.globalAlpha = la; ticker(ctx, [...MY.map(m => ({ ...m, color: AMBER })), ...THEIR.map(m => ({ ...m, color: WARM }))], t, 60, 1110, W - 120); ctx.restore(); }
+    } },
     // the night log
-    { a: bar(3), b: bar(10), draw(ctx, t, frame) {
+    { a: bar(3) + 1.0, b: bar(10), draw(ctx, t, frame) {
       const [z, cx, cy] = logCam(t); shot(ctx, t, frame, z, cx, cy);
       header(ctx, t); logView(ctx, t, frame);
       ticker(ctx, [...MY.map(m => ({ ...m, color: AMBER })), ...THEIR.map(m => ({ ...m, color: WARM }))], t, 60, 1110, W - 120);
@@ -832,7 +842,7 @@
     // whip across the dial
     { a: DROP + 2.2, b: DROP + 2.37, draw(ctx, t, frame) { shot(ctx, t, frame, 2.2, 540, 732); staticBurst(ctx, frame, 0.6); } },
     // three stations: the same call, the same answer
-    ...[['БЕРЛИН', 'tent', 'Sanitäter!', 'komme!'], ['ЛОНДОН', 'coat', 'Medic!', 'coming!'], ['МИНСК', 'walk', 'Санитара!', 'иду!']].map(([st, img, call, ans], i) => ({
+    ...[['БЕРЛИН', 'tent', 'Sanitäter!', 'komme!'], ['ЛОНДОН', 'coat', 'Medic!', 'coming!'], ['МОСКВА', 'walk', 'Санитара!', 'иду!']].map(([st, img, call, ans], i) => ({
       a: bar(12 + i), b: bar(13 + i), draw(ctx, t, frame) {
         const a = bar(12 + i), z = 1 + 0.03 * hit(t);
         ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
@@ -884,11 +894,11 @@
       ticker(ctx, THEIR.map(m => ({ ...m, color: AMBER })), t - 0.11, 0, 1580, W, { pxs: 700, h: 18 });
       if (t > CODA - 0.55) staticBurst(ctx, frame, K.prog(t, CODA - 0.55, CODA));
     } },
-    // ВАРШАВА: a torn picture, SOS
+    // no call sign: a torn picture, SOS
     { a: CODA, b: bar(128), draw(ctx, t, frame) {
       const z = 1 + 0.035 * hit(t); ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2);
       sstv(ctx, t, frame, { img: 'head', a: CODA, torn: true, shake: true }); ctx.restore();
-      plate(ctx, 'ВАРШАВА', t, CODA, { flick: true });
+      plate(ctx, 'БЕЗ ПОЗЫВНОГО', t, CODA, { flick: true, u: 0.27 });
       let x = 70; // the dots and dashes build up big, then read
       for (const q of SOS.els) { if (q.a > t) break; ctx.fillStyle = '#fbf3e6'; if (q.dash) { rr(ctx, x, 1600, 70, 26, 13); ctx.fill(); x += 92; } else { ctx.beginPath(); ctx.arc(x + 14, 1613, 15, 0, 7); ctx.fill(); x += 42; } }
       if (t > CODA + 3 * BEAT) slam(ctx, 'SOS', W / 2, 1800, t, CODA + 3 * BEAT, { size: 120, color: '#fbf3e6', align: 'center', bold: true });
@@ -904,7 +914,7 @@
     { a: bar(129), b: FREEZE, draw(ctx, t, frame) {
       const z = (1 + 0.03 * hit(t)) * K.lerp(1, 1.14, K.ease.inQuad(K.prog(t, bar(129), FREEZE))); ctx.save(); ctx.translate(W / 2, 760); ctx.scale(z, z); ctx.translate(-W / 2, -760);
       sstv(ctx, t, frame, { img: 'carry', a: bar(129), shake: true }); ctx.restore();
-      plate(ctx, 'ВАРШАВА', t, bar(129) - 1);
+      plate(ctx, 'БЕЗ ПОЗЫВНОГО', t, bar(129) - 1, { u: 0.27 });
       const b2 = bar(130);
       if (t < b2) { caption(ctx, 'раненый. у моста', t, bar(129), { size: 70, y: 1620 }); reply(ctx, 'иду.', t, bar(129) + BEAT, { y: 1730 }); if (t > bar(129) + 3 * BEAT) reply(ctx, 'несу.', t, bar(129) + 3 * BEAT, { y: 1840 }); }
       else {
@@ -928,7 +938,7 @@
       if (d < 0.6) tear(ctx, frame, 1 - d / 0.6);
     } },
     // what is left of the stations
-    ...[['БЕРЛИН', 'tent', 'Mama…'], ['ЛОНДОН', 'coat', 'Mum…'], ['МИНСК', 'walk', 'мама…']].map(([st, img, s], i) => {
+    ...[['БЕРЛИН', 'tent', 'Mama…'], ['ЛОНДОН', 'coat', 'Mum…'], ['МОСКВА', 'walk', 'мама…']].map(([st, img, s], i) => {
       const a = bar(154) + i * 2 * BEAT;
       return { a, b: a + 2 * BEAT, draw(ctx, t, frame) {
         sstv(ctx, t, frame, { img, a, broken: true, cold: true });
@@ -982,7 +992,7 @@
       if (t > CLICK + 1.1) slam(ctx, decodeS('и то же)', t, CLICK + 1.1, 0.3), W / 2, 1070, t, CLICK + 1.1, { size: 140, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.55)', blur: 34, from: 1.1, alpha: fo });
     } },
   ];
-  const CUTS = [bar(3), DROP, bar(12), bar(13), bar(14), bar(15), bar(16), bar(17), bar(128), bar(129), bar(154), bar(154) + 2 * BEAT, bar(155), bar(155) + 2 * BEAT, bar(156)];
+  const CUTS = [DROP, bar(12), bar(13), bar(14), bar(15), bar(16), bar(17), bar(128), bar(129), bar(154), bar(154) + 2 * BEAT, bar(155), bar(155) + 2 * BEAT, bar(156)];
 
   // ================= sound automation for audio/radio_mix.py =================
   const BURSTS = [[DROP + 2.2, DROP + 2.37, 0.9], ...[12, 13, 14].map(k => [bar(k) + BAR - BEAT / 2, bar(k + 1), 0.75]), [CODA - 0.55, CODA, 1],
