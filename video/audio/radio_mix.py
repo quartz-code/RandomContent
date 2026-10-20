@@ -10,6 +10,7 @@ Curves (sampled every dt seconds; missing ones default to 0, power to 1):
   ring       — level of a 4.1 kHz tinnitus tone
   whistle    — level of a falling shell whistle; whf is its pitch in Hz
   click, pop — impulses: a hard switch click, a valve pop
+  gain       — master level (default 1): lets the drop and the climax hit harder; a limiter keeps the peaks clean
   siren      — level of a distant air-raid siren inside the noise
   over       — overload: the music distorts and drowns in noise (explosion)
   boom       — level of a low explosion rumble
@@ -38,6 +39,7 @@ burst, siren, over, boom = cur('burst', smooth=0.01), cur('siren', smooth=0.2), 
 morse, morse2 = cur('morse', smooth=0.005), cur('morse2', smooth=0.005)
 narrow, ring, whistle, whf = cur('narrow', smooth=0.1), cur('ring', smooth=0.05), cur('whistle', smooth=0.05), cur('whf', 1000.0, smooth=0.05)
 click, pop = cur('click', smooth=0.002), cur('pop', smooth=0.004)
+gain = cur('gain', 1.0, smooth=0.04)
 clean = np.clip(np.maximum(tuned, tx), 0, 1)
 
 rng = np.random.default_rng(1)
@@ -78,8 +80,9 @@ mix *= power[:, None]  # valves warming up or dying
 # switch click and valve pops sit outside the power gain: they are the last sounds
 mix += white * 1.2 * click[:, None] + sosfilt(butter(2, 900, btype='low', fs=SR, output='sos'), white, axis=0) * 2.0 * pop[:, None]
 fade = np.clip((length - ts) / max(0.5, length - fo), 0, 1)[:, None]
-mix *= fade
-mix = np.tanh(mix * 1.1) / 1.1
-subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-i', '-', out],
+mix *= fade * gain[:, None]
+mix = np.clip(mix, -4, 4)
+subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ac', '2', '-ar', str(SR), '-i', '-',
+                '-af', 'alimiter=limit=0.93:attack=4:release=90:level=disabled', out],
                input=mix.astype(np.float32).tobytes(), check=True)
 print(out)

@@ -1016,6 +1016,7 @@
       ring: +(d > 0.25 && d < 5 ? Math.exp(-(d - 0.25) * 0.7) : 0).toFixed(3),
       whistle: win(t, bar(130), FREEZE) ? 1 : 0, whf: +(2500 - 1900 * K.prog(t, bar(130), FREEZE)).toFixed(0),
       narrow: +(t >= bar(157) && t < CLICK ? 1 : t >= bar(154) && t < bar(156) ? 0.6 : 0).toFixed(3),
+      gain: t < DROP ? 0.8 : t < CODA ? 1.35 : t < BLAST ? 1.65 : t < bar(154) ? 1.2 : 1.0, // quieter chat, the drop and the climax hit harder
       click: imp([CLICK, 0.15]), pop: imp([BLAST + 0.59, BLAST + 1.18, BLAST + 1.77, bar(158), bar(158) + 2 * BEAT, bar(157) + 1.25]),
     };
   };
