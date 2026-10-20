@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Pulse waveform -->
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M28,54 L40,54 L46,40 L54,70 L62,34 L68,54 L80,54"
+        android:strokeWidth="5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+</vector>
