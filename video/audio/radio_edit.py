@@ -1,7 +1,7 @@
 """Cuts the song into a new order for a radio version: each segment is a station's piece of the song.
 usage: python3 radio_edit.py <song> <edit.json> <out.wav>
-edit.json: {"segments": [[src_start, src_end], ...]} — played back to back with 25 ms crossfades
-(the static burst drawn over each switch hides the joins).
+edit.json: {"segments": [[src_start, src_end] | ["gap", seconds], ...]} — played back to back with
+25 ms crossfades (the static burst drawn over each switch hides the joins); a gap is silence.
 """
 import sys, json, subprocess, numpy as np
 
@@ -14,7 +14,9 @@ x = np.frombuffer(raw, np.float32).reshape(-1, 2)
 xf = int(0.025 * SR)
 parts = []
 for a, b in segs:
-    p = x[int(a * SR):int(b * SR)].copy()
+    if a == 'gap':
+        parts.append(np.zeros((int(round(b * SR)), 2), np.float32)); continue
+    p = x[int(round(a * SR)):int(round(b * SR))].copy()
     ramp = np.linspace(0, 1, xf, dtype=np.float32)[:, None]
     p[:xf] *= ramp; p[-xf:] *= ramp[::-1]
     parts.append(p)

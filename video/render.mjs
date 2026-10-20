@@ -49,8 +49,8 @@ const grab = (t, frame, type) => page.evaluate(([t, frame, type, scale]) => {
 if (args.curves) {
   // per-version automation curves (e.g. how well the radio is tuned) for the sound mix
   const data = await page.evaluate(([dur]) => {
-    const out = { dt: 0.02, v: [] };
-    for (let t = 0; t <= dur; t += 0.02) out.v.push(VERSION.curves(t));
+    const dt = VERSION.curvesDt || 0.02, out = { dt, v: [] };
+    for (let i = 0; i * dt <= dur; i++) out.v.push(VERSION.curves(i * dt));
     return out;
   }, [duration]);
   fs.writeFileSync(path.resolve(args.curves), JSON.stringify(data)); console.log(args.curves);

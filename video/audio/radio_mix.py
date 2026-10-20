@@ -4,7 +4,12 @@ Curves (sampled every dt seconds; missing ones default to 0, power to 1):
   tuned, tx  — clean music when either is 1, otherwise band-limited, crushed radio under hiss
   power      — valves warming up / dying (master gain)
   burst      — white-noise static burst (station switch, masks song edits)
-  morse      — 0/1 key of an 800 Hz morse tone
+  morse      — 0/1 key of his morse tone (700 Hz)
+  morse2     — 0/1 key of the other station's morse (590 Hz, fading in and out)
+  narrow     — 0..1 squeezes the untuned radio band from 380–2600 Hz to 700–1500 Hz
+  ring       — level of a 4.1 kHz tinnitus tone
+  whistle    — level of a falling shell whistle; whf is its pitch in Hz
+  click, pop — impulses: a hard switch click, a valve pop
   siren      — level of a distant air-raid siren inside the noise
   over       — overload: the music distorts and drowns in noise (explosion)
   boom       — level of a low explosion rumble
@@ -30,12 +35,17 @@ def cur(k, d=0.0, smooth=0.05):
     return np.convolve(a, np.ones(w) / w, mode='same') if w > 1 else a
 tuned, power, tx = cur('tuned'), cur('power', 1.0), cur('tx')
 burst, siren, over, boom = cur('burst', smooth=0.01), cur('siren', smooth=0.2), cur('over', smooth=0.03), cur('boom', smooth=0.02)
-morse = cur('morse', smooth=0.005)
+morse, morse2 = cur('morse', smooth=0.005), cur('morse2', smooth=0.005)
+narrow, ring, whistle, whf = cur('narrow', smooth=0.1), cur('ring', smooth=0.05), cur('whistle', smooth=0.05), cur('whf', 1000.0, smooth=0.05)
+click, pop = cur('click', smooth=0.002), cur('pop', smooth=0.004)
 clean = np.clip(np.maximum(tuned, tx), 0, 1)
 
 rng = np.random.default_rng(1)
 radio = sosfilt(butter(4, [380, 2600], btype='band', fs=SR, output='sos'), x, axis=0)
 radio = np.tanh(radio * 2.2) / 2.2 * 1.6
+tight = sosfilt(butter(4, [700, 1500], btype='band', fs=SR, output='sos'), x, axis=0)
+tight = np.tanh(tight * 3.0) / 3.0 * 2.2
+radio = radio * (1 - narrow[:, None]) + tight * narrow[:, None]
 hiss = rng.standard_normal((n, 2)).astype(np.float32)
 hiss = sosfilt(butter(2, [1500, 9000], btype='band', fs=SR, output='sos'), hiss, axis=0) * 0.07
 crackle = (rng.random((n, 1)) < 0.0004) * rng.standard_normal((n, 1)) * 0.35
@@ -47,8 +57,12 @@ mix = x * g + radio * (1 - g) * wobble * 0.9 + (hiss + crackle) * (1 - 0.85 * g)
 white = sosfilt(butter(2, [300, 11000], btype='band', fs=SR, output='sos'), rng.standard_normal((n, 2)), axis=0).astype(np.float32)
 mix = mix * (1 - 0.85 * burst[:, None]) + white * 0.33 * burst[:, None]
 # morse: 800 Hz with a slight valve buzz
-tone = (np.sin(2 * np.pi * 800 * ts) + 0.15 * np.sin(2 * np.pi * 1600 * ts)) * 0.16
-mix += (tone * morse)[:, None]
+tone = (np.sin(2 * np.pi * 700 * ts) + 0.15 * np.sin(2 * np.pi * 1400 * ts)) * 0.15
+qsb = 0.55 + 0.45 * np.sin(2 * np.pi * 0.9 * ts) * np.sin(2 * np.pi * 0.23 * ts + 1)
+tone2 = np.sin(2 * np.pi * 590 * ts) * 0.13 * qsb
+mix += (tone * morse + tone2 * morse2)[:, None]
+mix += (np.sin(2 * np.pi * 4100 * ts) * 0.05 * ring)[:, None]
+mix += (np.sin(2 * np.pi * np.cumsum(whf) / SR) * 0.10 * whistle)[:, None]
 # distant siren: slow rising/falling tone, band-limited like the radio
 sf = 520 + 260 * (0.5 - 0.5 * np.cos(2 * np.pi * ts / 4.0))
 sir = np.sin(2 * np.pi * np.cumsum(sf) / SR) * 0.12
@@ -61,6 +75,8 @@ rum = sosfilt(butter(2, 120, btype='low', fs=SR, output='sos'), brown) * 0.02
 mix += (rum * boom)[:, None]
 
 mix *= power[:, None]  # valves warming up or dying
+# switch click and valve pops sit outside the power gain: they are the last sounds
+mix += white * 1.2 * click[:, None] + sosfilt(butter(2, 900, btype='low', fs=SR, output='sos'), white, axis=0) * 2.0 * pop[:, None]
 fade = np.clip((length - ts) / max(0.5, length - fo), 0, 1)[:, None]
 mix *= fade
 mix = np.tanh(mix * 1.1) / 1.1
