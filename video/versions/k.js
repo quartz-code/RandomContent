@@ -22,7 +22,7 @@
   const bandY = i => DIAL.y + 120 + i * 96;
   const NX0 = DIAL.x + 120, NX1 = DIAL.x + DIAL.w - 40;
   const STATIONS = [
-    ['МОСКВА', 0, 0.12], ['КИЕВ', 0, 0.48], ['МИНСК', 0, 0.80],
+    ['ТБИЛИСИ', 0, 0.12], ['КИЕВ', 0, 0.48], ['МИНСК', 0, 0.80],
     ['ОДЕССА', 1, 0.20], ['БУХАРЕСТ', 1, 0.55], ['СОФИЯ', 1, 0.86],
     ['ВАРШАВА', 2, 0.10], ['БЕРЛИН', 2, 0.42], ['ВЕНА', 2, 0.74],
     ['ПРАГА', 3, 0.16], ['ЛОНДОН', 3, 0.50], ['ПАРИЖ', 3, 0.82],
@@ -54,7 +54,7 @@
   PANIC.forEach((n, i) => NK.push([bar(128) + i * BEAT / 2, SX(n), 0.09, 0.4]));
   NK.push([BLAST, U(0.98), 0.08, 0], [BLAST + 0.12, U(0.02), 0.1, 0], [BLAST + 0.26, U(0.95), 0.1, 0], [BLAST + 0.42, U(0.47), 0.6, 1]);
   NK.push([bar(154) - 0.2, SX('БЕРЛИН'), 0.3, 0.3], [bar(154) + 2 * BEAT - 0.2, SX('ЛОНДОН'), 0.3, 0.3], [bar(155) - 0.2, SX('МИНСК'), 0.3, 0.3], [bar(155) + 2 * BEAT, U(0.33), 0.5, 0]);
-  NK.push([bar(156), SX('МОСКВА'), 1.1, 0.4], [bar(157) + 0.15, U(-0.11), 1.1, 0]);
+  NK.push([bar(156), SX('ТБИЛИСИ'), 1.1, 0.4], [bar(157) + 0.15, U(-0.11), 1.1, 0]);
   const needleBase = t => {
     let x = NK[0][1];
     for (let i = 1; i < NK.length; i++) {
@@ -941,12 +941,12 @@
       if (t > BROKEN.t && cr < 0.2) txt(ctx, '—', LX + s.length * cw, 1254, { size: 48, color: AMBER });
       ticker(ctx, MY.map(m => ({ ...m, color: AMBER })), t, 60, 1110, W - 120);
     } },
-    // МОСКВА: the eye half closes and never locks
+    // ТБИЛИСИ, home: the eye half closes and never locks
     { a: bar(156), b: bar(158), draw(ctx, t, frame) {
       const p = K.prog(t, bar(156), bar(158));
       shot(ctx, t, frame, K.lerp(1.6, 1.5, p), 540, 1000, { cold: 0.5 }); header(ctx, t, { alpha: 0.8 });
       const g = ctx.createLinearGradient(0, 1000, 0, 1200); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.82)'); ctx.fillStyle = g; ctx.fillRect(0, 1000, W, 920);
-      if (t > bar(156) + 0.7 && t < bar(157) + 0.4) plate(ctx, 'МОСКВА', t, bar(156) + 0.7, { dim: 0.7 });
+      if (t > bar(156) + 0.7 && t < bar(157) + 0.4) plate(ctx, 'ТБИЛИСИ', t, bar(156) + 0.7, { dim: 0.7 });
       ticker(ctx, MAMA.map(m => ({ ...m, color: AMBER })), t, 60, 1250, W - 120, { pxs: 420, h: 20 });
       if (t > bar(157)) txt(ctx, decodeS('нет ответа', t, bar(157), 0.2), 62, 1400, { size: 56, color: GREYT });
     } },
