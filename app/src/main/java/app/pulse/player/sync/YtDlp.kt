@@ -27,6 +27,7 @@ data class DownloadedTrack(
 
 object YtDlp {
     const val LIKED_URL = "https://music.youtube.com/playlist?list=LM"
+    private const val LIKED_VIDEOS_URL = "https://www.youtube.com/playlist?list=LL"
 
     @Volatile private var ready = false
 
@@ -50,10 +51,24 @@ object YtDlp {
     fun musicDir(context: Context) = File(context.filesDir, "music").apply { mkdirs() }
     fun coverDir(context: Context) = File(context.filesDir, "covers").apply { mkdirs() }
 
-    /** The liked songs playlist, most recently liked first. */
+    /**
+     * The liked songs playlist, most recently liked first. Falls back to the plain YouTube "Liked videos"
+     * list, which also receives every like made in YouTube Music.
+     */
     fun fetchLiked(context: Context, cookies: File): List<LikedEntry> {
         init(context)
-        val request = YoutubeDLRequest(LIKED_URL)
+        val music = runCatching { fetchPlaylist(LIKED_URL, cookies) }
+        music.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
+        val videos = runCatching { fetchPlaylist(LIKED_VIDEOS_URL, cookies) }
+        videos.getOrNull()?.takeIf { it.isNotEmpty() }?.let { return it }
+        // Report the YouTube Music error: it is the list we actually wanted.
+        music.exceptionOrNull()?.let { throw it }
+        videos.exceptionOrNull()?.let { throw it }
+        return emptyList()
+    }
+
+    private fun fetchPlaylist(url: String, cookies: File): List<LikedEntry> {
+        val request = YoutubeDLRequest(url)
             .addOption("--flat-playlist")
             .addOption("--dump-single-json")
             .addOption("--cookies", cookies.absolutePath)
