@@ -96,7 +96,7 @@ fun TelegramCloudScreen(
     PulseScreenScaffold(navController, stringResource(R.string.telegram_cloud)) {
         IntroCard(stringResource(R.string.telegram_intro))
         Spacer(Modifier.height(16.dp))
-        TelegramCloudSettings(telegramCloud = viewModel.telegramCloud)
+        TelegramCloudSettings(telegramCloud = viewModel.telegramCloud, telegramInbox = viewModel.telegramInbox)
     }
 }
 

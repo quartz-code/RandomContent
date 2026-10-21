@@ -437,6 +437,10 @@ val TelegramBotTokenKey = stringPreferencesKey("telegramBotToken")
 val TelegramChatIdKey = stringPreferencesKey("telegramChatId")
 val TelegramChatTitleKey = stringPreferencesKey("telegramChatTitle")
 val TelegramAutoUploadKey = booleanPreferencesKey("telegramAutoUpload")
+// Pulse: the other direction — songs and links the user sends to the bot.
+val TelegramInboxKey = booleanPreferencesKey("telegramInbox")
+val TelegramInboxOffsetKey = longPreferencesKey("telegramInboxOffset")
+val TelegramInboxPlaylistKey = stringPreferencesKey("telegramInboxPlaylist")
 val PulseSeenChangelogKey = intPreferencesKey("pulseSeenChangelog")
 val VkUserIdKey = longPreferencesKey("vkUserId")
 

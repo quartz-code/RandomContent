@@ -27,6 +27,7 @@ import com.metrolist.innertube.models.ArtistConjunctions
 import com.metrolist.innertube.models.YouTubeLocale
 import com.metrolist.kugou.KuGou
 import com.metrolist.lastfm.LastFM
+import com.metrolist.music.cloud.TelegramInbox
 import com.metrolist.music.BuildConfig
 import com.metrolist.music.constants.*
 import com.metrolist.music.di.ApplicationScope
@@ -66,6 +67,9 @@ class App :
     @ApplicationScope
     lateinit var applicationScope: CoroutineScope
 
+    @Inject
+    lateinit var telegramInbox: dagger.Lazy<TelegramInbox>
+
     override fun onCreate() {
         super.onCreate()
 
@@ -90,6 +94,8 @@ class App :
         // Plant logging before extraction services initialize.
         Timber.plant(Timber.DebugTree())
         InnerTubeXPlayer.initialize(this)
+        // Pulse: pick up songs and links sent to the user's Telegram bot while the app is open.
+        telegramInbox.get().start()
 
         // Pre-read Coil cache size on background to avoid runBlocking in newImageLoader
         applicationScope.launch(Dispatchers.IO) {

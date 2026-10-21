@@ -1064,6 +1064,15 @@
     <string name="telegram_use_3">To listen, open the chat or channel in Telegram and tap a song: Telegram\'s player works on any device, even without Pulse.</string>
     <string name="telegram_use_4">Telegram accepts about 20 songs a minute, so a big library takes a while. If Pulse is closed midway, it continues next time.</string>
     <string name="telegram_use_5">If the token leaks, send /revoke to @BotFather, then connect again with the new token. The music already sent stays where it is.</string>
+    <string name="telegram_inbox">Receive songs from Telegram</string>
+    <string name="telegram_inbox_desc">Send the bot a music file, a song name or a YouTube / Yandex Music link and it lands in Pulse</string>
+    <string name="telegram_inbox_check">Check the bot now</string>
+    <string name="telegram_inbox_check_desc">Pulse also checks by itself every 30 seconds while it is open</string>
+    <string name="telegram_inbox_checking">Checking…</string>
+    <string name="telegram_inbox_done">Checked, songs added: %d</string>
+    <string name="telegram_inbox_error">Could not check: %s</string>
+    <string name="telegram_use_6">Send the bot a song as a file or forward it from any chat: Pulse puts it into Downloads and the «Из Telegram» playlist, and it plays without internet. Files up to 20 MB.</string>
+    <string name="telegram_use_7">Write «Artist — Song» or send a YouTube or Yandex Music link: Pulse finds it on YouTube Music and downloads it. The bot replies with what it added.</string>
     <string name="yandex_setup_1">In Yandex Music open the playlist, album, track or artist → “⋯” → “Share” → “Copy link”. For “Liked”, open that playlist in your collection and copy its link the same way.</string>
     <string name="yandex_setup_2">The playlist must be public. If Pulse says it is private, open access to your collection in Yandex Music privacy settings.</string>
     <string name="yandex_setup_3">Turn the VPN off: Yandex only answers Russian addresses.</string>
@@ -1073,7 +1082,7 @@
     <string name="yandex_note_2">Before saving you see what was found, what needs a look and what is missing, and can fix it.</string>
     <string name="yandex_note_3">Each person imports into their own Google account, so lists of different people never mix.</string>
     <string name="pulse_section">Pulse</string>
-    <string name="telegram_intro">A second copy of your downloaded music in your own Telegram bot or private channel. Free, no storage limit, and you can listen in Telegram on any device. Everyone uses their own bot, so music of different people never mixes.</string>
+    <string name="telegram_intro">Your Telegram bot works both ways: it keeps a copy of your downloads (free, no storage limit) and takes songs in — send it a file, a name or a link and the song shows up in Pulse. Everyone uses their own bot, so music of different people never mixes.</string>
     <string name="yandex_intro">Move playlists, albums and your Liked tracks from Yandex Music to YouTube Music. After that they work like everything else in Pulse: they download and can go to the Telegram cloud.</string>
     <string name="yandex_import_start">Paste a link and import</string>
     <string name="import_hub">Import music</string>

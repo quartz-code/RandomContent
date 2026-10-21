@@ -87,6 +87,19 @@ class TelegramCloud @Inject constructor(
         runCatching { registry.readLines().filter { it.isNotBlank() }.toMutableSet() }.getOrDefault(mutableSetOf())
     }
 
+    private val sentRegistry = File(context.filesDir, "telegram_sent_files.txt")
+    private val sentFiles: MutableSet<String> by lazy {
+        runCatching { sentRegistry.readLines().filter { it.isNotBlank() }.toMutableSet() }.getOrDefault(mutableSetOf())
+    }
+
+    private fun rememberSent(fileUniqueId: String) {
+        synchronized(sentFiles) {
+            if (sentFiles.add(fileUniqueId)) sentRegistry.appendText("$fileUniqueId\n")
+        }
+    }
+
+    internal fun wasSentByPulse(fileUniqueId: String): Boolean = synchronized(sentFiles) { fileUniqueId in sentFiles }
+
     @Volatile private var running = false
     @Volatile private var rerun = false
 
@@ -168,7 +181,8 @@ class TelegramCloud @Inject constructor(
         val chatId = context.dataStore.get(TelegramChatIdKey, "")
         if (token.isBlank() || chatId.isBlank()) return
 
-        val pending = downloadedIds().filter { synchronized(uploaded) { it !in uploaded } }
+        // Songs that came from Telegram (see TelegramInbox) are already there.
+        val pending = downloadedIds().filter { !it.startsWith(TelegramInbox.ID_PREFIX) && synchronized(uploaded) { it !in uploaded } }
         if (pending.isEmpty()) return
         var sent = 0
         var failed = 0
@@ -250,7 +264,12 @@ class TelegramCloud @Inject constructor(
                     .addFormDataPart("document", "$safeName.webm", source.asRequestBody("application/octet-stream".toMediaType()))
                     .build()
             }
-            withRetry { callMultipart(token, if (m4a != null) "sendAudio" else "sendDocument", body) }
+            val sent = withRetry { callMultipart(token, if (m4a != null) "sendAudio" else "sendDocument", body) }
+            // Remember what Pulse itself posted, so the inbox never takes it back as a new song.
+            sent.optJSONObject("result")?.let { message ->
+                (message.optJSONObject("audio") ?: message.optJSONObject("document"))?.optString("file_unique_id")
+                    ?.takeIf { it.isNotBlank() }?.let(::rememberSent)
+            }
         } finally {
             source.delete()
             converted.delete()
@@ -455,7 +474,7 @@ class TelegramCloud @Inject constructor(
         return block()
     }
 
-    private fun call(token: String, method: String, params: Map<String, String> = emptyMap()): JSONObject {
+    internal fun call(token: String, method: String, params: Map<String, String> = emptyMap()): JSONObject {
         val body = okhttp3.FormBody.Builder().apply { params.forEach { (k, v) -> add(k, v) } }.build()
         return execute(token, method, body)
     }
