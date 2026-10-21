@@ -30,22 +30,19 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
-import com.metrolist.music.db.entities.ArtistEntity
-import com.metrolist.music.db.entities.Song
-import com.metrolist.music.db.entities.SongEntity
 import com.metrolist.music.ui.component.StepGuide
-import com.metrolist.music.utils.YandexMusicImport
+import com.metrolist.music.pulse.importer.ImportedList
+import com.metrolist.music.pulse.importer.YandexMusicImport
 import kotlinx.coroutines.launch
-import java.net.URLEncoder
 
 /**
- * Pulse: step one of the Yandex import. Loads the track list from a Yandex Music link and hands it
- * to the regular YouTube Music matching flow as title/artist-only songs.
+ * Pulse: step one of the Yandex import. Loads the track list from a Yandex Music link; matching and
+ * review happen in the import review screen.
  */
 @Composable
 fun YandexImportDialog(
     onDismiss: () -> Unit,
-    onLoaded: (title: String, songs: List<Song>) -> Unit,
+    onLoaded: (ImportedList) -> Unit,
     showGuide: Boolean = true,
 ) {
     val clipboard = LocalClipboardManager.current
@@ -53,7 +50,7 @@ fun YandexImportDialog(
     var link by remember { mutableStateOf("") }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<Int?>(null) }
-    var loaded by remember { mutableStateOf<YandexMusicImport.YandexPlaylist?>(null) }
+    var loaded by remember { mutableStateOf<ImportedList?>(null) }
 
     LaunchedEffect(Unit) {
         clipboard.getText()?.text?.takeIf(YandexMusicImport::isYandexLink)?.let { link = it.trim() }
@@ -154,7 +151,7 @@ fun YandexImportDialog(
                     Text(stringResource(R.string.yandex_import_load))
                 }
             } else {
-                TextButton(onClick = { onLoaded(playlist.title, playlist.toSongs()) }) {
+                TextButton(onClick = { onLoaded(playlist) }) {
                     Text(stringResource(R.string.yandex_import_find))
                 }
             }
@@ -162,13 +159,5 @@ fun YandexImportDialog(
         dismissButton = {
             TextButton(enabled = !loading, onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) }
         },
-    )
-}
-
-// The matching flow URL-decodes artist names, so encode them to keep "+" and "%" intact.
-private fun YandexMusicImport.YandexPlaylist.toSongs(): List<Song> = tracks.map { track ->
-    Song(
-        song = SongEntity(id = "", title = track.title),
-        artists = track.artists.map { ArtistEntity(id = "", name = URLEncoder.encode(it, "UTF-8")) },
     )
 }

@@ -394,6 +394,18 @@ fun NavGraphBuilder.navigationBuilder(
         YandexImportScreen(navController)
     }
 
+    composable("settings/vk_import") {
+        com.metrolist.music.pulse.importer.VkImportScreen(navController)
+    }
+
+    composable("settings/import") {
+        com.metrolist.music.ui.screens.settings.ImportHubScreen(navController)
+    }
+
+    composable("pulse/import_review") {
+        com.metrolist.music.pulse.importer.ImportReviewScreen(navController)
+    }
+
     composable("settings/integrations") {
         IntegrationScreen(navController)
     }

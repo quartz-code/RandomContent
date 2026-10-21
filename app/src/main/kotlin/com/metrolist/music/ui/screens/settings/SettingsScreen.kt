@@ -86,9 +86,9 @@ fun SettingsScreen(
                 ),
                 Material3SettingsItem(
                     icon = painterResource(R.drawable.playlist_add),
-                    title = { Text(stringResource(R.string.yandex_import)) },
-                    description = { Text(stringResource(R.string.yandex_import_desc)) },
-                    onClick = { navController.navigate("settings/yandex_import") }
+                    title = { Text(stringResource(R.string.import_hub)) },
+                    description = { Text(stringResource(R.string.import_hub_desc)) },
+                    onClick = { navController.navigate("settings/import") }
                 ),
             )
         )
