@@ -889,4 +889,17 @@
     <string name="app_style_classic_desc">Обычный вид Metrolist с цветами обоев.</string>
     <string name="app_style_terminal">Терминал</string>
     <string name="app_style_terminal_desc">Зелёный экран и моноширинный шрифт везде.</string>
+    <string name="yandex_import">Импорт из Яндекс Музыки</string>
+    <string name="yandex_import_desc">Плейлист, альбом или «Мне нравится» по ссылке</string>
+    <string name="yandex_import_hint">Вставь ссылку на плейлист, альбом или открытый список «Мне нравится» из Яндекс Музыки. Яндекс отвечает только российским адресам, поэтому на этом шаге выключи VPN.</string>
+    <string name="yandex_import_load">Загрузить</string>
+    <string name="yandex_import_loading">Загружаю список треков…</string>
+    <string name="yandex_import_loaded">«%1$s»: загружено треков — %2$d.</string>
+    <string name="yandex_import_next_hint">Теперь включи VPN обратно, если выключал, нажми «Найти» и выбери плейлист или «Понравившиеся». Треки ищутся на YouTube Music по названию и исполнителю.</string>
+    <string name="yandex_import_find">Найти на YouTube Music</string>
+    <string name="yandex_import_empty">Список пуст.</string>
+    <string name="yandex_import_error_region">Яндекс Музыка отказала: она работает только из России. Выключи VPN (или исключи из него Pulse) и нажми «Загрузить» ещё раз.</string>
+    <string name="yandex_import_error_private">Не удалось прочитать список. Возможно, он закрыт: открой к нему доступ в Яндекс Музыке.</string>
+    <string name="yandex_import_error_link">Это не ссылка на плейлист, альбом или «Мне нравится» в Яндекс Музыке.</string>
+    <string name="yandex_import_error_network">Нет связи с Яндекс Музыкой. Проверь интернет и попробуй ещё раз.</string>
 </resources>

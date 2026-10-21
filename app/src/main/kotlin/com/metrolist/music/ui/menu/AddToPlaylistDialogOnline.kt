@@ -37,8 +37,10 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.LocalDatabase
+import com.metrolist.music.LocalDownloadUtil
 import com.metrolist.music.R
 import com.metrolist.music.constants.AddToPlaylistPosition
+import com.metrolist.music.constants.AutoDownloadOnLikeKey
 import com.metrolist.music.constants.AddToPlaylistPositionKey
 import com.metrolist.music.constants.AddToPlaylistSortDescendingKey
 import com.metrolist.music.constants.AddToPlaylistSortTypeKey
@@ -103,6 +105,8 @@ fun AddToPlaylistDialogOnline(
     viewModel: PlaylistsViewModel = hiltViewModel()
 ) {
     val database = LocalDatabase.current
+    val downloadUtil = LocalDownloadUtil.current
+    val autoDownloadLiked by rememberPreference(AutoDownloadOnLikeKey, defaultValue = true)
     val coroutineScope = rememberCoroutineScope()
     val viewStateMap = remember { mutableStateMapOf<String, ItemsPage?>() }
     val (addToPlaylistPosition) = rememberEnumPreference(
@@ -398,6 +402,7 @@ fun AddToPlaylistDialogOnline(
                                                                         database.query {
                                                                             update(firstSongEnt.toggleLike())
                                                                         }
+                                                                        if (autoDownloadLiked) downloadUtil.download(firstSong.id)
                                                                     } catch (e: Exception) {
                                                                         Timber.tag("Exception").e(e.toString())
                                                                     }

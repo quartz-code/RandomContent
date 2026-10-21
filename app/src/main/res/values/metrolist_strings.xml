@@ -1001,4 +1001,17 @@
     <string name="app_style_classic_desc">The original Metrolist look with wallpaper colors.</string>
     <string name="app_style_terminal">Terminal</string>
     <string name="app_style_terminal_desc">Green phosphor screen and a typewriter font everywhere.</string>
+    <string name="yandex_import">Import from Yandex Music</string>
+    <string name="yandex_import_desc">A playlist, album or liked tracks by link</string>
+    <string name="yandex_import_hint">Paste a link to a Yandex Music playlist, album or a public \"Liked\" list. Yandex only answers from Russian addresses, so turn the VPN off for this step.</string>
+    <string name="yandex_import_load">Load</string>
+    <string name="yandex_import_loading">Loading the track list…</string>
+    <string name="yandex_import_loaded">“%1$s”: %2$d tracks loaded.</string>
+    <string name="yandex_import_next_hint">Now turn the VPN back on if you turned it off, then press “Find” and choose a playlist or Liked songs. Tracks are looked up on YouTube Music by title and artist.</string>
+    <string name="yandex_import_find">Find on YouTube Music</string>
+    <string name="yandex_import_empty">The list is empty.</string>
+    <string name="yandex_import_error_region">Yandex Music refused: it only works from Russia. Turn the VPN off (or exclude Pulse from it) and press Load again.</string>
+    <string name="yandex_import_error_private">Could not read the list. It may be private: open access to it in Yandex Music.</string>
+    <string name="yandex_import_error_link">This is not a Yandex Music playlist, album or liked tracks link.</string>
+    <string name="yandex_import_error_network">No connection to Yandex Music. Check the internet and try again.</string>
 </resources>
