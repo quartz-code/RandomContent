@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -31,6 +33,7 @@ import com.metrolist.music.R
 import com.metrolist.music.db.entities.ArtistEntity
 import com.metrolist.music.db.entities.Song
 import com.metrolist.music.db.entities.SongEntity
+import com.metrolist.music.ui.component.StepGuide
 import com.metrolist.music.utils.YandexMusicImport
 import kotlinx.coroutines.launch
 import java.net.URLEncoder
@@ -83,12 +86,17 @@ fun YandexImportDialog(
         icon = { Icon(painterResource(R.drawable.playlist_add), contentDescription = null) },
         title = { Text(stringResource(R.string.yandex_import)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
                 if (playlist == null) {
-                    Text(
-                        stringResource(R.string.yandex_import_hint),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    StepGuide(
+                        title = stringResource(R.string.guide_how_to_connect),
+                        steps = listOf(
+                            stringResource(R.string.yandex_setup_1),
+                            stringResource(R.string.yandex_setup_2),
+                            stringResource(R.string.yandex_setup_3),
+                            stringResource(R.string.yandex_setup_4),
+                            stringResource(R.string.yandex_setup_5),
+                        ),
                     )
                     Spacer(Modifier.height(12.dp))
                     OutlinedTextField(
@@ -111,6 +119,16 @@ fun YandexImportDialog(
                         Spacer(Modifier.height(12.dp))
                         Text(stringResource(it), color = MaterialTheme.colorScheme.error)
                     }
+                    Spacer(Modifier.height(16.dp))
+                    StepGuide(
+                        title = stringResource(R.string.guide_good_to_know),
+                        steps = listOf(
+                            stringResource(R.string.yandex_note_1),
+                            stringResource(R.string.yandex_note_2),
+                            stringResource(R.string.yandex_note_3),
+                        ),
+                        numbered = false,
+                    )
                 } else {
                     Text(
                         stringResource(R.string.yandex_import_loaded, playlist.title, playlist.tracks.size),

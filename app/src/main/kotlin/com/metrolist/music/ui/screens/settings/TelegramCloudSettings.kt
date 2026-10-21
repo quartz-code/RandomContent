@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -35,6 +37,7 @@ import com.metrolist.music.constants.TelegramAutoUploadKey
 import com.metrolist.music.constants.TelegramChatTitleKey
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
+import com.metrolist.music.ui.component.StepGuide
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.launch
 
@@ -46,6 +49,7 @@ fun TelegramCloudSettings(telegramCloud: TelegramCloud) {
     val (autoUpload, onAutoUploadChange) = rememberPreference(TelegramAutoUploadKey, defaultValue = false)
     val state by telegramCloud.state.collectAsState()
     var showConnect by remember { mutableStateOf(false) }
+    var showGuide by remember { mutableStateOf(false) }
     val connected = chatTitle.isNotBlank()
 
     val progressText = when (val s = state) {
@@ -120,6 +124,14 @@ fun TelegramCloudSettings(telegramCloud: TelegramCloud) {
                 )
                 add(
                     Material3SettingsItem(
+                        icon = painterResource(R.drawable.info),
+                        title = { Text(stringResource(R.string.telegram_guide)) },
+                        description = { Text(stringResource(R.string.telegram_guide_desc)) },
+                        onClick = { showGuide = true },
+                    ),
+                )
+                add(
+                    Material3SettingsItem(
                         icon = painterResource(R.drawable.close),
                         title = { Text(stringResource(R.string.telegram_disconnect)) },
                         onClick = { scope.launch { telegramCloud.disconnect() } },
@@ -132,6 +144,50 @@ fun TelegramCloudSettings(telegramCloud: TelegramCloud) {
     if (showConnect) {
         TelegramConnectDialog(telegramCloud = telegramCloud, onDismiss = { showConnect = false })
     }
+    if (showGuide) {
+        TelegramGuideDialog(onDismiss = { showGuide = false })
+    }
+}
+
+@Composable
+private fun telegramSetupSteps() = listOf(
+    stringResource(R.string.telegram_setup_1),
+    stringResource(R.string.telegram_setup_2),
+    stringResource(R.string.telegram_setup_3),
+    stringResource(R.string.telegram_setup_4),
+)
+
+@Composable
+private fun telegramUseSteps() = listOf(
+    stringResource(R.string.telegram_use_1),
+    stringResource(R.string.telegram_use_2),
+    stringResource(R.string.telegram_use_3),
+    stringResource(R.string.telegram_use_4),
+    stringResource(R.string.telegram_use_5),
+)
+
+@Composable
+private fun TelegramGuideDialog(onDismiss: () -> Unit) {
+    val uriHandler = LocalUriHandler.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.telegram_guide)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                StepGuide(title = stringResource(R.string.guide_how_to_connect), steps = telegramSetupSteps())
+                TextButton(onClick = { uriHandler.openUri("https://t.me/BotFather") }) {
+                    Text(stringResource(R.string.telegram_open_botfather))
+                }
+                Spacer(Modifier.height(8.dp))
+                StepGuide(
+                    title = stringResource(R.string.guide_how_to_use),
+                    steps = telegramUseSteps(),
+                    numbered = false,
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.ok)) } },
+    )
 }
 
 @Composable
@@ -148,8 +204,8 @@ private fun TelegramConnectDialog(telegramCloud: TelegramCloud, onDismiss: () ->
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.telegram_connect)) },
         text = {
-            Column {
-                Text(stringResource(R.string.telegram_steps), style = MaterialTheme.typography.bodyMedium)
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                StepGuide(title = stringResource(R.string.guide_how_to_connect), steps = telegramSetupSteps())
                 TextButton(onClick = { uriHandler.openUri("https://t.me/BotFather") }) {
                     Text(stringResource(R.string.telegram_open_botfather))
                 }
@@ -174,6 +230,12 @@ private fun TelegramConnectDialog(telegramCloud: TelegramCloud, onDismiss: () ->
                     Spacer(Modifier.height(12.dp))
                     Text(it, color = MaterialTheme.colorScheme.error)
                 }
+                Spacer(Modifier.height(16.dp))
+                StepGuide(
+                    title = stringResource(R.string.guide_how_to_use),
+                    steps = telegramUseSteps(),
+                    numbered = false,
+                )
             }
         },
         confirmButton = {
