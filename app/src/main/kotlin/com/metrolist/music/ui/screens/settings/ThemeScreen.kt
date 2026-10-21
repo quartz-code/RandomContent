@@ -79,6 +79,8 @@ import com.metrolist.music.constants.PureBlackKey
 import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.SelectedThemeColorKey
 import com.metrolist.music.ui.theme.DefaultThemeColor
+import com.metrolist.music.ui.theme.ShortwaveDarkColors
+import com.metrolist.music.ui.theme.ShortwaveLightColors
 import com.metrolist.music.ui.theme.MetrolistTheme
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
@@ -131,7 +133,7 @@ fun ThemeScreen(
         SelectedThemeColorKey,
         DefaultThemeColor.toArgb()
     )
-    val (_, onDynamicThemeChange) = rememberPreference(DynamicThemeKey, defaultValue = true)
+    val (_, onDynamicThemeChange) = rememberPreference(DynamicThemeKey, defaultValue = false)
 
     val selectedThemeColor = Color(selectedThemeColorInt)
     val configuration = LocalConfiguration.current
@@ -432,16 +434,7 @@ fun ModeCircle(
         DarkMode.OFF -> false
     }
     
-    // Use actual system colors for AUTO mode on Android 12+
-    val modeColorScheme = if (targetMode == DarkMode.AUTO && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-        if (effectiveDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-    } else {
-        rememberDynamicColorScheme(
-            seedColor = DefaultThemeColor,
-            isDark = effectiveDark,
-            style = PaletteStyle.TonalSpot
-        )
-    }
+    val modeColorScheme = if (effectiveDark) ShortwaveDarkColors else ShortwaveLightColors
     
     val fillColor = when {
         targetPureBlack -> Color.Black

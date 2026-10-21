@@ -719,7 +719,7 @@
     <string name="crash_no_log">No crash log available</string>
 
     <!-- Theme Palette Names -->
-    <string name="palette_dynamic">Dynamic</string>
+    <string name="palette_dynamic">Shortwave</string>
     <string name="palette_crimson">Crimson</string>
     <string name="palette_rose">Rose</string>
     <string name="palette_purple">Purple</string>
