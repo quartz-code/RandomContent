@@ -719,7 +719,7 @@
     <string name="crash_no_log">No crash log available</string>
 
     <!-- Theme Palette Names -->
-    <string name="palette_dynamic">Shortwave</string>
+    <string name="palette_dynamic">Style colors</string>
     <string name="palette_crimson">Crimson</string>
     <string name="palette_rose">Rose</string>
     <string name="palette_purple">Purple</string>
@@ -994,4 +994,11 @@
     <string name="stream_source_web_creator_desc">Creator web client.</string>
     <string name="top_result">Top result</string>
     <string name="other">Other</string>
+    <string name="app_style">Style</string>
+    <string name="app_style_radio">Radio</string>
+    <string name="app_style_radio_desc">Operator\'s desk at night: cream paper, amber wave, poster headings.</string>
+    <string name="app_style_classic">Classic</string>
+    <string name="app_style_classic_desc">The original Metrolist look with wallpaper colors.</string>
+    <string name="app_style_terminal">Terminal</string>
+    <string name="app_style_terminal_desc">Green phosphor screen and a typewriter font everywhere.</string>
 </resources>

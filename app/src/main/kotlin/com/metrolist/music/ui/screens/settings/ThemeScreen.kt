@@ -79,8 +79,9 @@ import com.metrolist.music.constants.PureBlackKey
 import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.SelectedThemeColorKey
 import com.metrolist.music.ui.theme.DefaultThemeColor
-import com.metrolist.music.ui.theme.ShortwaveDarkColors
-import com.metrolist.music.ui.theme.ShortwaveLightColors
+import com.metrolist.music.ui.theme.colorScheme
+import com.metrolist.music.constants.AppStyle
+import com.metrolist.music.constants.AppStyleKey
 import com.metrolist.music.ui.theme.MetrolistTheme
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
@@ -434,7 +435,17 @@ fun ModeCircle(
         DarkMode.OFF -> false
     }
     
-    val modeColorScheme = if (effectiveDark) ShortwaveDarkColors else ShortwaveLightColors
+    val appStyle by rememberEnumPreference(AppStyleKey, defaultValue = AppStyle.RADIO)
+    val modeColorScheme = appStyle.colorScheme(effectiveDark)
+        ?: if (targetMode == DarkMode.AUTO && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (effectiveDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        } else {
+            rememberDynamicColorScheme(
+                seedColor = DefaultThemeColor,
+                isDark = effectiveDark,
+                style = PaletteStyle.TonalSpot
+            )
+        }
     
     val fillColor = when {
         targetPureBlack -> Color.Black

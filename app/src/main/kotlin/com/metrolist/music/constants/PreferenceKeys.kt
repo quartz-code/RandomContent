@@ -430,6 +430,15 @@ enum class PlayerBackgroundStyle {
     BLUR,
 }
 
+val AppStyleKey = stringPreferencesKey("appStyle")
+
+/** Pulse: whole-app look — palette, fonts and corner shapes. */
+enum class AppStyle {
+    RADIO,
+    CLASSIC,
+    TERMINAL,
+}
+
 val TopSize = stringPreferencesKey("topSize")
 val HistoryDuration = floatPreferencesKey("historyDuration")
 

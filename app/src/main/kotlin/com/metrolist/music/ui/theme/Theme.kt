@@ -6,16 +6,21 @@
 package com.metrolist.music.ui.theme
 
 import android.graphics.Bitmap
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.dynamicDarkColorScheme
+import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalContext
 import androidx.palette.graphics.Palette
+import com.metrolist.music.constants.AppStyle
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
@@ -28,22 +33,26 @@ fun MetrolistTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     pureBlack: Boolean = false,
     themeColor: Color = DefaultThemeColor,
+    style: AppStyle = AppStyle.RADIO,
     content: @Composable () -> Unit,
 ) {
-    // Pulse: the default palette is the Shortwave one instead of the wallpaper colors.
-    val baseColorScheme = if (themeColor == DefaultThemeColor) {
-        if (darkTheme) ShortwaveDarkColors else ShortwaveLightColors
-    } else {
-        // Use materialKolor only when a specific seed color is provided
-        rememberDynamicColorScheme(
-            seedColor = themeColor, // themeColor is guaranteed non-default here
+    val context = LocalContext.current
+    val isDefaultColor = themeColor == DefaultThemeColor
+    // Pulse: with the default palette each style brings its own colors; a picked seed color wins.
+    val styleColorScheme = if (isDefaultColor) style.colorScheme(darkTheme) else null
+
+    val baseColorScheme = when {
+        styleColorScheme != null -> styleColorScheme
+        isDefaultColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->
+            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+        else -> rememberDynamicColorScheme(
+            seedColor = themeColor,
             isDark = darkTheme,
             specVersion = ColorSpec.SpecVersion.SPEC_2025,
-            style = PaletteStyle.TonalSpot // Keep existing style
+            style = PaletteStyle.TonalSpot,
         )
     }
 
-    // Apply pureBlack modification if needed, similar to original logic
     val colorScheme = remember(baseColorScheme, pureBlack, darkTheme) {
         if (darkTheme && pureBlack) {
             baseColorScheme.pureBlack(true)
@@ -52,11 +61,10 @@ fun MetrolistTheme(
         }
     }
 
-    // Use standard MaterialTheme instead of MaterialExpressiveTheme
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = ShortwaveTypography,
-        shapes = ShortwaveShapes,
+        typography = style.typography,
+        shapes = style.shapes,
         content = content,
     )
 }

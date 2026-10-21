@@ -136,6 +136,8 @@ import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.constants.AppBarHeight
 import com.metrolist.music.constants.AppLanguageKey
 import com.metrolist.music.constants.CheckForUpdatesKey
+import com.metrolist.music.constants.AppStyle
+import com.metrolist.music.constants.AppStyleKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.DefaultOpenTabKey
 import com.metrolist.music.constants.DismissedKmpUpdateKey
@@ -679,10 +681,13 @@ class MainActivity : FragmentActivity() {
                 }
         }
 
+        val appStyle by rememberEnumPreference(AppStyleKey, defaultValue = AppStyle.RADIO)
+
         MetrolistTheme(
             darkTheme = useDarkTheme,
             pureBlack = pureBlack,
             themeColor = themeColor,
+            style = appStyle,
         ) {
             val currentDensity = LocalDensity.current
             val windowInfo = LocalWindowInfo.current

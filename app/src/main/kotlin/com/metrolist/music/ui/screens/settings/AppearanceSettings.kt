@@ -105,6 +105,9 @@ import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
+import com.metrolist.music.constants.AppStyle
+import com.metrolist.music.constants.AppStyleKey
+import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.PlayerSliderTrack
@@ -126,6 +129,10 @@ fun AppearanceSettings(
     navController: NavController,
     snackbarHostState: SnackbarHostState,
 ) {
+    val (appStyle, onAppStyleChange) = rememberEnumPreference(AppStyleKey, defaultValue = AppStyle.RADIO)
+    val (darkModeForStyle) = rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
+    val systemDarkForStyle = isSystemInDarkTheme()
+    val useDarkThemeForStyle = if (darkModeForStyle == DarkMode.AUTO) systemDarkForStyle else darkModeForStyle == DarkMode.ON
     val (dynamicTheme, onDynamicThemeChange) =
         rememberPreference(
             DynamicThemeKey,
@@ -905,6 +912,14 @@ fun AppearanceSettings(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp),
     ) {
+        AppStylePicker(
+            selected = appStyle,
+            darkTheme = useDarkThemeForStyle,
+            onSelect = onAppStyleChange,
+        )
+
+        Spacer(modifier = Modifier.height(27.dp))
+
         Material3SettingsGroup(
             title = stringResource(R.string.theme),
             items =
