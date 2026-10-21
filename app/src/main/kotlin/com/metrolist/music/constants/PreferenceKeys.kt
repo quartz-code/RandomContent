@@ -447,6 +447,15 @@ enum class AppStyle {
     TERMINAL,
 }
 
+/** Pulse: how the full-screen player looks; the three designs from the Figma board. */
+val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
+
+enum class PlayerDesign {
+    CLEAN,
+    RADIO,
+    PANEL,
+}
+
 val TopSize = stringPreferencesKey("topSize")
 val HistoryDuration = floatPreferencesKey("historyDuration")
 

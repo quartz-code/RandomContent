@@ -118,7 +118,7 @@ private fun calculateThumbnailDimensions(
     containerWidth: Dp,
     containerHeight: Dp = containerWidth,
     horizontalPadding: Dp = PlayerHorizontalPadding,
-    cornerRadius: Dp = ThumbnailCornerRadius,
+    cornerRadius: Dp = ThumbnailCornerRadius * 2,
     isLandscape: Boolean = false
 ): ThumbnailDimensions {
     // In landscape, use height as the constraining dimension for a square thumbnail
@@ -131,7 +131,7 @@ private fun calculateThumbnailDimensions(
         itemWidth = containerWidth,
         containerSize = containerWidth,
         thumbnailSize = effectiveSize,
-        cornerRadius = cornerRadius * 2
+        cornerRadius = cornerRadius
     )
 }
 
@@ -202,6 +202,11 @@ fun Thumbnail(
     isPlayerExpanded: () -> Boolean = { true },
     isLandscape: Boolean = false,
     isListenTogetherGuest: Boolean = false,
+    // Pulse: the player design supplies its own header, artwork margins, corners and text colour.
+    header: (@Composable () -> Unit)? = null,
+    horizontalPadding: Dp = PlayerHorizontalPadding,
+    cornerRadius: Dp = ThumbnailCornerRadius * 2,
+    contentColor: Color? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val context = LocalContext.current
@@ -226,7 +231,7 @@ fun Thumbnail(
     )
     
     // Pre-calculate text color based on background style
-    val textBackgroundColor = getTextColor(playerBackground)
+    val textBackgroundColor = contentColor ?: getTextColor(playerBackground)
     
     // Grid state
     val thumbnailLazyGridState = rememberLazyGridState()
@@ -335,11 +340,15 @@ fun Thumbnail(
             ) {
                 // Now Playing header - hide in landscape mode
                 if (!isLandscape) {
-                    ThumbnailHeader(
-                        queueTitle = queueTitle,
-                        albumTitle = mediaMetadata?.album?.title,
-                        textColor = textBackgroundColor
-                    )
+                    if (header != null) {
+                        header()
+                    } else {
+                        ThumbnailHeader(
+                            queueTitle = queueTitle,
+                            albumTitle = mediaMetadata?.album?.title,
+                            textColor = textBackgroundColor
+                        )
+                    }
                 }
                 
                 // Thumbnail content
@@ -352,10 +361,12 @@ fun Thumbnail(
                     }
                 ) {
                     // Calculate dimensions once per size change, considering landscape mode
-                    val dimensions = remember(maxWidth, maxHeight, isLandscape) {
+                    val dimensions = remember(maxWidth, maxHeight, isLandscape, horizontalPadding, cornerRadius) {
                         calculateThumbnailDimensions(
                             containerWidth = maxWidth,
                             containerHeight = maxHeight,
+                            horizontalPadding = horizontalPadding,
+                            cornerRadius = cornerRadius,
                             isLandscape = isLandscape
                         )
                     }
@@ -379,7 +390,7 @@ fun Thumbnail(
                         flingBehavior = rememberSnapFlingBehavior(thumbnailSnapLayoutInfoProvider),
                         userScrollEnabled = isScrollEnabled,
                         modifier = if (isLandscape) {
-                            Modifier.size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
+                            Modifier.size(dimensions.thumbnailSize + (horizontalPadding * 2))
                         } else {
                             Modifier.fillMaxSize()
                         }
@@ -403,7 +414,8 @@ fun Thumbnail(
                                 isLandscape = isLandscape,
                                 isListenTogetherGuest = isListenTogetherGuest,
                                 currentMediaId = mediaMetadata?.id,
-                                currentMediaThumbnail = mediaMetadata?.thumbnailUrl
+                                currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
+                                horizontalPadding = horizontalPadding
                             )
                         }
                     }
@@ -501,6 +513,7 @@ private fun ThumbnailItem(
     isListenTogetherGuest: Boolean = false,
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
+    horizontalPadding: Dp = PlayerHorizontalPadding,
     modifier: Modifier = Modifier,
 ) {
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
@@ -511,14 +524,14 @@ private fun ThumbnailItem(
         modifier = modifier
             .then(
                 if (isLandscape) {
-                    Modifier.size(dimensions.thumbnailSize + (PlayerHorizontalPadding * 2))
+                    Modifier.size(dimensions.thumbnailSize + (horizontalPadding * 2))
                 } else {
                     Modifier
                         .width(dimensions.itemWidth)
                         .fillMaxSize()
                 }
             )
-            .padding(horizontal = PlayerHorizontalPadding)
+            .padding(horizontal = horizontalPadding)
             .graphicsLayer {
                 // Render entire thumbnail item on separate hardware layer for smooth animations
                 compositingStrategy = CompositingStrategy.Offscreen

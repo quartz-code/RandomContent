@@ -6,27 +6,22 @@
 package com.metrolist.music.ui.screens.settings
 
 import android.os.Build
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderState
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -38,17 +33,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
@@ -80,10 +72,8 @@ import com.metrolist.music.constants.LyricsTextPositionKey
 import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.MiniPlayerBackgroundStyle
 import com.metrolist.music.constants.MiniPlayerBackgroundStyleKey
-import com.metrolist.music.constants.PlayerBackgroundStyle
-import com.metrolist.music.constants.PlayerBackgroundStyleKey
-import com.metrolist.music.constants.PlayerButtonsStyle
-import com.metrolist.music.constants.PlayerButtonsStyleKey
+import com.metrolist.music.constants.PlayerDesign
+import com.metrolist.music.constants.PlayerDesignKey
 import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.RespectAgentPositioningKey
 import com.metrolist.music.constants.SelectedThemeColorKey
@@ -92,16 +82,12 @@ import com.metrolist.music.constants.ShowDownloadedPlaylistKey
 import com.metrolist.music.constants.ShowLikedPlaylistKey
 import com.metrolist.music.constants.ShowTopPlaylistKey
 import com.metrolist.music.constants.ShowUploadedPlaylistKey
-import com.metrolist.music.constants.SliderStyle
-import com.metrolist.music.constants.SliderStyleKey
 import com.metrolist.music.constants.SlimNavBarKey
-import com.metrolist.music.constants.SquigglySliderKey
 import com.metrolist.music.constants.SwipeSensitivityKey
 import com.metrolist.music.constants.SwipeThumbnailKey
 import com.metrolist.music.constants.SwipeToRemoveSongKey
 import com.metrolist.music.constants.SwipeToSongKey
 import com.metrolist.music.constants.UseNewMiniPlayerDesignKey
-import com.metrolist.music.constants.UseNewPlayerDesignKey
 import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.EnumDialog
 import com.metrolist.music.ui.component.IconButton
@@ -110,16 +96,11 @@ import com.metrolist.music.constants.AppStyleKey
 import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
-import com.metrolist.music.ui.component.PlayerSliderTrack
-import com.metrolist.music.ui.component.SquigglySlider
-import com.metrolist.music.ui.component.WavySlider
 import com.metrolist.music.ui.theme.DefaultThemeColor
-import com.metrolist.music.ui.theme.PlayerSliderColors
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.utils.IconUtils
 import com.metrolist.music.utils.rememberEnumPreference
 import com.metrolist.music.utils.rememberPreference
-import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -166,10 +147,10 @@ fun AppearanceSettings(
     // Check if user has selected a custom color (not the default/dynamic color)
     val isUsingCustomColor = selectedThemeColorInt != DefaultThemeColor.toArgb()
 
-    val (useNewPlayerDesign, onUseNewPlayerDesignChange) =
-        rememberPreference(
-            UseNewPlayerDesignKey,
-            defaultValue = true,
+    val (playerDesign, onPlayerDesignChange) =
+        rememberEnumPreference(
+            PlayerDesignKey,
+            defaultValue = PlayerDesign.CLEAN,
         )
     val (miniPlayerBackground, onMiniPlayerBackgroundChange) =
         rememberEnumPreference(
@@ -199,21 +180,11 @@ fun AppearanceSettings(
             CropAlbumArtKey,
             defaultValue = false,
         )
-    val (playerBackground, onPlayerBackgroundChange) =
-        rememberEnumPreference(
-            PlayerBackgroundStyleKey,
-            defaultValue = PlayerBackgroundStyle.DEFAULT,
-        )
 
     val (defaultOpenTab, onDefaultOpenTabChange) =
         rememberEnumPreference(
             DefaultOpenTabKey,
             defaultValue = NavigationTab.HOME,
-        )
-    val (playerButtonsStyle, onPlayerButtonsStyleChange) =
-        rememberEnumPreference(
-            PlayerButtonsStyleKey,
-            defaultValue = PlayerButtonsStyle.DEFAULT,
         )
     val (lyricsPosition, onLyricsPositionChange) =
         rememberEnumPreference(
@@ -248,16 +219,6 @@ fun AppearanceSettings(
     var showLyricsTextSizeDialog by remember { mutableStateOf(false) }
     var showLyricsLineSpacingDialog by remember { mutableStateOf(false) }
 
-    val (sliderStyle, onSliderStyleChange) =
-        rememberEnumPreference(
-            SliderStyleKey,
-            defaultValue = SliderStyle.DEFAULT,
-        )
-    val (squigglySlider, onSquigglySliderChange) =
-        rememberPreference(
-            SquigglySliderKey,
-            defaultValue = false,
-        )
     val (swipeThumbnail, onSwipeThumbnailChange) =
         rememberPreference(
             SwipeThumbnailKey,
@@ -332,28 +293,11 @@ fun AppearanceSettings(
             defaultValue = true,
         )
 
-    val availableBackgroundStyles =
-        PlayerBackgroundStyle.entries.filter {
-            it != PlayerBackgroundStyle.BLUR || Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-        }
-
     val (defaultChip, onDefaultChipChange) =
         rememberEnumPreference(
             key = ChipSortTypeKey,
             defaultValue = LibraryFilter.LIBRARY,
         )
-
-    var showSliderOptionDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showPlayerBackgroundDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-    var showPlayerButtonsStyleDialog by rememberSaveable {
-        mutableStateOf(false)
-    }
 
     var showLyricsPositionDialog by rememberSaveable {
         mutableStateOf(false)
@@ -528,46 +472,6 @@ fun AppearanceSettings(
         }
     }
 
-    if (showPlayerButtonsStyleDialog) {
-        EnumDialog(
-            onDismiss = { showPlayerButtonsStyleDialog = false },
-            onSelect = {
-                onPlayerButtonsStyleChange(it)
-                showPlayerButtonsStyleDialog = false
-            },
-            title = stringResource(R.string.player_buttons_style),
-            current = playerButtonsStyle,
-            values = PlayerButtonsStyle.values().toList(),
-            valueText = {
-                when (it) {
-                    PlayerButtonsStyle.DEFAULT -> stringResource(R.string.default_style)
-                    PlayerButtonsStyle.PRIMARY -> stringResource(R.string.primary_color_style)
-                    PlayerButtonsStyle.TERTIARY -> stringResource(R.string.tertiary_color_style)
-                }
-            },
-        )
-    }
-
-    if (showPlayerBackgroundDialog) {
-        EnumDialog(
-            onDismiss = { showPlayerBackgroundDialog = false },
-            onSelect = {
-                onPlayerBackgroundChange(it)
-                showPlayerBackgroundDialog = false
-            },
-            title = stringResource(R.string.player_background_style),
-            current = playerBackground,
-            values = availableBackgroundStyles,
-            valueText = {
-                when (it) {
-                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                }
-            },
-        )
-    }
-
     if (showMiniPlayerBackgroundDialog) {
         EnumDialog(
             onDismiss = { showMiniPlayerBackgroundDialog = false },
@@ -696,209 +600,6 @@ fun AppearanceSettings(
                                 } else {
                                     MaterialTheme.colorScheme.onSurface
                                 },
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    if (showSliderOptionDialog) {
-        DefaultDialog(
-            buttons = {
-                TextButton(
-                    onClick = { showSliderOptionDialog = false },
-                ) {
-                    Text(text = stringResource(android.R.string.cancel))
-                }
-            },
-            onDismiss = {
-                showSliderOptionDialog = false
-            },
-        ) {
-            val sliderPreviewColors =
-                PlayerSliderColors.getSliderColors(
-                    MaterialTheme.colorScheme.primary,
-                    PlayerBackgroundStyle.DEFAULT,
-                    isSystemInDarkTheme(),
-                )
-
-            Column(
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier =
-                            Modifier
-                                .aspectRatio(1f)
-                                .weight(1f)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(
-                                    1.dp,
-                                    if (sliderStyle == SliderStyle.DEFAULT &&
-                                        !squigglySlider
-                                    ) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    },
-                                    RoundedCornerShape(16.dp),
-                                ).clickable {
-                                    onSliderStyleChange(SliderStyle.DEFAULT)
-                                    onSquigglySliderChange(false)
-                                    showSliderOptionDialog = false
-                                }.padding(12.dp),
-                    ) {
-                        val sliderValue = 0.35f
-                        Slider(
-                            value = sliderValue,
-                            valueRange = 0f..1f,
-                            onValueChange = { /* preview only */ },
-                            colors = sliderPreviewColors,
-                            enabled = false,
-                            modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            text = stringResource(R.string.default_),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier =
-                            Modifier
-                                .aspectRatio(1f)
-                                .weight(1f)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(
-                                    1.dp,
-                                    if (sliderStyle == SliderStyle.WAVY &&
-                                        !squigglySlider
-                                    ) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    },
-                                    RoundedCornerShape(16.dp),
-                                ).clickable {
-                                    onSliderStyleChange(SliderStyle.WAVY)
-                                    onSquigglySliderChange(false)
-                                    showSliderOptionDialog = false
-                                }.padding(12.dp),
-                    ) {
-                        val sliderValue = 0.5f
-                        WavySlider(
-                            value = sliderValue,
-                            valueRange = 0f..1f,
-                            onValueChange = { /* preview only */ },
-                            colors = sliderPreviewColors,
-                            modifier = Modifier.weight(1f),
-                            isPlaying = true,
-                            enabled = false,
-                        )
-                        Text(
-                            text = stringResource(R.string.wavy),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier =
-                            Modifier
-                                .aspectRatio(1f)
-                                .weight(1f)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(
-                                    1.dp,
-                                    if (sliderStyle ==
-                                        SliderStyle.SLIM
-                                    ) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    },
-                                    RoundedCornerShape(16.dp),
-                                ).clickable {
-                                    onSliderStyleChange(SliderStyle.SLIM)
-                                    onSquigglySliderChange(false)
-                                    showSliderOptionDialog = false
-                                }.padding(12.dp),
-                    ) {
-                        val sliderState = remember { SliderState(value = 0.65f) }
-                        Slider(
-                            state = sliderState,
-                            thumb = { Spacer(modifier = Modifier.size(0.dp)) },
-                            track = { sliderState ->
-                                PlayerSliderTrack(
-                                    sliderState = sliderState,
-                                    colors = sliderPreviewColors,
-                                )
-                            },
-                            colors = sliderPreviewColors,
-                            enabled = false,
-                            modifier = Modifier.weight(1f),
-                        )
-
-                        Text(
-                            text = stringResource(R.string.slim),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier =
-                            Modifier
-                                .aspectRatio(1f)
-                                .weight(1f)
-                                .clip(RoundedCornerShape(16.dp))
-                                .border(
-                                    1.dp,
-                                    if (sliderStyle == SliderStyle.WAVY &&
-                                        squigglySlider
-                                    ) {
-                                        MaterialTheme.colorScheme.primary
-                                    } else {
-                                        MaterialTheme.colorScheme.outlineVariant
-                                    },
-                                    RoundedCornerShape(16.dp),
-                                ).clickable {
-                                    onSliderStyleChange(SliderStyle.WAVY)
-                                    onSquigglySliderChange(true)
-                                    showSliderOptionDialog = false
-                                }.padding(12.dp),
-                    ) {
-                        val sliderValue = 0.5f
-                        SquigglySlider(
-                            value = sliderValue,
-                            valueRange = 0f..1f,
-                            onValueChange = { /* preview only */ },
-                            modifier = Modifier.weight(1f),
-                            enabled = false,
-                            colors = sliderPreviewColors,
-                            isPlaying = true,
-                        )
-                        Text(
-                            text = stringResource(R.string.squiggly),
-                            style = MaterialTheme.typography.labelSmall,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -1115,45 +816,17 @@ fun AppearanceSettings(
 
         var showSensitivityDialog by rememberSaveable { mutableStateOf(false) }
 
+        PlayerDesignPicker(
+            selected = playerDesign,
+            onSelect = onPlayerDesignChange,
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         Material3SettingsGroup(
             title = stringResource(R.string.player),
             items =
                 listOf(
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.new_player_design)) },
-                        trailingContent = {
-                            Switch(
-                                checked = useNewPlayerDesign,
-                                onCheckedChange = onUseNewPlayerDesignChange,
-                                thumbContent = {
-                                    Icon(
-                                        painter =
-                                            painterResource(
-                                                id = if (useNewPlayerDesign) R.drawable.check else R.drawable.close,
-                                            ),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(SwitchDefaults.IconSize),
-                                    )
-                                },
-                            )
-                        },
-                        onClick = { onUseNewPlayerDesignChange(!useNewPlayerDesign) },
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.gradient),
-                        title = { Text(stringResource(R.string.player_background_style)) },
-                        description = {
-                            Text(
-                                when (playerBackground) {
-                                    PlayerBackgroundStyle.DEFAULT -> stringResource(R.string.follow_theme)
-                                    PlayerBackgroundStyle.GRADIENT -> stringResource(R.string.gradient)
-                                    PlayerBackgroundStyle.BLUR -> stringResource(R.string.player_background_blur)
-                                },
-                            )
-                        },
-                        onClick = { showPlayerBackgroundDialog = true },
-                    ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.hide_image),
                         title = { Text(stringResource(R.string.hide_player_thumbnail)) },
@@ -1197,48 +870,6 @@ fun AppearanceSettings(
                             )
                         },
                         onClick = { onCropAlbumArtChange(!cropAlbumArt) },
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.palette),
-                        title = { Text(stringResource(R.string.player_buttons_style)) },
-                        description = {
-                            Text(
-                                when (playerButtonsStyle) {
-                                    PlayerButtonsStyle.DEFAULT -> stringResource(R.string.default_style)
-                                    PlayerButtonsStyle.PRIMARY -> stringResource(R.string.primary_color_style)
-                                    PlayerButtonsStyle.TERTIARY -> stringResource(R.string.tertiary_color_style)
-                                },
-                            )
-                        },
-                        onClick = { showPlayerButtonsStyleDialog = true },
-                    ),
-                    Material3SettingsItem(
-                        icon = painterResource(R.drawable.sliders),
-                        title = { Text(stringResource(R.string.player_slider_style)) },
-                        description = {
-                            Text(
-                                when (sliderStyle) {
-                                    SliderStyle.DEFAULT -> {
-                                        stringResource(R.string.default_)
-                                    }
-
-                                    SliderStyle.WAVY -> {
-                                        if (squigglySlider) {
-                                            stringResource(R.string.squiggly)
-                                        } else {
-                                            stringResource(
-                                                R.string.wavy,
-                                            )
-                                        }
-                                    }
-
-                                    SliderStyle.SLIM -> {
-                                        stringResource(R.string.slim)
-                                    }
-                                },
-                            )
-                        },
-                        onClick = { showSliderOptionDialog = true },
                     ),
                     Material3SettingsItem(
                         icon = painterResource(R.drawable.swipe),

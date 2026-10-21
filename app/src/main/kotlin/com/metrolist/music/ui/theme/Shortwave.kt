@@ -174,14 +174,14 @@ val TerminalLightColors = lightColorScheme(
     surfaceContainerHighest = Color(0xFFD6E2D8),
 )
 
-private val Oswald = FontFamily(
+internal val Oswald = FontFamily(
     Font(R.font.oswald, FontWeight.Normal),
     Font(R.font.oswald, FontWeight.Medium),
     Font(R.font.oswald, FontWeight.SemiBold),
     Font(R.font.oswald, FontWeight.Bold),
 )
 
-private val PtMono = FontFamily(Font(R.font.pt_mono, FontWeight.Normal))
+internal val PtMono = FontFamily(Font(R.font.pt_mono, FontWeight.Normal))
 
 private fun TextStyle.poster(weight: FontWeight) =
     copy(fontFamily = Oswald, fontWeight = weight, letterSpacing = 0.01.em)
