@@ -74,6 +74,27 @@ fun SettingsScreen(
             )
         )
 
+        // Pulse: own features first, so they are found without digging.
+        Material3SettingsGroup(
+            title = stringResource(R.string.pulse_section),
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.backup),
+                    title = { Text(stringResource(R.string.telegram_cloud)) },
+                    description = { Text(stringResource(R.string.telegram_connect_desc)) },
+                    onClick = { navController.navigate("settings/telegram") }
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.playlist_add),
+                    title = { Text(stringResource(R.string.yandex_import)) },
+                    description = { Text(stringResource(R.string.yandex_import_desc)) },
+                    onClick = { navController.navigate("settings/yandex_import") }
+                ),
+            )
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // User Interface Section
         Material3SettingsGroup(
             title = stringResource(R.string.settings_section_ui),

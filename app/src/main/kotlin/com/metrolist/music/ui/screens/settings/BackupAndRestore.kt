@@ -57,7 +57,6 @@ import com.metrolist.music.ui.component.DefaultDialog
 import com.metrolist.music.ui.component.IconButton
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
-import com.metrolist.music.ui.menu.YandexImportDialog
 import com.metrolist.music.ui.menu.AddToPlaylistDialogOnline
 import com.metrolist.music.ui.menu.CsvColumnMappingDialog
 import com.metrolist.music.ui.menu.CsvImportProgressDialog
@@ -100,7 +99,6 @@ fun BackupAndRestore(
     var csvImportProgress by rememberSaveable { mutableIntStateOf(0) }
     val csvRecentLogs = remember { mutableStateListOf<ConvertedSongLog>() }
     var pendingCsvUri by remember { mutableStateOf<android.net.Uri?>(null) }
-    var showYandexImport by rememberSaveable { mutableStateOf(false) }
 
     // Restore confirmation dialog state
     var showRestoreConfirmDialog by rememberSaveable { mutableStateOf(false) }
@@ -207,12 +205,6 @@ fun BackupAndRestore(
                         },
                     ),
                     Material3SettingsItem(
-                        title = { Text(stringResource(R.string.yandex_import)) },
-                        description = { Text(stringResource(R.string.yandex_import_desc)) },
-                        icon = painterResource(R.drawable.playlist_add),
-                        onClick = { showYandexImport = true },
-                    ),
-                    Material3SettingsItem(
                         title = { Text(stringResource(R.string.import_csv)) },
                         icon = painterResource(R.drawable.playlist_add),
                         onClick = {
@@ -223,10 +215,6 @@ fun BackupAndRestore(
                     ),
                 ),
         )
-
-        Spacer(Modifier.height(27.dp))
-
-        TelegramCloudSettings(telegramCloud = viewModel.telegramCloud)
     }
 
     TopAppBar(
@@ -299,18 +287,6 @@ fun BackupAndRestore(
                         }
                     }
                 }
-            },
-        )
-    }
-
-    if (showYandexImport) {
-        YandexImportDialog(
-            onDismiss = { showYandexImport = false },
-            onLoaded = { songs ->
-                showYandexImport = false
-                importedSongs.clear()
-                importedSongs.addAll(songs)
-                showChoosePlaylistDialogOnline = true
             },
         )
     }

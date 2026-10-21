@@ -10,7 +10,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -540,9 +542,9 @@ fun LibraryPlaylistsScreen(
             }
         }
 
-        // Always visible + button (no scroll hiding)
-        FloatingActionButton(
-            onClick = { showCreatePlaylistDialog = true },
+        // Always visible + button (no scroll hiding), with the Pulse import from Yandex above it.
+        Column(
+            horizontalAlignment = Alignment.End,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .windowInsetsPadding(
@@ -551,10 +553,20 @@ fun LibraryPlaylistsScreen(
                 )
                 .padding(16.dp)
         ) {
-            Icon(
-                painter = painterResource(R.drawable.add),
-                contentDescription = stringResource(R.string.create_playlist),
+            androidx.compose.material3.ExtendedFloatingActionButton(
+                onClick = { navController.navigate("settings/yandex_import") },
+                icon = { Icon(painterResource(R.drawable.playlist_add), contentDescription = null) },
+                text = { Text(stringResource(R.string.yandex_import_short)) },
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             )
+            Spacer(Modifier.height(12.dp))
+            FloatingActionButton(onClick = { showCreatePlaylistDialog = true }) {
+                Icon(
+                    painter = painterResource(R.drawable.add),
+                    contentDescription = stringResource(R.string.create_playlist),
+                )
+            }
         }
     }
 }

@@ -437,6 +437,7 @@ val TelegramBotTokenKey = stringPreferencesKey("telegramBotToken")
 val TelegramChatIdKey = stringPreferencesKey("telegramChatId")
 val TelegramChatTitleKey = stringPreferencesKey("telegramChatTitle")
 val TelegramAutoUploadKey = booleanPreferencesKey("telegramAutoUpload")
+val PulseSeenChangelogKey = intPreferencesKey("pulseSeenChangelog")
 
 /** Pulse: whole-app look — palette, fonts and corner shapes. */
 enum class AppStyle {

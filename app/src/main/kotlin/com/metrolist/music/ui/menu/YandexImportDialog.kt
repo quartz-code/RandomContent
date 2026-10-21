@@ -45,7 +45,8 @@ import java.net.URLEncoder
 @Composable
 fun YandexImportDialog(
     onDismiss: () -> Unit,
-    onLoaded: (List<Song>) -> Unit,
+    onLoaded: (title: String, songs: List<Song>) -> Unit,
+    showGuide: Boolean = true,
 ) {
     val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
@@ -87,7 +88,7 @@ fun YandexImportDialog(
         title = { Text(stringResource(R.string.yandex_import)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                if (playlist == null) {
+                if (playlist == null && showGuide) {
                     StepGuide(
                         title = stringResource(R.string.guide_how_to_connect),
                         steps = listOf(
@@ -99,6 +100,8 @@ fun YandexImportDialog(
                         ),
                     )
                     Spacer(Modifier.height(12.dp))
+                }
+                if (playlist == null) {
                     OutlinedTextField(
                         value = link,
                         onValueChange = { link = it; error = null },
@@ -119,16 +122,18 @@ fun YandexImportDialog(
                         Spacer(Modifier.height(12.dp))
                         Text(stringResource(it), color = MaterialTheme.colorScheme.error)
                     }
-                    Spacer(Modifier.height(16.dp))
-                    StepGuide(
-                        title = stringResource(R.string.guide_good_to_know),
-                        steps = listOf(
-                            stringResource(R.string.yandex_note_1),
-                            stringResource(R.string.yandex_note_2),
-                            stringResource(R.string.yandex_note_3),
-                        ),
-                        numbered = false,
-                    )
+                    if (showGuide) {
+                        Spacer(Modifier.height(16.dp))
+                        StepGuide(
+                            title = stringResource(R.string.guide_good_to_know),
+                            steps = listOf(
+                                stringResource(R.string.yandex_note_1),
+                                stringResource(R.string.yandex_note_2),
+                                stringResource(R.string.yandex_note_3),
+                            ),
+                            numbered = false,
+                        )
+                    }
                 } else {
                     Text(
                         stringResource(R.string.yandex_import_loaded, playlist.title, playlist.tracks.size),
@@ -149,7 +154,7 @@ fun YandexImportDialog(
                     Text(stringResource(R.string.yandex_import_load))
                 }
             } else {
-                TextButton(onClick = { onLoaded(playlist.toSongs()) }) {
+                TextButton(onClick = { onLoaded(playlist.title, playlist.toSongs()) }) {
                     Text(stringResource(R.string.yandex_import_find))
                 }
             }

@@ -43,6 +43,8 @@ import com.metrolist.music.ui.screens.recognition.RecognitionScreen
 import com.metrolist.music.ui.screens.search.OnlineSearchResult
 import com.metrolist.music.ui.screens.search.SearchScreen
 import com.metrolist.music.ui.screens.settings.AboutScreen
+import com.metrolist.music.ui.screens.settings.TelegramCloudScreen
+import com.metrolist.music.ui.screens.settings.YandexImportScreen
 import com.metrolist.music.ui.screens.settings.AiSettings
 import com.metrolist.music.ui.screens.settings.AndroidAutoSettings
 import com.metrolist.music.ui.screens.settings.AppearanceSettings
@@ -382,6 +384,14 @@ fun NavGraphBuilder.navigationBuilder(
 
     composable("settings/backup_restore") {
         BackupAndRestore(navController)
+    }
+
+    composable("settings/telegram") {
+        TelegramCloudScreen(navController)
+    }
+
+    composable("settings/yandex_import") {
+        YandexImportScreen(navController)
     }
 
     composable("settings/integrations") {

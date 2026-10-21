@@ -47,14 +47,8 @@ fun ChangelogScreen(
     val uriHandler = LocalUriHandler.current
 
     LaunchedEffect(Unit) {
-        Updater.getAllReleases().onSuccess { allReleases ->
-            releases = allReleases.filter { release ->
-                Updater.compareVersions(BuildConfig.BASE_VERSION_NAME, release.tagName) >= 0
-            }
-            isLoading = false
-        }.onFailure {
-            isLoading = false
-        }
+        releases = com.metrolist.music.pulse.PulseChangelog.releases
+        isLoading = false
     }
 
     val sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)

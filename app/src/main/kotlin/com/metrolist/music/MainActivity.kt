@@ -150,6 +150,9 @@ import com.metrolist.music.constants.EnableLandscapeScalingKey
 import com.metrolist.music.constants.ExperimentalLyricsKey
 import com.metrolist.music.constants.ForceBottomNavBarKey
 import com.metrolist.music.constants.LastSeenVersionKey
+import com.metrolist.music.constants.PulseSeenChangelogKey
+import androidx.datastore.preferences.core.edit
+import com.metrolist.music.pulse.PulseChangelog
 import com.metrolist.music.constants.ListenTogetherInTopBarKey
 import com.metrolist.music.constants.ListenTogetherUsernameKey
 import com.metrolist.music.constants.LyricsProviderOrderKey
@@ -730,11 +733,12 @@ class MainActivity : FragmentActivity() {
 
                 val navController = rememberNavController()
 
+                // Pulse: show "What's new" once for every new Pulse changelog entry.
                 LaunchedEffect(Unit) {
-                    val lastSeenVersion = dataStore.data.first()[LastSeenVersionKey] ?: ""
-                    val currentVersion = BuildConfig.BASE_VERSION_NAME
-                    if (lastSeenVersion != currentVersion) {
+                    val seen = dataStore.data.first()[PulseSeenChangelogKey] ?: 0
+                    if (seen < PulseChangelog.latestBuild) {
                         showChangelog.value = true
+                        dataStore.edit { it[PulseSeenChangelogKey] = PulseChangelog.latestBuild }
                     }
                 }
 
