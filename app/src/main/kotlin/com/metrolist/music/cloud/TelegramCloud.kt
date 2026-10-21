@@ -4,10 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaCodec
+import android.media.MediaCodecInfo
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
-import android.os.Build
 import androidx.datastore.preferences.core.edit
 import androidx.media3.common.C
 import androidx.media3.datasource.DataSpec
@@ -81,7 +81,8 @@ class TelegramCloud @Inject constructor(
     private val _state = MutableStateFlow<State>(State.Idle)
     val state: StateFlow<State> = _state.asStateFlow()
 
-    private val registry = File(context.filesDir, "telegram_uploaded.txt")
+    // v2: songs sent by the first version went out as Ogg voice notes; send them again as music.
+    private val registry = File(context.filesDir, "telegram_uploaded_v2.txt")
     private val uploaded: MutableSet<String> by lazy {
         runCatching { registry.readLines().filter { it.isNotBlank() }.toMutableSet() }.getOrDefault(mutableSetOf())
     }
@@ -113,7 +114,7 @@ class TelegramCloud @Inject constructor(
                 }
             }
             chat ?: throw TelegramException("no_chat")
-            val chatId = chat.opt("id").toString()
+            val chatId = chat.opt("id")?.toString() ?: throw TelegramException("no_chat")
             val title = chat.optString("title").ifBlank {
                 listOf(chat.optString("first_name"), chat.optString("last_name")).filter { it.isNotBlank() }.joinToString(" ")
             }.ifBlank { chatId }
@@ -180,7 +181,7 @@ class TelegramCloud @Inject constructor(
             val artist = song?.artists?.joinToString(", ") { it.name }.orEmpty()
             _state.value = State.Uploading(index, pending.size, listOf(artist, title).filter { it.isNotBlank() }.joinToString(" — "))
             try {
-                sendSong(token, chatId, id, title, artist, song?.song?.thumbnailUrl)
+                sendSong(token, chatId, id, title, artist, song?.song?.thumbnailUrl, song?.song?.duration ?: -1)
                 synchronized(uploaded) {
                     uploaded += id
                     registry.appendText("$id\n")
@@ -201,34 +202,55 @@ class TelegramCloud @Inject constructor(
         _state.value = State.Finished(sent, failed, lastError)
     }
 
-    private suspend fun sendSong(token: String, chatId: String, id: String, title: String, artist: String, thumbnailUrl: String?) {
+    private suspend fun sendSong(
+        token: String,
+        chatId: String,
+        id: String,
+        title: String,
+        artist: String,
+        thumbnailUrl: String?,
+        durationSec: Int,
+    ) {
         val dir = File(context.cacheDir, "telegram").apply { mkdirs() }
         val source = File(dir, "$id.src")
-        val converted = File(dir, "$id.ogg")
+        val converted = File(dir, "$id.m4a")
         try {
             exportFromCache(id, source)
             val safeName = listOf(artist, title).filter { it.isNotBlank() }.joinToString(" - ")
                 .replace(Regex("""[\\/:*?"<>|]"""), "_").take(120).ifBlank { id }
 
-            val (file, fileName, mime) = when {
-                isMp4(source) -> Triple(source, "$safeName.m4a", "audio/mp4")
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && runCatching { remuxToOgg(source, converted) }.getOrDefault(false) ->
-                    Triple(converted, "$safeName.ogg", "audio/ogg")
-                else -> Triple(source, "$safeName.webm", "audio/webm")
+            val m4a = when {
+                isMp4(source) -> source
+                runCatching { transcodeToM4a(source, converted) }
+                    .onFailure { Timber.w(it, "Transcoding $id failed") }
+                    .getOrDefault(false) -> converted
+                else -> null
             }
-            if (file.length() > 49L * 1024 * 1024) throw TelegramException("file_too_large")
-
             val thumb = thumbnailUrl?.let { runCatching { thumbnail(it) }.getOrNull() }
-            val body = MultipartBody.Builder().setType(MultipartBody.FORM)
-                .addFormDataPart("chat_id", chatId)
-                .addFormDataPart("title", title)
-                .addFormDataPart("audio", fileName, file.asRequestBody(mime.toMediaType()))
-                .apply {
-                    if (artist.isNotBlank()) addFormDataPart("performer", artist)
-                    if (thumb != null) addFormDataPart("thumbnail", "cover.jpg", thumb.toRequestBody("image/jpeg".toMediaType()))
-                }
-                .build()
-            withRetry { callMultipart(token, "sendAudio", body) }
+
+            val body = if (m4a != null) {
+                if (m4a.length() > 49L * 1024 * 1024) throw TelegramException("file_too_large")
+                MultipartBody.Builder().setType(MultipartBody.FORM)
+                    .addFormDataPart("chat_id", chatId)
+                    .addFormDataPart("title", title)
+                    .addFormDataPart("audio", "$safeName.m4a", m4a.asRequestBody("audio/mp4".toMediaType()))
+                    .apply {
+                        if (artist.isNotBlank()) addFormDataPart("performer", artist)
+                        if (durationSec > 0) addFormDataPart("duration", durationSec.toString())
+                        if (thumb != null) addFormDataPart("thumbnail", "cover.jpg", thumb.toRequestBody("image/jpeg".toMediaType()))
+                    }
+                    .build()
+            } else {
+                // Could not convert: keep the original as a plain file rather than a voice message.
+                if (source.length() > 49L * 1024 * 1024) throw TelegramException("file_too_large")
+                MultipartBody.Builder().setType(MultipartBody.FORM)
+                    .addFormDataPart("chat_id", chatId)
+                    .addFormDataPart("caption", listOf(artist, title).filter { it.isNotBlank() }.joinToString(" — "))
+                    .addFormDataPart("disable_content_type_detection", "true")
+                    .addFormDataPart("document", "$safeName.webm", source.asRequestBody("application/octet-stream".toMediaType()))
+                    .build()
+            }
+            withRetry { callMultipart(token, if (m4a != null) "sendAudio" else "sendDocument", body) }
         } finally {
             source.delete()
             converted.delete()
@@ -263,33 +285,141 @@ class TelegramCloud @Inject constructor(
         input.read(header) == 12 && String(header, 4, 4, Charsets.US_ASCII) == "ftyp"
     }
 
-    // YouTube's best audio is Opus in WebM; Ogg is the container Telegram and phones play for Opus.
-    // This only re-packs the stream, so there is no loss of quality.
-    @androidx.annotation.RequiresApi(Build.VERSION_CODES.Q)
-    private fun remuxToOgg(src: File, dst: File): Boolean {
+    /**
+     * Telegram shows any Ogg/Opus file as a voice message, so Opus (YouTube's usual format) is
+     * re-encoded to AAC in M4A, which Telegram always shows as music with title and cover.
+     * 256 kbps AAC from ~160 kbps Opus is audibly the same; the copy on the phone is untouched.
+     */
+    private fun transcodeToM4a(src: File, dst: File): Boolean {
         val extractor = MediaExtractor()
+        var decoder: MediaCodec? = null
+        var encoder: MediaCodec? = null
         var muxer: MediaMuxer? = null
         try {
             extractor.setDataSource(src.path)
             val track = (0 until extractor.trackCount).firstOrNull {
-                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_OPUS
+                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
             } ?: return false
             extractor.selectTrack(track)
-            muxer = MediaMuxer(dst.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_OGG)
-            val outTrack = muxer.addTrack(extractor.getTrackFormat(track))
-            muxer.start()
-            val buffer = ByteBuffer.allocate(512 * 1024)
+            val inputFormat = extractor.getTrackFormat(track)
+            val dec = MediaCodec.createDecoderByType(inputFormat.getString(MediaFormat.KEY_MIME)!!).also { decoder = it }
+            dec.configure(inputFormat, null, null, 0)
+            dec.start()
+            val mux = MediaMuxer(dst.path, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4).also { muxer = it }
+
             val info = MediaCodec.BufferInfo()
-            while (true) {
-                val size = extractor.readSampleData(buffer, 0)
-                if (size < 0) break
-                info.set(0, size, max(0L, extractor.sampleTime), 0)
-                muxer.writeSampleData(outTrack, buffer, info)
-                extractor.advance()
+            val encInfo = MediaCodec.BufferInfo()
+            var muxTrack = -1
+            var inputDone = false
+            var decodeDone = false
+            var encodeDone = false
+            var sampleRate = 0
+            var bytesPerFrame = 0
+            var framesFed = 0L
+
+            fun drainEncoder() {
+                val enc = encoder ?: return
+                while (true) {
+                    val index = enc.dequeueOutputBuffer(encInfo, 0)
+                    when {
+                        index == MediaCodec.INFO_TRY_AGAIN_LATER -> return
+                        index == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED -> {
+                            muxTrack = mux.addTrack(enc.outputFormat)
+                            mux.start()
+                        }
+                        index >= 0 -> {
+                            val out = enc.getOutputBuffer(index)!!
+                            if (encInfo.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0) encInfo.size = 0
+                            if (encInfo.size > 0 && muxTrack >= 0) {
+                                out.position(encInfo.offset)
+                                out.limit(encInfo.offset + encInfo.size)
+                                mux.writeSampleData(muxTrack, out, encInfo)
+                            }
+                            enc.releaseOutputBuffer(index, false)
+                            if (encInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0) {
+                                encodeDone = true
+                                return
+                            }
+                        }
+                    }
+                }
             }
-            muxer.stop()
+
+            fun feedEncoder(pcm: ByteBuffer, endOfStream: Boolean) {
+                val enc = encoder ?: return
+                while (pcm.hasRemaining() || endOfStream) {
+                    val index = enc.dequeueInputBuffer(10_000)
+                    if (index < 0) {
+                        drainEncoder()
+                        continue
+                    }
+                    val buffer = enc.getInputBuffer(index)!!
+                    buffer.clear()
+                    val count = minOf(buffer.remaining(), pcm.remaining())
+                    val slice = pcm.duplicate()
+                    slice.limit(pcm.position() + count)
+                    buffer.put(slice)
+                    pcm.position(pcm.position() + count)
+                    val pts = framesFed * 1_000_000L / sampleRate
+                    framesFed += count / bytesPerFrame
+                    val last = endOfStream && !pcm.hasRemaining()
+                    enc.queueInputBuffer(index, 0, count, pts, if (last) MediaCodec.BUFFER_FLAG_END_OF_STREAM else 0)
+                    if (last) return
+                }
+            }
+
+            while (!encodeDone) {
+                if (!inputDone) {
+                    val index = dec.dequeueInputBuffer(10_000)
+                    if (index >= 0) {
+                        val size = extractor.readSampleData(dec.getInputBuffer(index)!!, 0)
+                        if (size < 0) {
+                            dec.queueInputBuffer(index, 0, 0, 0, MediaCodec.BUFFER_FLAG_END_OF_STREAM)
+                            inputDone = true
+                        } else {
+                            dec.queueInputBuffer(index, 0, size, max(0L, extractor.sampleTime), 0)
+                            extractor.advance()
+                        }
+                    }
+                }
+                if (!decodeDone) {
+                    val index = dec.dequeueOutputBuffer(info, 10_000)
+                    if (index >= 0) {
+                        if (encoder == null) {
+                            val pcmFormat = dec.outputFormat
+                            sampleRate = pcmFormat.getInteger(MediaFormat.KEY_SAMPLE_RATE)
+                            val channels = pcmFormat.getInteger(MediaFormat.KEY_CHANNEL_COUNT)
+                            bytesPerFrame = 2 * channels
+                            val aac = MediaFormat.createAudioFormat(MediaFormat.MIMETYPE_AUDIO_AAC, sampleRate, channels).apply {
+                                setInteger(MediaFormat.KEY_AAC_PROFILE, MediaCodecInfo.CodecProfileLevel.AACObjectLC)
+                                setInteger(MediaFormat.KEY_BIT_RATE, 256_000)
+                                setInteger(MediaFormat.KEY_MAX_INPUT_SIZE, 256 * 1024)
+                            }
+                            encoder = MediaCodec.createEncoderByType(MediaFormat.MIMETYPE_AUDIO_AAC).apply {
+                                configure(aac, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
+                                start()
+                            }
+                        }
+                        val pcm = dec.getOutputBuffer(index)!!
+                        pcm.position(info.offset)
+                        pcm.limit(info.offset + info.size)
+                        val endOfStream = info.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                        feedEncoder(pcm, endOfStream)
+                        dec.releaseOutputBuffer(index, false)
+                        if (endOfStream) decodeDone = true
+                    }
+                } else if (encoder == null) {
+                    return false
+                }
+                drainEncoder()
+            }
+            mux.stop()
             return dst.length() > 0
         } finally {
+            runCatching { decoder?.stop() }
+            runCatching { decoder?.release() }
+            runCatching { encoder?.stop() }
+            runCatching { encoder?.release() }
             runCatching { muxer?.release() }
             extractor.release()
         }
