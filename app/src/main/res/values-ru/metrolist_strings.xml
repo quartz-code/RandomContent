@@ -902,4 +902,24 @@
     <string name="yandex_import_error_private">Не удалось прочитать список. Возможно, он закрыт: открой к нему доступ в Яндекс Музыке.</string>
     <string name="yandex_import_error_link">Это не ссылка на плейлист, альбом или «Мне нравится» в Яндекс Музыке.</string>
     <string name="yandex_import_error_network">Нет связи с Яндекс Музыкой. Проверь интернет и попробуй ещё раз.</string>
+    <string name="telegram_cloud">Telegram-облако</string>
+    <string name="telegram_connect">Подключить Telegram</string>
+    <string name="telegram_connect_desc">Бесплатное хранилище без ограничений для скачанной музыки. Слушать можно в Telegram на любом устройстве.</string>
+    <string name="telegram_connected_to">Telegram: %1$s</string>
+    <string name="telegram_sent_count">Отправлено %1$d из %2$d скачанных. Нажми, чтобы отправить остальные.</string>
+    <string name="telegram_uploading">Отправляю %1$d из %2$d: %3$s</string>
+    <string name="telegram_finished">Готово, отправлено: %1$d</string>
+    <string name="telegram_finished_errors">Отправлено: %1$d, с ошибкой: %2$d. %3$s</string>
+    <string name="telegram_auto_upload">Отправлять новое автоматически</string>
+    <string name="telegram_auto_upload_desc">Каждый скачанный трек сразу уходит и в Telegram</string>
+    <string name="telegram_upload_now">Отправить всё скачанное</string>
+    <string name="telegram_upload_now_desc">Только то, чего ещё нет в Telegram</string>
+    <string name="telegram_disconnect">Отключить Telegram</string>
+    <string name="telegram_steps">1. Открой в Telegram @BotFather, отправь /newbot и придумай любое имя. В ответ придёт токен.\n2. Открой своего нового бота и нажми «Старт». Или добавь его админом в свой закрытый канал и напиши там что-нибудь.\n3. Вставь токен ниже и нажми «Подключить». Музыка будет приходить в этот чат.</string>
+    <string name="telegram_open_botfather">Открыть @BotFather</string>
+    <string name="telegram_token">Токен бота</string>
+    <string name="telegram_checking">Проверяю…</string>
+    <string name="telegram_connect_button">Подключить</string>
+    <string name="telegram_error_no_chat">У бота пока нет чатов. Открой бота и нажми «Старт» (или напиши в канал, где он админ) и попробуй снова.</string>
+    <string name="telegram_error_token">Неверный токен. Скопируй его ещё раз из @BotFather.</string>
 </resources>

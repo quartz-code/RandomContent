@@ -223,6 +223,10 @@ fun BackupAndRestore(
                     ),
                 ),
         )
+
+        Spacer(Modifier.height(27.dp))
+
+        TelegramCloudSettings(telegramCloud = viewModel.telegramCloud)
     }
 
     TopAppBar(

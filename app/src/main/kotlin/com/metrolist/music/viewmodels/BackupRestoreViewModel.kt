@@ -51,6 +51,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.zip.ZipEntry
+import com.metrolist.music.cloud.TelegramCloud
 import javax.inject.Inject
 
 data class BackupPreviewInfo(
@@ -77,6 +78,7 @@ data class ConvertedSongLog(
 @HiltViewModel
 class BackupRestoreViewModel @Inject constructor(
     val database: MusicDatabase,
+    val telegramCloud: TelegramCloud,
 ) : ViewModel() {
     fun backup(context: Context, uri: Uri) {
         runCatching {

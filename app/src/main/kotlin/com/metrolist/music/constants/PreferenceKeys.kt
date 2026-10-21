@@ -432,6 +432,12 @@ enum class PlayerBackgroundStyle {
 
 val AppStyleKey = stringPreferencesKey("appStyle")
 
+// Pulse: Telegram as a second place to keep downloaded songs.
+val TelegramBotTokenKey = stringPreferencesKey("telegramBotToken")
+val TelegramChatIdKey = stringPreferencesKey("telegramChatId")
+val TelegramChatTitleKey = stringPreferencesKey("telegramChatTitle")
+val TelegramAutoUploadKey = booleanPreferencesKey("telegramAutoUpload")
+
 /** Pulse: whole-app look — palette, fonts and corner shapes. */
 enum class AppStyle {
     RADIO,

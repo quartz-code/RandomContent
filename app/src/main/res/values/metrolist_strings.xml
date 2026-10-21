@@ -1014,4 +1014,24 @@
     <string name="yandex_import_error_private">Could not read the list. It may be private: open access to it in Yandex Music.</string>
     <string name="yandex_import_error_link">This is not a Yandex Music playlist, album or liked tracks link.</string>
     <string name="yandex_import_error_network">No connection to Yandex Music. Check the internet and try again.</string>
+    <string name="telegram_cloud">Telegram cloud</string>
+    <string name="telegram_connect">Connect Telegram</string>
+    <string name="telegram_connect_desc">Free, unlimited storage for downloaded songs. Listen in Telegram on any device.</string>
+    <string name="telegram_connected_to">Telegram: %1$s</string>
+    <string name="telegram_sent_count">Sent %1$d of %2$d downloaded. Tap to send the rest.</string>
+    <string name="telegram_uploading">Sending %1$d of %2$d: %3$s</string>
+    <string name="telegram_finished">Done, sent: %1$d</string>
+    <string name="telegram_finished_errors">Sent: %1$d, failed: %2$d. %3$s</string>
+    <string name="telegram_auto_upload">Send new downloads automatically</string>
+    <string name="telegram_auto_upload_desc">Every downloaded song also goes to Telegram</string>
+    <string name="telegram_upload_now">Send everything downloaded</string>
+    <string name="telegram_upload_now_desc">Only songs that are not in Telegram yet</string>
+    <string name="telegram_disconnect">Disconnect Telegram</string>
+    <string name="telegram_steps">1. Open @BotFather in Telegram, send /newbot and pick any name. It will reply with a token.\n2. Open your new bot and press Start. Or add it as an admin to your private channel and post anything there.\n3. Paste the token below and press Connect. Songs will go to that chat.</string>
+    <string name="telegram_open_botfather">Open @BotFather</string>
+    <string name="telegram_token">Bot token</string>
+    <string name="telegram_checking">Checking…</string>
+    <string name="telegram_connect_button">Connect</string>
+    <string name="telegram_error_no_chat">The bot has no chats yet. Open the bot and press Start (or post in the channel where it is an admin), then try again.</string>
+    <string name="telegram_error_token">Wrong token. Copy it again from @BotFather.</string>
 </resources>

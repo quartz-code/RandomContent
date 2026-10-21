@@ -59,6 +59,7 @@ import timber.log.Timber
 import java.io.IOException
 import java.time.LocalDateTime
 import java.util.concurrent.Executor
+import com.metrolist.music.cloud.TelegramCloud
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -71,6 +72,7 @@ constructor(
     val databaseProvider: DatabaseProvider,
     @DownloadCache val downloadCache: Cache,
     @PlayerCache val playerCache: Cache,
+    private val telegramCloud: dagger.Lazy<TelegramCloud>,
 ) {
     private val TAG = "DownloadUtil"
     private val connectivityManager = context.getSystemService<ConnectivityManager>()!!
@@ -265,6 +267,7 @@ constructor(
                                 Download.STATE_COMPLETED -> {
                                     removeFromPlayerCache(download.request.id)
                                     database.updateDownloadedInfo(download.request.id, true, LocalDateTime.now())
+                                    telegramCloud.get().onDownloaded()
                                 }
                                 Download.STATE_FAILED,
                                 Download.STATE_STOPPED,
@@ -313,6 +316,8 @@ constructor(
             result.values
                 .filter { it.state == Download.STATE_COMPLETED }
                 .forEach { removeFromPlayerCache(it.request.id) }
+            // Catch up on songs downloaded while the app was closed.
+            telegramCloud.get().onDownloaded()
         }
     }
 
