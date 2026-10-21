@@ -542,7 +542,7 @@ fun LibraryPlaylistsScreen(
             }
         }
 
-        // Always visible + button (no scroll hiding), with the Pulse import from Yandex above it.
+        // Always visible + button (no scroll hiding), with the Pulse import (Yandex, VK) above it.
         Column(
             horizontalAlignment = Alignment.End,
             modifier = Modifier
@@ -554,9 +554,9 @@ fun LibraryPlaylistsScreen(
                 .padding(16.dp)
         ) {
             androidx.compose.material3.ExtendedFloatingActionButton(
-                onClick = { navController.navigate("settings/yandex_import") },
+                onClick = { navController.navigate("settings/import") },
                 icon = { Icon(painterResource(R.drawable.playlist_add), contentDescription = null) },
-                text = { Text(stringResource(R.string.yandex_import_short)) },
+                text = { Text(stringResource(R.string.import_short)) },
                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             )

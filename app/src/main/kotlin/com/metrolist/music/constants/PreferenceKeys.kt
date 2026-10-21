@@ -438,12 +438,22 @@ val TelegramChatIdKey = stringPreferencesKey("telegramChatId")
 val TelegramChatTitleKey = stringPreferencesKey("telegramChatTitle")
 val TelegramAutoUploadKey = booleanPreferencesKey("telegramAutoUpload")
 val PulseSeenChangelogKey = intPreferencesKey("pulseSeenChangelog")
+val VkUserIdKey = longPreferencesKey("vkUserId")
 
 /** Pulse: whole-app look — palette, fonts and corner shapes. */
 enum class AppStyle {
     RADIO,
     CLASSIC,
     TERMINAL,
+}
+
+/** Pulse: how the full-screen player looks; the three designs from the Figma board. */
+val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
+
+enum class PlayerDesign {
+    CLEAN,
+    RADIO,
+    PANEL,
 }
 
 val TopSize = stringPreferencesKey("topSize")

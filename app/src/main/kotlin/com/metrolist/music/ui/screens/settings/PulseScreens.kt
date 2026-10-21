@@ -22,10 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -36,11 +33,11 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
-import com.metrolist.music.db.entities.Song
 import com.metrolist.music.ui.component.IconButton
+import com.metrolist.music.pulse.importer.ImportViewModel
+import com.metrolist.music.ui.component.Material3SettingsGroup
+import com.metrolist.music.ui.component.Material3SettingsItem
 import com.metrolist.music.ui.component.StepGuide
-import com.metrolist.music.ui.menu.AddToPlaylistDialogOnline
-import com.metrolist.music.ui.menu.LoadingScreen
 import com.metrolist.music.ui.menu.YandexImportDialog
 import com.metrolist.music.ui.utils.backToMain
 import com.metrolist.music.viewmodels.BackupRestoreViewModel
@@ -50,7 +47,7 @@ import com.metrolist.music.viewmodels.BackupRestoreViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun PulseScreenScaffold(
+internal fun PulseScreenScaffold(
     navController: NavController,
     title: String,
     content: @Composable () -> Unit,
@@ -77,7 +74,7 @@ private fun PulseScreenScaffold(
 }
 
 @Composable
-private fun IntroCard(text: String) {
+internal fun IntroCard(text: String) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -104,14 +101,8 @@ fun TelegramCloudScreen(
 }
 
 @Composable
-fun YandexImportScreen(navController: NavController) {
+fun YandexImportScreen(navController: NavController, viewModel: ImportViewModel = hiltViewModel()) {
     var showDialog by rememberSaveable { mutableStateOf(false) }
-    var importedTitle by remember { mutableStateOf("") }
-    val importedSongs = remember { mutableStateListOf<Song>() }
-    var showChoosePlaylist by rememberSaveable { mutableStateOf(false) }
-    var isProgressStarted by rememberSaveable { mutableStateOf(false) }
-    var progressPercentage by rememberSaveable { mutableIntStateOf(0) }
-    var currentSong by remember { mutableStateOf("") }
 
     PulseScreenScaffold(navController, stringResource(R.string.yandex_import)) {
         IntroCard(stringResource(R.string.yandex_intro))
@@ -148,30 +139,36 @@ fun YandexImportScreen(navController: NavController) {
         YandexImportDialog(
             showGuide = false,
             onDismiss = { showDialog = false },
-            onLoaded = { title, songs ->
+            onLoaded = { list ->
                 showDialog = false
-                importedTitle = title
-                importedSongs.clear()
-                importedSongs.addAll(songs)
-                showChoosePlaylist = true
+                viewModel.session.start(list)
+                navController.navigate("pulse/import_review")
             },
         )
     }
+}
 
-    AddToPlaylistDialogOnline(
-        isVisible = showChoosePlaylist,
-        allowSyncing = false,
-        initialTextFieldValue = importedTitle,
-        songs = importedSongs,
-        onDismiss = { showChoosePlaylist = false },
-        onProgressStart = { isProgressStarted = it },
-        onPercentageChange = { progressPercentage = it },
-        onSongChange = { currentSong = it },
-    )
-
-    LoadingScreen(
-        isVisible = isProgressStarted,
-        value = progressPercentage,
-        songTitle = currentSong,
-    )
+/** Pulse: one place for every import source. */
+@Composable
+fun ImportHubScreen(navController: NavController) {
+    PulseScreenScaffold(navController, stringResource(R.string.import_hub)) {
+        IntroCard(stringResource(R.string.import_hub_intro))
+        Spacer(Modifier.height(16.dp))
+        Material3SettingsGroup(
+            items = listOf(
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.playlist_add),
+                    title = { Text(stringResource(R.string.yandex_import)) },
+                    description = { Text(stringResource(R.string.yandex_import_desc)) },
+                    onClick = { navController.navigate("settings/yandex_import") },
+                ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.queue_music),
+                    title = { Text(stringResource(R.string.vk_import)) },
+                    description = { Text(stringResource(R.string.vk_import_desc)) },
+                    onClick = { navController.navigate("settings/vk_import") },
+                ),
+            ),
+        )
+    }
 }
