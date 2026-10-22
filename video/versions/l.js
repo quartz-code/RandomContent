@@ -7,7 +7,8 @@
   const { W, H } = K;
   const A = window.AUDIO || { fps: 30, rms: [], bass: [], cues: {} };
   const C = A.cues;
-  const env = (k, t) => { const a = A[k], i = Math.floor(t * A.fps); return a && a.length ? a[Math.max(0, Math.min(a.length - 1, i))] : 0; };
+  let TN = 0; // the real (re-timed) clock: the envelope follows it
+  const env = (k, t) => { const a = A[k], i = Math.floor(TN * A.fps); return a && a.length ? a[Math.max(0, Math.min(a.length - 1, i))] : 0; };
   const since = (list, t) => { let b = 1e9; for (const k of list) if (k <= t) b = Math.min(b, t - k); return b; };
   const pr = (t, a, b) => K.prog(t, a, b);
   const es = (t, a, b) => K.ease.inOutSine(K.prog(t, a, b));
@@ -16,7 +17,7 @@
   const BONE = '#e9e1d3', RED = '#c8102e', SILVER = '#dfe6f0';
 
   // ================= the arts, redrawn =================
-  const ARTS = ['kali-cycle1', 'kali-power', 'alarus', 'black-dragon'];
+  const ARTS = ['kali-cycle1', 'kali-power', 'alarus', 'black-dragon', 'bruno', 'smith', 'knight'];
   const images = {};
   for (const a of ARTS) for (const l of ['tone', 'lines0', 'lines1', 'lines2', 'color']) images[`${a}-${l}`] = `/assets/images/kali/drawn/${a}-${l}.png`;
   const I = n => K.images[n];
@@ -34,6 +35,10 @@
     x.globalAlpha = o.lines ?? 1; x.drawImage(I(`${key}-lines${Math.floor(t * 8) % 3}`), dx, dy, dw, dh);
     x.globalAlpha = o.color ?? 1; x.drawImage(I(`${key}-color`), dx, dy, dw, dh);
     x.globalAlpha = 1;
+    if (o.fade) { // soften a hard bottom edge of the art
+      const fy = dy + dh, g = x.createLinearGradient(0, fy - dh * o.fade, 0, fy); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,1)');
+      x.globalCompositeOperation = 'destination-out'; x.fillStyle = g; x.fillRect(dx, fy - dh * o.fade, dw, dh * o.fade); x.globalCompositeOperation = 'source-over';
+    }
     if (p < 1) {
       x.globalCompositeOperation = 'destination-in'; x.lineCap = 'round'; x.strokeStyle = '#fff';
       x.beginPath();
@@ -162,6 +167,28 @@
     if (o.reach) { ctx.save(); ctx.translate(40, -250); ctx.rotate(-1.2 + 0.3 * (1 - o.reach)); ctx.fillRect(0, -16, 200 * o.reach + 60, 32); ctx.beginPath(); ctx.arc(200 * o.reach + 70, 0, 26, 0, 7); ctx.fill(); ctx.restore(); }
     ctx.restore();
   };
+  const hero = (ctx, x, y, s, who, o = {}) => {
+    ctx.save(); ctx.translate(x, y); ctx.scale(s * (o.flip ? -1 : 1), s); ctx.fillStyle = o.col || '#040303'; ctx.strokeStyle = o.col || '#040303'; ctx.lineCap = 'round';
+    const ears = () => { ctx.beginPath(); ctx.moveTo(-26, -372); ctx.lineTo(-80, -404); ctx.lineTo(-30, -352); ctx.fill(); ctx.beginPath(); ctx.moveTo(26, -372); ctx.lineTo(80, -404); ctx.lineTo(30, -352); ctx.fill(); };
+    if (who === 'mage') { // Bruno: hood thrown back, wide robe and a cape that moves
+      const fl = Math.sin((o.t || 0) * 2.2) * 30;
+      ctx.beginPath(); ctx.ellipse(0, -360, 33, 40, 0, 0, 7); ctx.fill(); ears();
+      ctx.beginPath(); ctx.moveTo(-40, -322); ctx.quadraticCurveTo(-210 - fl, -170, -240 - fl, -40); ctx.lineTo(-90, -10); ctx.lineTo(-120, 0); ctx.lineTo(120, 0); ctx.lineTo(90, -10); ctx.lineTo(240 + fl, -60); ctx.quadraticCurveTo(200 + fl, -180, 40, -322); ctx.closePath(); ctx.fill();
+      if (o.cast) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; const g = ctx.createRadialGradient(110, -170, 2, 110, -170, 70); g.addColorStop(0, `rgba(255,170,90,${o.cast})`); g.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = g; ctx.fillRect(40, -240, 140, 140); ctx.restore(); }
+    }
+    if (who === 'smith') { // broad, the hammer on his shoulder
+      ctx.beginPath(); ctx.ellipse(0, -370, 36, 42, 0, 0, 7); ctx.fill(); ears();
+      ctx.beginPath(); ctx.moveTo(-95, -315); ctx.lineTo(95, -315); ctx.lineTo(80, -120); ctx.lineTo(70, 0); ctx.lineTo(-70, 0); ctx.lineTo(-80, -120); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.translate(60, -320); ctx.rotate(o.swing ?? -0.5); ctx.lineWidth = 16; ctx.beginPath(); ctx.moveTo(-200, 0); ctx.lineTo(120, 0); ctx.stroke(); ctx.fillRect(110, -45, 70, 90); ctx.restore();
+    }
+    if (who === 'knight') { // black armour, a spiked pauldron, a torn cape, the sword down
+      ctx.beginPath(); ctx.ellipse(0, -365, 32, 40, 0, 0, 7); ctx.fill(); ears();
+      ctx.beginPath(); ctx.moveTo(-70, -320); ctx.lineTo(-130, -360); ctx.lineTo(-100, -300); ctx.lineTo(-160, 10); for (let k = 0; k < 5; k++) ctx.lineTo(-160 + k * 64 + 32, k % 2 ? 0 : 30); ctx.lineTo(160, 10); ctx.lineTo(80, -320); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.translate(70, -150); ctx.rotate(o.sword ?? 0.15); ctx.fillRect(-7, 0, 14, 240); ctx.fillRect(-34, -6, 68, 12); ctx.restore();
+    }
+    if (o.reach) { ctx.save(); ctx.translate(40, -250); ctx.rotate(-1.2 + 0.3 * (1 - o.reach)); ctx.fillRect(0, -16, 200 * o.reach + 60, 32); ctx.beginPath(); ctx.arc(200 * o.reach + 70, 0, 26, 0, 7); ctx.fill(); ctx.restore(); }
+    ctx.restore();
+  };
   // a wyvern / dragon silhouette with flapping wings
   const wyrm = (ctx, x, y, s, flap, col = '#030202') => {
     ctx.save(); ctx.translate(x, y); ctx.scale(s, s); ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineCap = 'round';
@@ -183,6 +210,20 @@
     ctx.beginPath(); ctx.moveTo(-130, 0); ctx.quadraticCurveTo(-300, 40, -440, -10); ctx.lineTo(-470, -24); ctx.lineTo(-450, 4); ctx.quadraticCurveTo(-300, 56, -120, 24); ctx.fill(); // tail with a barb
     ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(40, 25); ctx.lineTo(60, 80); ctx.lineTo(80, 86); ctx.moveTo(-60, 28); ctx.lineTo(-50, 80); ctx.lineTo(-30, 86); ctx.stroke(); // legs
     wing(Math.cos(flap), 1);
+    ctx.restore();
+  };
+  let FSPR = null;
+  const fsprites = () => FSPR || (FSPR = ['255,246,210', '255,170,60', '230,60,30', '40,30,30'].map(c => { const cv = K.makeCanvas(64, 64), x = cv.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, `rgba(${c},1)`); g.addColorStop(1, `rgba(${c},0)`); x.fillStyle = g; x.fillRect(0, 0, 64, 64); return cv; }));
+  const breath = (ctx, x, y, ang, t, len = 700, wid = 160, seed = 3) => {
+    const sp = fsprites(), r = K.rng(seed), ca = Math.cos(ang), sa = Math.sin(ang);
+    ctx.save();
+    for (let i = 0; i < 240; i++) {
+      const life = (t * (1.6 + r() * 0.6) + r()) % 1, d = life * len, off = (r() - 0.5) * wid * life + Math.sin(t * 9 + i) * 14 * life;
+      const px = x + ca * d - sa * off, py = y + sa * d + ca * off, rad = 8 + life * wid * 0.55;
+      const k = life < 0.18 ? 0 : life < 0.55 ? 1 : life < 0.85 ? 2 : 3;
+      ctx.globalCompositeOperation = k === 3 ? 'source-over' : 'lighter'; ctx.globalAlpha = k === 3 ? 0.25 * (1 - life) * 4 : 0.55 * (1 - life * 0.6);
+      ctx.drawImage(sp[k], px - rad, py - rad, rad * 2, rad * 2);
+    }
     ctx.restore();
   };
   const fire = (ctx, x, y, ang, t, len = 700, seed = 3) => {
@@ -334,10 +375,16 @@
       const g = ctx.createRadialGradient(W / 2, 900, 40, W / 2, 900, 1100); g.addColorStop(0, `rgba(255,200,130,${0.85 * door})`); g.addColorStop(1, 'rgba(255,150,60,0)');
       ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
       const sh = Math.exp(-d * 4) * 30; ctx.save(); ctx.translate((K.hash(frame, 1) - 0.5) * sh, (K.hash(frame, 2) - 0.5) * sh);
-      if (t > 35.0) { const q = es(t, 35.0, 36.4); elf(ctx, W / 2 - 300, 1700, 1.25 * q, { bow: true }); elf(ctx, W / 2 + 300, 1700, 1.25 * q, { sword: 0.4, flip: true }); }
-      if (t > 35.6) elf(ctx, W / 2, 1760, 1.55 * es(t, 35.6, 36.8), { reach: es(t, 38.4, 40.2) });
+      if (t > 34.6 && t < 35.6) { const q = es(t, 34.6, 35.3); hero(ctx, W / 2 - 300, 1700, 1.25 * q, 'knight'); hero(ctx, W / 2 + 300, 1700, 1.25 * q, 'smith', { flip: true }); hero(ctx, W / 2, 1760, 1.5 * q, 'mage', { t }); }
       bars(ctx, t, door * 1.2);
       ctx.restore();
+      if (t > 35.5) { // the three of them, drawn
+        ctx.fillStyle = `rgba(0,0,0,${0.55 * pr(t, 35.5, 36.2)})`; ctx.fillRect(0, 0, W, H);
+        const q = pr(t, 35.5, 37.4), big = es(t, 38.4, 39.6);
+        art(ctx, 'knight', t, { x: 20 - big * 300, y: 640, w: 380, h: 800 }, { p: q, alpha: 1 - big * 0.7 });
+        art(ctx, 'smith', t, { x: 680 + big * 300, y: 620, w: 400, h: 820 }, { p: q, alpha: 1 - big * 0.7 });
+        art(ctx, 'bruno', t, { x: 180 - big * 160, y: 760 - big * 200, w: 720 + big * 320, h: 660 + big * 300 }, { p: pr(t, 35.7, 37.6), fy: 0.2, fade: 0.22 });
+      }
       if (d < 0.2) { ctx.fillStyle = `rgba(255,230,200,${1 - d / 0.2})`; ctx.fillRect(0, 0, W, H); }
       K.embers(ctx, t, { n: 40, alpha: 0.5, seed: 6 });
       say(ctx, 'Однажды дверь открыли не они.', t, 32.5, 35.4, { y: 360 });
@@ -350,11 +397,11 @@
       fog(ctx, t, '60,20,10', 0.3);
       const part = t < 45 ? 0 : t < 48 ? 1 : 2;
       ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(1 + 0.03 * beat, 1 + 0.03 * beat); ctx.translate(-W / 2, -H / 2);
-      if (part === 0) { const u = pr(t, 42, 45); wyrm(ctx, -200 + u * 1500, 500 + Math.sin(u * 3) * 120, 1.1, Math.sin(t * 7) * 0.9); if (t > 43.2) fire(ctx, 300 + u * 900, 560, 2.1, t, 600, 2); }
-      if (part === 1) { wyrm(ctx, 760, 520, 1.6, Math.sin(t * 4) * 0.6, '#020101'); fire(ctx, 1150, 470, 2.35, t, 1100, 4); }
+      if (part === 0) { const u = pr(t, 42, 45), wx = -200 + u * 1500, wy = 500 + Math.sin(u * 3) * 120; wyrm(ctx, wx, wy, 1.1, Math.sin(t * 7) * 0.9); if (t > 43.2) breath(ctx, wx + 325, wy - 50, 0.75, t, 620 * pr(t, 43.2, 43.6), 150, 2); }
+      if (part === 1) { const wy = 470 + Math.sin(t * 2) * 20; wyrm(ctx, 330, wy, 1.5, Math.sin(t * 4) * 0.6, '#020101'); breath(ctx, 330 + 445, wy - 72, 0.95, t, 1150 * pr(t, 45.2, 45.7), 230, 4); }
       if (part === 2) { const r = K.rng(8); for (let i = 0; i < 9; i++) { const x = r() * W, y = 300 + r() * 900, bl = Math.sin(t * 3 + i) > -0.85; if (bl) for (const dx of [-14, 14]) { ctx.fillStyle = 'rgba(255,60,40,0.9)'; ctx.beginPath(); ctx.ellipse(x + dx, y, 7, 4, 0, 0, 7); ctx.fill(); } } }
-      elf(ctx, 220, 1780, 1.0, { bow: true }); elf(ctx, 860, 1800, 1.05, { sword: -0.6 + Math.sin(t * 5) * 0.3, flip: true });
-      elf(ctx, 520, 1840, 1.15, {});
+      hero(ctx, 860, 1800, 1.0, 'knight', { sword: -0.9 + Math.sin(t * 5) * 0.4, flip: true }); hero(ctx, 220, 1790, 1.0, 'smith', { swing: -1.6 + Math.abs(Math.sin(t * 4)) * 1.4 });
+      hero(ctx, 520, 1840, 1.1, 'mage', { t, cast: 0.6 + 0.4 * Math.sin(t * 6) });
       if (t > 48.5) { kaliFigure(ctx, t, 700, 1880, 760, { tone: 0.8 }); drawCracks(ctx, CR_SMALL, pr(t, 49, 51.5), '255,40,60', 1); }
       ctx.restore();
       if (beat > 0.6) { ctx.fillStyle = `rgba(255,140,60,${0.12 * beat})`; ctx.fillRect(0, 0, W, H); }
@@ -368,14 +415,14 @@
       const fl = 0.85 + 0.15 * Math.sin(t * 11) * Math.sin(t * 4.3);
       const g = ctx.createRadialGradient(W / 2, 1450, 10, W / 2, 1450, 700); g.addColorStop(0, `rgba(255,150,60,${0.55 * fl})`); g.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
       fire(ctx, W / 2, 1480, -Math.PI / 2, t * 0.6, 220, 9);
-      [[-330, 0], [-140, 30], [160, 30], [340, 0]].forEach(([dx, dy], i) => { if (i === 3) kaliFigure(ctx, t, W / 2 + dx, 1560 + dy, 520, { tone: 0.6, lines: 0.7 }); else elf(ctx, W / 2 + dx, 1560 + dy, 0.75, { flip: dx > 0 }); });
+      [[-330, 0], [-140, 30], [160, 30], [340, 0]].forEach(([dx, dy], i) => { if (i === 3) kaliFigure(ctx, t, W / 2 + dx, 1560 + dy, 520, { tone: 0.6, lines: 0.7 }); else hero(ctx, W / 2 + dx, 1560 + dy, 0.72, ['smith', 'mage', 'knight'][i], { flip: dx > 0, t }); });
       say(ctx, 'Почти как жизнь.', t, 53.0, 58.0, { y: 760, size: 66 });
     } },
     // III. Alarus
     { a: 58.0, b: 64.0, draw(ctx, t, frame) {
       dark(ctx, '#040406'); fog(ctx, t, '20,24,40', 0.35);
       magicCircle(ctx, W / 2, 1450, 470, pr(t, 58.2, 63.5), t);
-      [[-420, 1500], [420, 1500], [-250, 1700], [250, 1700]].forEach(([dx, y], i) => { if (i === 3) kaliFigure(ctx, t, W / 2 + dx, y, 520, { tone: 0.6 }); else elf(ctx, W / 2 + dx, y, 0.75, { flip: dx > 0 }); });
+      [[-420, 1500], [420, 1500], [-250, 1700], [250, 1700]].forEach(([dx, y], i) => { if (i === 3) kaliFigure(ctx, t, W / 2 + dx, y, 520, { tone: 0.6 }); else hero(ctx, W / 2 + dx, y, 0.72, ['mage', 'knight', 'smith'][i], { flip: dx > 0, t, cast: i === 0 ? 0.8 : 0 }); });
       lightColumn(ctx, W / 2, pr(t, 61.5, 64) * 0.6);
       sparks(ctx, t, W / 2, 1450, 60, '210,225,255', 500, 3);
       say(ctx, 'Мы решили вернуть того,\nкто создал всё.', t, 58.5, 63.6, { y: 480 });
@@ -421,9 +468,9 @@
     { a: 86.3, b: 90.3, draw(ctx, t, frame) { // they turn on her; she sends them away
       dark(ctx, '#050304'); fog(ctx, t, '40,40,60', 0.25);
       art(ctx, 'kali-power', t, { x: 0, y: 120, w: W, h: 1300 }, { fy: 0.25, z: 1.05, alpha: 0.55 });
-      [[150, 1750, { bow: true }], [930, 1760, { sword: 0.6, flip: true }], [540, 1840, { sword: -0.4 }]].forEach(([x, y, o], i) => {
+      [[150, 1750, 'smith', { swing: -1.2 }], [930, 1760, 'knight', { sword: -1.0, flip: true }], [540, 1840, 'mage', { cast: 1 }]].forEach(([x, y, who, o], i) => {
         const tp = C.whoosh[i], left = t - tp;
-        if (left < 0) elf(ctx, x + Math.sin(t * 20 + i) * 6, y, 1.1, { ...o, col: '#020101' });
+        if (left < 0) hero(ctx, x + Math.sin(t * 20 + i) * 6, y, 1.1, who, { ...o, t, col: '#020101' });
         else if (left < 0.4) { ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.strokeStyle = `rgba(220,230,255,${1 - left / 0.4})`; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(x, y - 250, 140 + left * 600, 300 + left * 800, 0, 0, 7); ctx.stroke(); ctx.restore(); }
       });
       if (t < C.whoosh[0]) for (let i = 0; i < 6; i++) { ctx.strokeStyle = 'rgba(255,230,200,0.8)'; ctx.lineWidth = 3; const q = ((t * 2 + i / 6) % 1); ctx.beginPath(); ctx.moveTo(150 + q * 300, 1500 - q * 500); ctx.lineTo(190 + q * 300, 1460 - q * 500); ctx.stroke(); }
@@ -492,11 +539,11 @@
       if (q > 0.55) drawCracks(ctx, CR_SKY, K.clamp((q - 0.55) * 4), '255,30,40', 1);
       if (q > 0.7) darkness(ctx, t, (q - 0.7) / 0.3 * 0.8, k + 2);
       if (hit > 0.05) { ctx.fillStyle = `rgba(255,255,255,${0.7 * hit})`; ctx.fillRect(0, 0, W, H); glitch(ctx, frame, hit); }
-      const N = ['1', '2', '3', '5', '9', '17', '40', '112', '389', '1 024', '4 096', '∞'];
+      const N = ['3', '4', '6', '9', '17', '40', '112', '389', '1 024', '4 096', '9 999', '∞'];
       say(ctx, `цикл ${N[Math.min(k, N.length - 1)]}`, t, a0, b0 + 0.3, { y: 300, size: 54, font: MONO, color: '#b9aa9a', cps: 200 });
-      say(ctx, 'Рано или поздно\nкто-то возрождает Аларуса.', t, 122.3, 126.0, { y: 640 });
-      say(ctx, 'Тогда приходит его отец.', t, 126.2, 129.3, { y: 640 });
-      say(ctx, 'И все умирают.', t, 129.5, 132.3, { y: 640, color: '#ff8a8a' });
+      say(ctx, 'Рано или поздно\nего всё равно кто-то возрождал.', t, 122.3, 126.0, { y: 640 });
+      say(ctx, 'И приходил его отец.', t, 126.2, 129.3, { y: 640 });
+      say(ctx, 'И все умирали.', t, 129.5, 132.3, { y: 640, color: '#ff8a8a' });
       say(ctx, 'Его не победить.', t, 132.5, 135.6, { y: 640 });
     } },
     { a: 138.0, b: 141.7, draw(ctx, t, frame) {
@@ -555,24 +602,114 @@
       if (d < 0.15) { ctx.fillStyle = `rgba(200,16,46,${0.6 * (1 - d / 0.15)})`; ctx.fillRect(0, 0, W, H); }
     } },
   ];
+  // ================= inserted passages (local time u from 0) =================
+  const INS = A.ins || [[52.5, 9], [58.0, 16], [122.0, 18]];
+  const night = (ctx, t, fireA = 1) => {
+    dark(ctx, '#040307');
+    const r = K.rng(33); for (let i = 0; i < 170; i++) { const tw = 0.5 + 0.5 * Math.sin(t * 2 + i); ctx.fillStyle = `rgba(230,225,255,${0.6 * tw * r()})`; ctx.fillRect(r() * W, r() * 1000, 2, 2); }
+    const g = ctx.createRadialGradient(W / 2, 1500, 10, W / 2, 1500, 700); g.addColorStop(0, `rgba(255,140,60,${0.4 * fireA * (0.85 + 0.15 * Math.sin(t * 9))})`); g.addColorStop(1, 'rgba(255,120,40,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  };
+  const INSERTS = [
+    { dur: 9, draw(ctx, u, frame) { // she healed them too — and they tried not to need it
+      night(ctx, u + 60, 0.8);
+      art(ctx, 'smith', u, { x: 40, y: 520, w: 520, h: 1060 }, { p: pr(u, 0, 1.6), alpha: 0.95 });
+      const cl = 1 - pr(u, 6.2, 7.6); // a cut on his forearm, then it closes
+      ctx.strokeStyle = `rgba(230,30,40,${0.35 + 0.65 * cl})`; ctx.lineWidth = 3 + 7 * cl; ctx.beginPath(); ctx.moveTo(400, 1050); ctx.lineTo(460, 1010 - 6 * cl); ctx.stroke();
+      if (u > 5.8) { const lv = Math.min(pr(u, 5.8, 6.4), 1 - pr(u, 8.2, 9)); const g = ctx.createRadialGradient(440, 1030, 5, 440, 1030, 300); g.addColorStop(0, `rgba(255,236,200,${0.6 * lv})`); g.addColorStop(1, 'rgba(255,236,200,0)'); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+      kaliFigure(ctx, u, 790, 1640, 980, { p: pr(u, 0.3, 2.0), tone: 0.8 });
+      drawCracks(ctx, CR_INS1, pr(u, 6.4, 8.6), '255,40,60', 1);
+      say(ctx, 'Я лечила и их.', u, 0.3, 3.0, { y: 300 });
+      say(ctx, 'Но они старались\nне доводить до этого.', u, 3.1, 6.0, { y: 300 });
+      say(ctx, 'Терпели. Перевязывались сами.\nРади меня.', u, 6.1, 9.0, { y: 300 });
+    } },
+    { dur: 16, draw(ctx, u, frame) { // a nightmare at the camp; «всё хорошо?» — «да»
+      const nm = win(u, 2.4, 4.6), hits = [2.6, 3.3, 3.9], f = Math.exp(-since(hits, u) * 6);
+      if (nm && f > 0.2) { cell(ctx, u); kaliFigure(ctx, u, W / 2 + 40, 1640, 1000, { tone: 0.8 }); drawCracks(ctx, CR_BODY, 1, '255,40,60', 1); bars(ctx, u); glitch(ctx, frame, f); for (const h of hits) stamp(ctx, 'ЛЕЧИ.', u, h, { y: 900, dur: 0.5, size: 230 }); return; }
+      if (u < 11.2) {
+        night(ctx, u + 61, u < 2.4 ? 0.7 : 0.9);
+        ctx.save(); ctx.translate(W / 2 - 60, 1600); ctx.rotate(-Math.PI / 2 + 0.06); ctx.translate(-W / 2, -H / 2); kaliFigure(ctx, u, W / 2, H / 2 + 320, 640, { tone: 0.7, lines: 0.7 }); ctx.restore(); // she lies by the fire (drawn upright off-screen, turned)
+        fire(ctx, W / 2 + 260, 1560, -Math.PI / 2, u * 0.6, 150, 9);
+        hero(ctx, W / 2 + (u > 4.6 ? 40 : 330), 1620, 0.85, 'mage', { t: u, flip: true, col: '#050304' }); // Bruno, then beside her
+        if (u > 4.6 && u < 4.9) { ctx.fillStyle = `rgba(255,240,230,${1 - (u - 4.6) / 0.3})`; ctx.fillRect(0, 0, W, H); }
+        say(ctx, '— Кали. Кали, проснись.', u, 4.9, 7.0, { y: 520, italic: true });
+        say(ctx, '— Ты опять кричала.\nВсё хорошо?', u, 7.1, 9.4, { y: 520, italic: true });
+        say(ctx, '— Да. Всё хорошо.', u, 9.5, 11.2, { y: 520, italic: true, color: '#f3d9c6' });
+      } else { // what she does not say
+        dark(ctx, '#050203');
+        kaliFigure(ctx, u, W / 2, 1900, 1500, { tone: 0.6, lines: 0.6 + 0.3 * Math.sin(u * 3), z: 1 });
+        drawCracks(ctx, CR_BODY, 0.6 + 0.4 * pr(u, 11.2, 16), '255,40,60', 0.7);
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
+        say(ctx, 'Нет.', u, 11.3, 12.5, { y: 760, size: 96, color: '#ff6b6b' });
+        say(ctx, 'Каждую ночь я снова\nв той камере.', u, 12.5, 14.3, { y: 760 });
+        say(ctx, 'Я не умела жить, как они.', u, 14.3, 16.0, { y: 760 });
+        if (K.hash(Math.floor(u * 6), 3) > 0.8) glitch(ctx, frame, 0.3);
+      }
+    } },
+    { dur: 18, draw(ctx, u, frame) { // the second turn, lived all the way through
+      if (u < 4) { // seasons pass over the cell window: leaves, then snow
+        cell(ctx, u, { light: 0.5 + 0.3 * Math.sin(u * 1.5), torch: 0.3 });
+        kaliFigure(ctx, u, W / 2 + 40, 1640, 1000, { tone: 0.7 });
+        const r = K.rng(5); for (let i = 0; i < 90; i++) { const x = (r() * W + Math.sin(u * 2 + i) * 40), y = (r() * H + u * (120 + r() * 160)) % H, snow = u > 2; ctx.fillStyle = snow ? 'rgba(235,240,255,0.8)' : 'rgba(170,90,40,0.8)'; ctx.beginPath(); snow ? ctx.arc(x, y, 3, 0, 7) : ctx.ellipse(x, y, 9, 4, u * 3 + i, 0, 7); ctx.fill(); }
+        bars(ctx, u);
+        say(ctx, 'Второй цикл я прожила целиком.', u, 0.3, 4.0, { y: 360 });
+      } else if (u < 8) { // the door again, the three of them again
+        cell(ctx, u, { light: 0.4 });
+        const g = ctx.createRadialGradient(W / 2, 900, 40, W / 2, 900, 1100); g.addColorStop(0, `rgba(255,200,130,${0.7 * es(u, 4, 4.8)})`); g.addColorStop(1, 'rgba(255,150,60,0)'); ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+        ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 0, W, H);
+        const q = pr(u, 4.2, 5.6);
+        art(ctx, 'knight', u, { x: 20, y: 640, w: 380, h: 800 }, { p: q }); art(ctx, 'smith', u, { x: 680, y: 620, w: 400, h: 820 }, { p: q });
+        art(ctx, 'bruno', u, { x: 180, y: 760, w: 720, h: 660 }, { p: q, fy: 0.2, fade: 0.22 });
+        say(ctx, 'Снова камера.\nСнова Бруно в дверях.', u, 4.2, 8.0, { y: 360 });
+      } else if (u < 12) { // she breaks their circle
+        dark(ctx, '#040406'); fog(ctx, u, '20,24,40', 0.3);
+        const br = pr(u, 9.6, 11.0);
+        ctx.save(); ctx.translate(W / 2, 1300); ctx.rotate(br * 0.2); ctx.translate(-W / 2, -1300);
+        magicCircle(ctx, W / 2, 1300, 420, pr(u, 8, 9.4), u); ctx.restore();
+        if (br > 0) { drawCracks(ctx, CR_RING, br, '255,40,60', 1); ctx.fillStyle = `rgba(0,0,0,${0.6 * br})`; ctx.fillRect(0, 1000, W, 600); }
+        say(ctx, 'Я сделала всё,\nчтобы они не возродили его.', u, 8.2, 12.0, { y: 520 });
+      } else if (u < 15) { // somebody else did
+        dark(ctx, '#030305');
+        magicCircle(ctx, W / 2, 1450, 260, 1, u, '200,220,255');
+        for (let i = 0; i < 5; i++) person(ctx, W / 2 - 300 + i * 150, 1500 + (i % 2) * 40, 0.55, 'noble', '#020203');
+        lightColumn(ctx, W / 2, pr(u, 12.2, 12.8) * (0.9 + 0.1 * Math.sin(u * 20)));
+        if (u - 12.2 < 0.2 && u > 12.2) { ctx.fillStyle = `rgba(230,240,255,${1 - (u - 12.2) / 0.2})`; ctx.fillRect(0, 0, W, H); }
+        say(ctx, 'Его возродил кто-то другой.', u, 12.3, 15.0, { y: 520 });
+      } else { // and the father came again
+        const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#1c0306'); sky.addColorStop(1, '#050102'); ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+        const sh = Math.exp(-(u - 15.2) * 2) * 24 * (u > 15.2 ? 1 : 0);
+        ctx.save(); ctx.translate((K.hash(frame, 1) - 0.5) * sh, (K.hash(frame, 2) - 0.5) * sh);
+        art(ctx, 'black-dragon', u, { x: -300, y: 0, w: W + 600, h: 1500 }, { p: pr(u, 15.2, 16.4), fx: 0.7, alpha: 0.85 });
+        drawCracks(ctx, CR_SKY, pr(u, 15.0, 16.0), '255,30,40', 1);
+        ctx.restore();
+        const g = ctx.createLinearGradient(0, 1150, 0, H); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.35, 'rgba(0,0,0,0.9)'); g.addColorStop(1, '#000'); ctx.fillStyle = g; ctx.fillRect(0, 1150, W, H);
+        say(ctx, 'И отец пришёл снова.', u, 15.2, 18.0, { y: 1560, color: '#ff8a8a' });
+      }
+    } },
+  ];
+  // the real clock → an original moment, or a moment inside an inserted passage
+  const locate = T => { let off = 0; for (let i = 0; i < INS.length; i++) { const [a, d] = INS[i], na = a + off; if (T < na) return { t: T - off }; if (T < na + d) return { ins: i, u: T - na }; off += d; } return { t: T - off }; };
   // crack sets
   const CR_ARMS = [...cracksOf(5, 640, 880, 3, 70, 0.8), ...cracksOf(6, 820, 700, 3, 70, 0.8)];
   const CR_BODY = cracksOf(8, W / 2 + 30, 1050, 6, 60, 1.0);
   const CR_SMALL = cracksOf(10, 700, 1500, 4, 40, 1.0);
   const CR_FACE = cracksOf(12, W / 2, 1180, 6, 55, 0.9);
   const CR_SKY = [...cracksOf(14, 300, 80, 3, 120, 0.7), ...cracksOf(15, 800, 140, 3, 120, 0.7)];
+  const CR_INS1 = cracksOf(18, 820, 1150, 5, 55, 1.0);
+  const CR_RING = cracksOf(19, W / 2, 1300, 6, 90, 0.8);
 
   window.VERSION = {
-    duration: C.end || 170,
+    duration: (C.end || 170) + (A.ins ? 0 : 43),
     images,
-    render(ctx, t, frame) {
-      const sc = SCENES.find(s => t >= s.a && t < s.b) || SCENES[SCENES.length - 1];
+    render(ctx, T, frame) {
+      TN = T;
+      const at = locate(T), t = at.t;
+      const sc = at.ins === undefined ? (SCENES.find(s => t >= s.a && t < s.b) || SCENES[SCENES.length - 1]) : INSERTS[at.ins];
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
       ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
-      sc.draw.call(sc, ctx, t, frame);
+      sc.draw.call(sc, ctx, at.ins === undefined ? t : at.u, frame);
       ctx.restore(); ctx.filter = 'none';
       K.grain(ctx, frame, 0.08); K.vignette(ctx, 0.7);
-      if (t < 0.8) { ctx.fillStyle = `rgba(0,0,0,${1 - t / 0.8})`; ctx.fillRect(0, 0, W, H); }
+      if (T < 0.8) { ctx.fillStyle = `rgba(0,0,0,${1 - T / 0.8})`; ctx.fillRect(0, 0, W, H); }
     },
   };
 })();

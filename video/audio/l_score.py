@@ -4,7 +4,12 @@ usage: python3 l_score.py <out.wav>"""
 import sys, json, numpy as np
 from scipy.signal import butter, sosfilt, fftconvolve
 
-SR, END = 44100, 170.0
+SR = 44100
+# passages inserted into the first cut: (original time, length). Everything written in original time is shifted by S().
+INS = [(52.5, 9.0), (58.0, 16.0), (122.0, 18.0)]
+ABS = False  # True while writing the inserted passages in real time
+def S(t): return t if ABS else t + sum(d for a, d in INS if t >= a)
+END = S(170.0)
 N = int(END * SR)
 rng = np.random.default_rng(11)
 dry = np.zeros((N, 2), np.float32); send = np.zeros((N, 2), np.float32)
@@ -25,7 +30,7 @@ C = {
 }
 
 def put(sig, t0, gain=1.0, pan=0.0, wet=0.25):
-    i = int(t0 * SR); n = min(len(sig), N - i)
+    i = int(S(t0) * SR); n = min(len(sig), N - i)
     if n <= 0 or i < 0: return
     s = sig[:n] * gain
     l, r = np.sqrt(0.5 * (1 - pan)), np.sqrt(0.5 * (1 + pan))
@@ -51,7 +56,7 @@ D1, F1, A1, D2, E2, F2, G2, A2, Bb1, Bb2, C2, C3, D3, E3, F3, G3, A3, Bb3, C4, D
     36.71, 43.65, 55.0, 73.42, 82.41, 87.31, 98.0, 110.0, 58.27, 116.54, 65.41, 130.81, 146.83, 164.81, 174.61, 196.0, 220.0, 233.08, 261.63, 293.66, 329.63, 349.23, 392.0, 440.0
 
 def drone(t0, t1, freqs, gain, cut=400, a=3, r=3, wet=0.4):
-    n = int((t1 - t0) * SR); x = np.zeros(n, np.float32)
+    n = int((S(t1) - S(t0)) * SR); x = np.zeros(n, np.float32)
     for f in freqs:
         for dt in (-0.12, 0.0, 0.13): x += saw(f * (1 + dt / 100), n, rng.random())
     x = lp(x, cut, 4) * (0.8 + 0.2 * np.sin(2 * np.pi * 0.07 * np.arange(n) / SR + rng.random() * 6))
@@ -59,7 +64,7 @@ def drone(t0, t1, freqs, gain, cut=400, a=3, r=3, wet=0.4):
 
 FORM = {'a': [(700, 1.0), (1200, 0.5), (2600, 0.25)], 'o': [(450, 1.0), (800, 0.6), (2830, 0.15)], 'u': [(325, 1.0), (700, 0.4), (2530, 0.1)]}
 def choir(t0, t1, freqs, gain, vowel='a', a=2.5, r=2.5, wet=0.6, pan=0.0):
-    n = int((t1 - t0) * SR); src = np.zeros(n, np.float32); tt = np.arange(n) / SR
+    n = int((S(t1) - S(t0)) * SR); src = np.zeros(n, np.float32); tt = np.arange(n) / SR
     for f in freqs:
         for k in range(3):
             vib = 1 + 0.004 * np.sin(2 * np.pi * (4.8 + k * 0.4) * tt + rng.random() * 6)
@@ -204,6 +209,35 @@ drone(150, 166, [D1, D1 * 1.03], 0.4, cut=600, a=1, r=0.3)
 boom(166.0, 1.1); bell(166.0, D4, 0.35, 4); bell(166.02, D4 * 1.5 * 1.01, 0.2, 4)
 drone(166, 170, [D2], 0.2, cut=300, a=0.05, r=3.5)
 
+# ================= inserted passages (real time) =================
+ABS = True
+# 1. she heals them too (52.5–61.5): a soft choir, a pained stab when she does
+choir(52.5, 61.6, [D3, F3, A3], 0.55, 'o', a=1.0, r=1.5)
+drone(52.5, 61.6, [D1, A1], 0.3, cut=260, a=0.5, r=1.0)
+for t, f in [(53.0, A4), (55.4, F4), (57.6, E4)]: bell(t, f, 0.3, 3.0, pan=-0.3)
+clang(58.6, 0.5, 160); choir(58.6, 61.6, [D3, Eb3, A3], 0.35, 'a', a=0.05, r=1.5)
+# 2. the nightmare at the camp (67.0–83.0)
+T2 = 67.0
+n = int(16 * SR); put(lp(rng.standard_normal(n), 500, 2).astype(np.float32) * 0.18 * fade(n, 1, 1), T2, 1.0, 0, 0.2)      # night wind
+for i in range(220): put(lp(rng.standard_normal(200) * 0.35, 3000).astype(np.float32), T2 + rng.random() * 11, 0.22, rng.random() - 0.5, 0.05)  # the fire
+heart(T2 + 2.3, T2 + 4.6, 132, 1.0)
+for h in (2.6, 3.3, 3.9): clang(T2 + h, 0.85, 150); choir(T2 + h, T2 + h + 0.7, [D3, Eb3, A3], 0.35, 'a', a=0.01, r=0.5)
+noise_sweep(T2 + 4.3, 0.5, 300, 9000, 0.45, reverse=True)
+choir(T2 + 4.8, T2 + 11.3, [D3, F3, A3], 0.4, 'u', a=1.5, r=1.0)
+drone(T2 + 11.2, T2 + 16.2, [D1, D1 * 1.059], 0.5, cut=420, a=0.3, r=0.6)
+bell(T2 + 11.3, D4 * 2 * 1.059, 0.3, 4.5); heart(T2 + 11.4, T2 + 16, 70, 0.8)
+# 3. the second turn, lived through (147.0–165.0)
+T3 = 147.0
+for k, (t, ch) in enumerate([(0, [D2, D3, F3, A3]), (2, [Bb1, D3, F3, Bb2 * 2]), (4, [G2, D3, G3, Bb2 * 2]), (6, [A1, E3, A3, C4 * 1.059])]):
+    choir(T3 + t, T3 + t + 2.4, ch, 0.7, 'o', a=0.6, r=0.9)
+for t in np.arange(T3, T3 + 8, 0.5): put(hp(rng.standard_normal(600), 4000).astype(np.float32) * np.exp(-np.arange(600) / 60), t, 0.22, 0.3, 0.1)  # the clock
+drone(T3 + 8, T3 + 12.2, [D1, A1], 0.55, cut=500, a=0.5, r=0.1); noise_sweep(T3 + 9.0, 3.2, 200, 7000, 0.35, reverse=True)
+boom(T3 + 12.2, 1.0); shatter(T3 + 12.2, 0.3)
+for i, t in enumerate(np.arange(T3 + 12.4, T3 + 15, 0.214)): bell(t, [D4 * 2, A4 * 2, F4 * 2][i % 3], 0.07, 1.4, pan=np.sin(i) * 0.5)
+n = int(1.2 * SR); put(lp(rng.standard_normal(n), 120, 3).astype(np.float32) * np.linspace(0, 1, n) ** 2, T3 + 14.0, 1.0, 0, 0.2)
+braam(T3 + 15.2, 1.0, 3.0, base=(D1, D1 * 1.5, D2)); drone(T3 + 15.2, T3 + 18.05, [D1, D1 * 1.059], 0.5, cut=450, a=0.1, r=0.3)
+ABS = False
+
 # ---------------- reverb, silences, master ----------------
 ir_n = int(3.4 * SR); tt = np.arange(ir_n) / SR
 ir = np.stack([rng.standard_normal(ir_n) * np.exp(-tt * 2.0), rng.standard_normal(ir_n) * np.exp(-tt * 2.0)], 1).astype(np.float32)
@@ -211,7 +245,7 @@ ir = lp(ir, 5000); ir /= np.sqrt((ir ** 2).sum(0))
 wet = np.stack([fftconvolve(send[:, c], ir[:, c])[:N] for c in range(2)], 1) * 0.9
 mix = dry + wet
 for a, b in C['silence']:
-    g = np.ones(N, np.float32); i0, i1 = int(a * SR), int(b * SR); g[i0:i1] = 0.0
+    g = np.ones(N, np.float32); i0, i1 = int(S(a) * SR), int(S(b) * SR); g[i0:i1] = 0.0
     g[i0 - 2205:i0] = np.linspace(1, 0, 2205); mix *= g[:, None]
 mix *= np.clip((END - ts) / 3.0, 0, 1)[:, None]
 mix /= max(1e-6, np.percentile(np.abs(mix), 99.9)) / 0.7
@@ -222,5 +256,5 @@ subprocess.run(['ffmpeg', '-v', 'error', '-y', '-f', 'f32le', '-ac', '2', '-ar',
 fps = 30; hop = SR // fps; m = mix.mean(1); nf = len(m) // hop
 rms = np.sqrt((m[:nf * hop].reshape(nf, hop) ** 2).mean(1)); bass = np.abs(lp(m, 150)[:nf * hop]).reshape(nf, hop).mean(1)
 nrm = lambda a: [round(float(v), 3) for v in np.clip(a / (np.percentile(a, 99) + 1e-9), 0, 1)]
-open('video/versions/l-audio.js', 'w').write('// score envelope (30 fps) and cue times, written by audio/l_score.py\nwindow.AUDIO = ' + json.dumps({'fps': fps, 'rms': nrm(rms), 'bass': nrm(bass), 'cues': C}, separators=(',', ':')) + ';\n')
+open('video/versions/l-audio.js', 'w').write('// score envelope (30 fps) and cue times, written by audio/l_score.py\nwindow.AUDIO = ' + json.dumps({'fps': fps, 'rms': nrm(rms), 'bass': nrm(bass), 'cues': {**C, 'end': END}, 'ins': [list(i) for i in INS]}, separators=(',', ':')) + ';\n')
 print(sys.argv[1])
