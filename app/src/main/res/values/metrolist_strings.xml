@@ -1099,6 +1099,94 @@
     <string name="lock_screen_permission">Android only lets Pulse open the player when the screen is off with the “Display over other apps” permission.</string>
     <string name="lock_screen_permission_open">Open settings</string>
     <string name="lock_screen_swipe">Swipe up to unlock</string>
+    <string name="recap_title">Recaps</string>
+    <string name="recap_desc">Your month and year in music</string>
+    <string name="recap_list_intro">Every month with at least half an hour of music gets a recap, and every year too. They are drawn in your player theme.</string>
+    <string name="recap_list_empty">No recaps yet: listen to half an hour of music this month, and the recap will be here next month.</string>
+    <string name="recap_month_title">%1$s %2$d</string>
+    <string name="recap_year_title">%1$d</string>
+    <string name="recap_kicker">Recap</string>
+    <string name="recap_intro_month">What you played this month, how much and when</string>
+    <string name="recap_intro_year">Your whole year in music</string>
+    <string name="recap_tap_hint">Tap on the right to go on</string>
+    <string name="recap_minutes_kicker">Listened</string>
+    <string name="recap_hours_minutes">%1$d h %2$d min</string>
+    <string name="recap_song_month">Song of the month</string>
+    <string name="recap_song_year">Song of the year</string>
+    <string name="recap_artist_month">Artist of the month</string>
+    <string name="recap_artist_year">Artist of the year</string>
+    <string name="recap_album">The album that played most</string>
+    <string name="recap_time_kicker">Your time for music</string>
+    <string name="recap_part_morning">Morning</string>
+    <string name="recap_part_day">Daytime</string>
+    <string name="recap_part_evening">Evening</string>
+    <string name="recap_part_night">Night</string>
+    <string name="recap_part_morning_line">Music before anything else: most of it played between 5 and 11.</string>
+    <string name="recap_part_day_line">Music to the day\'s business: most of it played between 11 and 17.</string>
+    <string name="recap_part_evening_line">Evenings are for music: most of it played between 17 and 23.</string>
+    <string name="recap_part_night_line">A night listener: most of it played after 23.</string>
+    <string name="recap_part_morning_short">Morn.</string>
+    <string name="recap_part_day_short">Day</string>
+    <string name="recap_part_evening_short">Eve.</string>
+    <string name="recap_part_night_short">Night</string>
+    <string name="recap_busiest_day">The most musical day was %1$s: %2$s.</string>
+    <string name="recap_months_kicker">The most musical month</string>
+    <string name="recap_new_kicker">First time</string>
+    <string name="recap_streak_kicker">In a row</string>
+    <string name="recap_card_kicker">All of it on one card</string>
+    <string name="recap_card_brand">Pulse · recap</string>
+    <string name="recap_card_songs">Top songs</string>
+    <string name="recap_card_artists">Top artists</string>
+    <string name="recap_card_footer">%1$s · %2$s · Pulse</string>
+    <string name="recap_share">Share</string>
+    <string name="recap_offer_title">%1$s: your recap is ready</string>
+    <string name="recap_offer_text">How much music, what played most and when, in your player theme. Recaps are also in Settings › Pulse.</string>
+    <string name="recap_offer_open">Watch</string>
+    <string name="recap_offer_later">Later</string>
+    <plurals name="recap_count_songs">
+        <item quantity="one">%d song</item>
+        <item quantity="other">%d songs</item>
+    </plurals>
+    <plurals name="recap_count_artists">
+        <item quantity="one">%d artist</item>
+        <item quantity="other">%d artists</item>
+    </plurals>
+    <plurals name="recap_minutes_word">
+        <item quantity="one">minute of music</item>
+        <item quantity="other">minutes of music</item>
+    </plurals>
+    <plurals name="recap_plays_word">
+        <item quantity="one">play</item>
+        <item quantity="other">plays</item>
+    </plurals>
+    <plurals name="recap_songs_word">
+        <item quantity="one">song</item>
+        <item quantity="other">songs</item>
+    </plurals>
+    <plurals name="recap_artists_word">
+        <item quantity="one">artist</item>
+        <item quantity="other">artists</item>
+    </plurals>
+    <plurals name="recap_minutes">
+        <item quantity="one">%d minute</item>
+        <item quantity="other">%d minutes</item>
+    </plurals>
+    <plurals name="recap_times">
+        <item quantity="one">%d play</item>
+        <item quantity="other">%d plays</item>
+    </plurals>
+    <plurals name="recap_new_songs">
+        <item quantity="one">song played for you for the first time</item>
+        <item quantity="other">songs played for you for the first time</item>
+    </plurals>
+    <plurals name="recap_streak_days">
+        <item quantity="one">day with music in a row</item>
+        <item quantity="other">days with music in a row</item>
+    </plurals>
+    <plurals name="recap_active_days">
+        <item quantity="one">Music played on %d day</item>
+        <item quantity="other">Music played on %d days</item>
+    </plurals>
     <string name="player_builder_title">Title</string>
     <string name="player_builder_align_left">Left</string>
     <string name="player_builder_align_center">Centred</string>

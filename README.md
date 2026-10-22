@@ -17,6 +17,9 @@
   включается сама — с тёмной темой телефона или по часам. По желанию плеер в той же теме появляется
   на экране блокировки (`pulse/LockScreenActivity.kt`). Код — `ui/player/PlayerTheme.kt`, `PulsePlayer.kt`, `PulseMotion.kt`,
   `ui/screens/settings/PlayerBuilderScreen.kt`.
+- **Итоги месяца и года** («Настройки → Pulse → Итоги»): истории в теме плеера — минуты, песни,
+  артисты, время суток, новые песни — и карточка, чтобы поделиться. В новом месяце Pulse сам их
+  предложит. Код — `pulse/recap/` и `ui/screens/recap/`.
 - **Telegram в обе стороны** («Настройки → Pulse → Telegram-облако»): свой бот хранит копию скачанного
   и принимает песни — файл, «Исполнитель — Песня» или ссылку на YouTube / Яндекс Музыку; всё попадает
   в «Скачанные» и плейлист «Из Telegram». Код — `cloud/TelegramCloud.kt` и `cloud/TelegramInbox.kt`.

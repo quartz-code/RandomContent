@@ -468,6 +468,9 @@ const val DefaultNightTo = 7 * 60
 // Pulse: show the player over the lock screen when the screen goes off during playback.
 val LockScreenPlayerKey = booleanPreferencesKey("pulseLockScreenPlayer")
 
+// Pulse: recaps already offered on opening the app, comma-separated ("2026-09,2026").
+val RecapOfferedKey = stringPreferencesKey("pulseRecapOffered")
+
 enum class PlayerDesign {
     CLEAN,
     RADIO,

@@ -602,6 +602,21 @@ interface DatabaseDao {
         toTimeStamp: LocalDateTime? = LocalDateTime.now(),
     ): Flow<List<Album>>
 
+    // Pulse: recaps. Reads only; the event table is unchanged.
+    @Query("SELECT timestamp, playTime FROM event WHERE timestamp >= :from AND timestamp < :to")
+    suspend fun recapPlays(from: LocalDateTime, to: LocalDateTime): List<com.metrolist.music.pulse.recap.RecapPlayRow>
+
+    /** Songs first heard in the range. */
+    @Query("SELECT COUNT(*) FROM (SELECT MIN(timestamp) AS firstHeard FROM event GROUP BY songId) WHERE firstHeard >= :from AND firstHeard < :to")
+    suspend fun recapNewSongs(from: LocalDateTime, to: LocalDateTime): Int
+
+    @Query("SELECT COALESCE(SUM(playTime), 0) FROM event WHERE timestamp >= :from AND timestamp < :to")
+    suspend fun recapTotalMs(from: LocalDateTime, to: LocalDateTime): Long
+
+    /** Listening per month ("2026-09"); timestamps are stored as wall-clock time in UTC. */
+    @Query("SELECT strftime('%Y-%m', timestamp / 1000, 'unixepoch') AS month, SUM(playTime) AS totalMs FROM event GROUP BY month ORDER BY month DESC")
+    suspend fun recapMonths(): List<com.metrolist.music.pulse.recap.RecapMonthRow>
+
     @Query("SELECT SUM(playTime) FROM event WHERE timestamp >= :fromTimeStamp AND timestamp <= :toTimeStamp")
     fun getTotalPlayTimeInRange(fromTimeStamp: LocalDateTime, toTimeStamp: LocalDateTime): Flow<Long?>
 

@@ -151,6 +151,7 @@ import com.metrolist.music.constants.ExperimentalLyricsKey
 import com.metrolist.music.constants.ForceBottomNavBarKey
 import com.metrolist.music.constants.LastSeenVersionKey
 import com.metrolist.music.constants.PulseSeenChangelogKey
+import com.metrolist.music.constants.RecapOfferedKey
 import androidx.datastore.preferences.core.edit
 import com.metrolist.music.pulse.PulseChangelog
 import com.metrolist.music.constants.ListenTogetherInTopBarKey
@@ -742,6 +743,21 @@ class MainActivity : FragmentActivity() {
                     }
                 }
 
+                // Pulse: in a new month (and in January for the year) offer the recap once.
+                var recapOffer by remember { mutableStateOf<com.metrolist.music.pulse.recap.RecapPeriod?>(null) }
+                LaunchedEffect(Unit) {
+                    val offered = dataStore.data.first()[RecapOfferedKey]
+                    val minutes = mutableMapOf<String, Long>()
+                    for (candidate in com.metrolist.music.pulse.recap.RecapCalculator.candidates(java.time.LocalDateTime.now())) {
+                        minutes[candidate.key] = com.metrolist.music.pulse.recap.RecapRepository.minutesIn(database, candidate)
+                    }
+                    val offer = com.metrolist.music.pulse.recap.RecapCalculator.toOffer(java.time.LocalDateTime.now(), offered) { minutes[it.key] ?: 0L }
+                    if (offer != null) {
+                        recapOffer = offer
+                        dataStore.edit { it[RecapOfferedKey] = listOfNotNull(offered?.takeIf { o -> o.isNotBlank() }, offer.key).joinToString(",") }
+                    }
+                }
+
                 val homeViewModel: HomeViewModel = hiltViewModel()
                 val accountImageUrl by homeViewModel.accountImageUrl.collectAsStateWithLifecycle()
                 val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -1057,6 +1073,18 @@ class MainActivity : FragmentActivity() {
                 ) {
                     if (showChangelog.value) {
                         ChangelogScreen(onDismiss = { showChangelog.value = false })
+                    }
+                    recapOffer?.let { period ->
+                        if (!showChangelog.value) {
+                            com.metrolist.music.ui.screens.recap.RecapOfferDialog(
+                                period = period,
+                                onOpen = {
+                                    recapOffer = null
+                                    navController.navigate("pulse/recap/${period.key}")
+                                },
+                                onDismiss = { recapOffer = null },
+                            )
+                        }
                     }
 
                     Scaffold(
