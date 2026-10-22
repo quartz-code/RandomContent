@@ -1284,6 +1284,13 @@
     <string name="listen_together_invite_text">Join me in Pulse and let\'s listen together 🎧\nOpen Together → Join, room code: %1$s\n\nCopy this message: Pulse fills the code in by itself.</string>
     <string name="listen_together_code_pasted">Room code %1$s pasted from the clipboard</string>
     <string name="listen_together_host_not_allowed">This server lets only the official Metrolist app create rooms. Pulse can still join a room: ask a friend with Metrolist to create it, or set your own server in Together › Settings.</string>
+    <string name="listen_together_no_answer">The server did not answer. Check the internet (and VPN) and try again.</string>
+    <string name="listen_together_server_waking">The server is waking up, this can take up to a minute. Keep this screen open.</string>
+    <string name="listen_together_reconnect">Reconnect</string>
+    <string name="listen_together_mode_create">Create a room</string>
+    <string name="listen_together_mode_join">Join by code</string>
+    <string name="listen_together_mode_create_hint">You play the music, friends join with the room code.</string>
+    <string name="listen_together_mode_join_hint">Ask your friend for the room code: 8 letters and digits.</string>
     <string name="yandex_setup_1">In Yandex Music open the playlist, album, track or artist → “⋯” → “Share” → “Copy link”. For “Liked”, open that playlist in your collection and copy its link the same way.</string>
     <string name="yandex_setup_2">The playlist must be public. If Pulse says it is private, open access to your collection in Yandex Music privacy settings.</string>
     <string name="yandex_setup_3">Turn the VPN off: Yandex only answers Russian addresses.</string>

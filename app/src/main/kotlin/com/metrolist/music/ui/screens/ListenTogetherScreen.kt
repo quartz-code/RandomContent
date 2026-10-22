@@ -5,6 +5,10 @@
 
 package com.metrolist.music.ui.screens
 
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import com.metrolist.music.listentogether.PulseServerWake
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
@@ -136,6 +140,8 @@ fun ListenTogetherScreen(
     var usernameInput by rememberSaveable { mutableStateOf(savedUsername) }
 
     var isCreatingRoom by rememberSaveable { mutableStateOf(false) }
+    // Pulse: "create" and "join" are two separate modes instead of one button that changes.
+    var joinMode by rememberSaveable { mutableStateOf(false) }
     var isJoiningRoom by rememberSaveable { mutableStateOf(false) }
     var joinErrorMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
@@ -146,6 +152,7 @@ fun ListenTogetherScreen(
     val invalidRoomCodeText = stringResource(R.string.invalid_room_code)
     val joinRequestDeniedText = stringResource(R.string.join_request_denied)
     val hostNotAllowedText = stringResource(R.string.listen_together_host_not_allowed)
+    val noAnswerText = stringResource(R.string.listen_together_no_answer)
 
     LaunchedEffect(savedUsername) {
         if (usernameInput.isBlank() && savedUsername.isNotBlank()) {
@@ -204,6 +211,29 @@ fun ListenTogetherScreen(
     val isInRoom = listenTogetherManager.isInRoom
     val isHost = roomState?.hostId == userId
 
+    // Pulse: a free server sleeps when nobody uses it and takes up to a minute to wake. Knock on it
+    // as soon as the screen opens, so it is usually awake by the time "Create" is tapped.
+    LaunchedEffect(Unit) {
+        if (!isInRoom) PulseServerWake.knock(context)
+    }
+    // A connection that takes this long is a waking server, not a broken app: say so.
+    var serverWaking by remember { mutableStateOf(false) }
+    LaunchedEffect(connectionState) {
+        serverWaking = false
+        if (connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.RECONNECTING) {
+            delay(4_000)
+            serverWaking = true
+        }
+    }
+    LaunchedEffect(isCreatingRoom) {
+        if (!isCreatingRoom) return@LaunchedEffect
+        delay(90_000)
+        if (isCreatingRoom && !listenTogetherManager.isInRoom) {
+            isCreatingRoom = false
+            joinErrorMessage = noAnswerText
+        }
+    }
+
     // Pulse: a friend copied the invite, so the code is already waiting in the clipboard.
     LaunchedEffect(isInRoom) {
         if (isInRoom || roomCodeInput.isNotBlank()) return@LaunchedEffect
@@ -214,6 +244,7 @@ fun ListenTogetherScreen(
         val code = PulseInvite.extractCode(text) ?: return@LaunchedEffect
         if (code == roomState?.roomCode) return@LaunchedEffect
         roomCodeInput = code
+        joinMode = true
         Toast.makeText(context, context.getString(R.string.listen_together_code_pasted, code), Toast.LENGTH_SHORT).show()
     }
 
@@ -291,6 +322,8 @@ fun ListenTogetherScreen(
         item {
             ConnectionStatusCard(
                 connectionState = connectionState,
+                // While creating or joining, the form says it next to the button instead.
+                serverWaking = serverWaking && !isCreatingRoom && !isJoiningRoom,
                 onConnect = { listenTogetherManager.connect() },
                 onDisconnect = { listenTogetherManager.disconnect() },
                 onReconnect = { listenTogetherManager.forceReconnect() },
@@ -392,6 +425,18 @@ fun ListenTogetherScreen(
                     roomCodeInput = roomCodeInput,
                     onRoomCodeChange = { roomCodeInput = it },
                     savedUsername = savedUsername,
+                    joinMode = joinMode,
+                    onJoinModeChange = {
+                        joinMode = it
+                        joinErrorMessage = null
+                    },
+                    busyText =
+                        when {
+                            !isCreatingRoom && !isJoiningRoom -> null
+                            serverWaking -> stringResource(R.string.listen_together_server_waking)
+                            isCreatingRoom -> stringResource(R.string.creating_room)
+                            else -> waitingForApprovalText
+                        },
                     isJoiningRoom = isJoiningRoom,
                     joinErrorMessage = joinErrorMessage,
                     waitingForApprovalText = waitingForApprovalText,
@@ -543,6 +588,7 @@ private fun HeaderSection(isInRoom: Boolean = false) {
 @Composable
 private fun ConnectionStatusCard(
     connectionState: ConnectionState,
+    serverWaking: Boolean = false,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onReconnect: () -> Unit,
@@ -617,6 +663,15 @@ private fun ConnectionStatusCard(
             }
 
             if (connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.RECONNECTING) {
+                if (serverWaking) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        stringResource(R.string.listen_together_server_waking),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        textAlign = TextAlign.Center,
+                    )
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 LinearProgressIndicator(
                     modifier =
@@ -668,7 +723,7 @@ private fun ConnectionStatusCard(
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                     ) {
-                        Text("Reconnect", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.listen_together_reconnect), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -1080,6 +1135,9 @@ private fun JoinCreateRoomSection(
     roomCodeInput: String,
     onRoomCodeChange: (String) -> Unit,
     savedUsername: String,
+    joinMode: Boolean,
+    onJoinModeChange: (Boolean) -> Unit,
+    busyText: String?,
     isJoiningRoom: Boolean,
     joinErrorMessage: String?,
     waitingForApprovalText: String,
@@ -1104,6 +1162,23 @@ private fun JoinCreateRoomSection(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf(false to R.string.listen_together_mode_create, true to R.string.listen_together_mode_join).forEachIndexed { index, (join, label) ->
+                    SegmentedButton(
+                        selected = joinMode == join,
+                        onClick = { onJoinModeChange(join) },
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                    ) { Text(stringResource(label)) }
+                }
+            }
+            Text(
+                stringResource(if (joinMode) R.string.listen_together_mode_join_hint else R.string.listen_together_mode_create_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
             // Username input
             OutlinedTextField(
                 value = usernameInput,
@@ -1140,7 +1215,7 @@ private fun JoinCreateRoomSection(
             )
 
             // Room code input
-            OutlinedTextField(
+            if (joinMode) OutlinedTextField(
                 value = roomCodeInput,
                 onValueChange = { if (it.length <= 8) onRoomCodeChange(it.uppercase()) },
                 label = { Text(stringResource(R.string.room_code)) },
@@ -1177,7 +1252,7 @@ private fun JoinCreateRoomSection(
 
             // Waiting for approval indicator
             AnimatedVisibility(
-                visible = isJoiningRoom,
+                visible = busyText != null,
                 enter = fadeIn() + slideInVertically(),
                 exit = fadeOut() + slideOutVertically(),
             ) {
@@ -1201,7 +1276,7 @@ private fun JoinCreateRoomSection(
                         )
                         Spacer(modifier = Modifier.width(12.dp))
                         Text(
-                            text = waitingForApprovalText,
+                            text = busyText.orEmpty(),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                             fontWeight = FontWeight.Medium,
@@ -1253,11 +1328,11 @@ private fun JoinCreateRoomSection(
             val hasRoomCode = roomCodeInput.length == 8
 
             // Create Room button - visible when username is provided
-            AnimatedVisibility(visible = hasUsername && !hasRoomCode) {
+            AnimatedVisibility(visible = !joinMode) {
                 Button(
                     onClick = onCreateRoom,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = hasUsername,
+                    enabled = hasUsername && busyText == null,
                     shape = RoundedCornerShape(16.dp),
                     colors =
                         ButtonDefaults.buttonColors(
@@ -1275,11 +1350,11 @@ private fun JoinCreateRoomSection(
             }
 
             // Join Room button - visible when username and room code are provided
-            AnimatedVisibility(visible = hasUsername && hasRoomCode) {
+            AnimatedVisibility(visible = joinMode) {
                 Button(
                     onClick = onJoinRoom,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = hasUsername && hasRoomCode,
+                    enabled = hasUsername && hasRoomCode && busyText == null,
                     shape = RoundedCornerShape(16.dp),
                     colors =
                         ButtonDefaults.buttonColors(

@@ -29,3 +29,13 @@ class PulseInviteTest {
         assertNull(PulseInvite.extractCode("код от домофона 1234"))
     }
 }
+
+class PulseServerWakeTest {
+    @org.junit.Test
+    fun healthPageIsNextToTheSocket() {
+        org.junit.Assert.assertEquals("https://pulse-together.onrender.com/health", PulseServerWake.healthUrl("wss://pulse-together.onrender.com/ws"))
+        org.junit.Assert.assertEquals("http://192.168.1.5:8080/health", PulseServerWake.healthUrl(" ws://192.168.1.5:8080/ws "))
+        org.junit.Assert.assertNull(PulseServerWake.healthUrl("https://example.com"))
+        org.junit.Assert.assertNull(PulseServerWake.healthUrl("wss://"))
+    }
+}

@@ -1194,6 +1194,13 @@
     <string name="listen_together_invite_text">Заходи слушать вместе в Pulse 🎧\nОткрой Together → Войти, код комнаты: %1$s\n\nСкопируй это сообщение — Pulse сам подставит код.</string>
     <string name="listen_together_code_pasted">Код комнаты %1$s вставлен из буфера обмена</string>
     <string name="listen_together_host_not_allowed">Этот сервер разрешает создавать комнаты только официальному Metrolist. Войти в чужую комнату Pulse может: пусть друг создаст её в Metrolist — или укажи свой сервер в Together → Настройки.</string>
+    <string name="listen_together_no_answer">Сервер не ответил. Проверь интернет (и VPN) и попробуй ещё раз.</string>
+    <string name="listen_together_server_waking">Сервер просыпается — это может занять до минуты. Не закрывай этот экран.</string>
+    <string name="listen_together_reconnect">Заново</string>
+    <string name="listen_together_mode_create">Создать комнату</string>
+    <string name="listen_together_mode_join">Войти по коду</string>
+    <string name="listen_together_mode_create_hint">Ты включаешь музыку, друзья заходят по коду комнаты.</string>
+    <string name="listen_together_mode_join_hint">Попроси у друга код комнаты — 8 букв и цифр.</string>
     <string name="yandex_setup_1">В Яндекс Музыке открой плейлист, альбом, трек или исполнителя → «⋯» → «Поделиться» → «Скопировать ссылку». Для «Мне нравится» открой этот плейлист в своей коллекции и скопируй ссылку так же.</string>
     <string name="yandex_setup_2">Плейлист должен быть открытым. Если Pulse скажет, что он закрыт, открой доступ к коллекции в настройках приватности Яндекс Музыки.</string>
     <string name="yandex_setup_3">Выключи VPN: Яндекс отвечает только российским адресам.</string>
