@@ -88,6 +88,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerAwareWindowInsets
 import com.metrolist.music.R
+import kotlinx.coroutines.delay
+import com.metrolist.music.listentogether.PulseInvite
 import com.metrolist.music.constants.AppBarHeight
 import com.metrolist.music.constants.ListenTogetherInTopBarKey
 import com.metrolist.music.constants.ListenTogetherUsernameKey
@@ -173,7 +175,8 @@ fun ListenTogetherScreen(
                 is ListenTogetherEvent.RoomCreated -> {
                     isCreatingRoom = false
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                    val clip = android.content.ClipData.newPlainText("ListenTogetherRoom", event.roomCode)
+                    // Pulse: the ready invite, so the host can paste it straight into a chat.
+                    val clip = android.content.ClipData.newPlainText("ListenTogetherRoom", PulseInvite.message(context, event.roomCode))
                     clipboard.setPrimaryClip(clip)
                 }
 
@@ -184,6 +187,19 @@ fun ListenTogetherScreen(
 
     val isInRoom = listenTogetherManager.isInRoom
     val isHost = roomState?.hostId == userId
+
+    // Pulse: a friend copied the invite, so the code is already waiting in the clipboard.
+    LaunchedEffect(isInRoom) {
+        if (isInRoom || roomCodeInput.isNotBlank()) return@LaunchedEffect
+        // The clipboard is readable only once the window has focus.
+        delay(400)
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        val text = runCatching { clipboard.primaryClip?.getItemAt(0)?.coerceToText(context)?.toString() }.getOrNull()
+        val code = PulseInvite.extractCode(text) ?: return@LaunchedEffect
+        if (code == roomState?.roomCode) return@LaunchedEffect
+        roomCodeInput = code
+        Toast.makeText(context, context.getString(R.string.listen_together_code_pasted, code), Toast.LENGTH_SHORT).show()
+    }
 
     // User action menu dialog
     if (selectedUserForMenu != null && selectedUsername != null) {
@@ -695,31 +711,23 @@ private fun RoomStatusCard(
 
             if (isHost) {
                 Spacer(modifier = Modifier.height(16.dp))
-                val inviteLink =
-                    remember(roomCode) {
-                        "https://metrolist.cc/listen?code=$roomCode"
-                    }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
+                    // Pulse: the metrolist.cc link opens Metrolist, not Pulse; send a message with the code.
                     FilledTonalButton(
-                        onClick = {
-                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            val clip = android.content.ClipData.newPlainText("Listen Together Link", inviteLink)
-                            clipboard.setPrimaryClip(clip)
-                            Toast.makeText(context, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
-                        },
+                        onClick = { PulseInvite.share(context, roomCode) },
                         shape = RoundedCornerShape(12.dp),
                     ) {
                         Icon(
-                            painter = painterResource(R.drawable.link),
-                            contentDescription = stringResource(R.string.copy_link),
+                            painter = painterResource(R.drawable.share),
+                            contentDescription = stringResource(R.string.listen_together_invite),
                             modifier = Modifier.size(18.dp),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(stringResource(R.string.copy_link))
+                        Text(stringResource(R.string.listen_together_invite))
                     }
 
                     FilledTonalButton(

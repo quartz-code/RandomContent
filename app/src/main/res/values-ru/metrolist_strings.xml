@@ -961,6 +961,9 @@
     <string name="telegram_inbox_error">Не получилось проверить: %s</string>
     <string name="telegram_use_6">Пришли боту песню файлом или перешли её из любого чата — Pulse положит её в «Скачанные» и в плейлист «Из Telegram», играть будет без интернета. Файлы до 20 МБ.</string>
     <string name="telegram_use_7">Напиши «Исполнитель — Песня» или пришли ссылку на YouTube или Яндекс Музыку — Pulse найдёт её на YouTube Music и скачает. Бот ответит, что добавил.</string>
+    <string name="listen_together_invite">Пригласить</string>
+    <string name="listen_together_invite_text">Заходи слушать вместе в Pulse 🎧\nОткрой Together → Войти, код комнаты: %1$s\n\nСкопируй это сообщение — Pulse сам подставит код.</string>
+    <string name="listen_together_code_pasted">Код комнаты %1$s вставлен из буфера обмена</string>
     <string name="yandex_setup_1">В Яндекс Музыке открой плейлист, альбом, трек или исполнителя → «⋯» → «Поделиться» → «Скопировать ссылку». Для «Мне нравится» открой этот плейлист в своей коллекции и скопируй ссылку так же.</string>
     <string name="yandex_setup_2">Плейлист должен быть открытым. Если Pulse скажет, что он закрыт, открой доступ к коллекции в настройках приватности Яндекс Музыки.</string>
     <string name="yandex_setup_3">Выключи VPN: Яндекс отвечает только российским адресам.</string>
