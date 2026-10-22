@@ -892,10 +892,10 @@
     <string name="player_design">Вид плеера</string>
     <string name="player_design_clean">Чистый</string>
     <string name="player_design_radio">Эфир</string>
-    <string name="player_design_panel">Пульт</string>
+    <string name="player_design_soft">Светлый</string>
     <string name="player_design_clean_desc">Спокойный, как привычные плееры: фон в цвет обложки, тонкий ползунок и круглая белая кнопка.</string>
     <string name="player_design_radio_desc">Как в Shortwave: шкала частот с красной стрелкой вместо ползунка, янтарная ручка и панель с подписями.</string>
-    <string name="player_design_panel_desc">Всё управление на одной карточке: крупные кнопки под палец, толстая полоса прогресса и плитки с подписями.</string>
+    <string name="player_design_soft_desc">Светлый и спокойный: мягкий фон в цвет обложки, всё по центру, кнопка «Играть» в цвет обложки.</string>
     <string name="pulse_player_on_air">В эфире</string>
     <string name="pulse_player_queue">Очередь</string>
     <string name="pulse_player_lyrics">Текст</string>

@@ -1004,10 +1004,10 @@
     <string name="player_design">Player look</string>
     <string name="player_design_clean">Clean</string>
     <string name="player_design_radio">On air</string>
-    <string name="player_design_panel">Console</string>
+    <string name="player_design_soft">Light</string>
     <string name="player_design_clean_desc">Calm, like the players you know: background in the artwork\'s colour, a thin slider and a round white button.</string>
     <string name="player_design_radio_desc">Like Shortwave: a frequency dial with a red needle instead of a slider, an amber knob and a labelled panel.</string>
-    <string name="player_design_panel_desc">Every control on one card: big buttons for the thumb, a thick progress bar and labelled tiles.</string>
+    <string name="player_design_soft_desc">Light and calm: a soft background in the artwork\'s colour, everything centred, the play button in the artwork\'s colour.</string>
     <string name="pulse_player_on_air">On air</string>
     <string name="pulse_player_queue">Queue</string>
     <string name="pulse_player_lyrics">Lyrics</string>

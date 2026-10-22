@@ -56,6 +56,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -197,13 +198,13 @@ fun BottomSheetPlayer(
     val isKeepScreenOn by rememberPreference(KeepScreenOn, false)
     val keepScreenOn = isPlaying && isKeepScreenOn
 
-    DisposableEffect(state.isExpanded, useDarkTheme, keepScreenOn, isFullScreen, hideStatusBarOnFullscreen) {
+    DisposableEffect(state.isExpanded, useDarkTheme, keepScreenOn, isFullScreen, hideStatusBarOnFullscreen, playerDesign) {
         val window = (context as? android.app.Activity)?.window
         if (window != null && state.isExpanded) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
 
-            // Pulse: every player design is dark, so the status bar icons stay light.
-            insetsController.isAppearanceLightStatusBars = false
+            // Pulse: the status bar follows the player design, not the app theme.
+            insetsController.isAppearanceLightStatusBars = playerDesign.isLight
 
             if (isFullScreen && hideStatusBarOnFullscreen) {
                 insetsController.hide(WindowInsetsCompat.Type.statusBars())
@@ -331,7 +332,7 @@ fun BottomSheetPlayer(
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
 
     LaunchedEffect(mediaMetadata?.id, playerDesign) {
-        if (playerDesign == PlayerDesign.CLEAN) {
+        if (playerDesign == PlayerDesign.CLEAN || playerDesign == PlayerDesign.SOFT) {
             val currentMetadata = mediaMetadata
             if (currentMetadata != null && currentMetadata.thumbnailUrl != null) {
                 val cachedColors = gradientColorsCache[currentMetadata.id]
@@ -611,6 +612,8 @@ fun BottomSheetPlayer(
 
     val backgroundAlpha = state.progress.coerceIn(0f, 1f)
 
+    // Pulse: the light design colours its controls from the artwork.
+    CompositionLocalProvider(LocalPulseArtworkColor provides gradientColors.firstOrNull()) {
     BottomSheet(
         state = state,
         modifier = modifier,
@@ -677,15 +680,13 @@ fun BottomSheetPlayer(
         }
 
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            // In portrait the Panel card continues into the queue peek below, so it has no bottom corners.
-            val attachedToPeek = LocalConfiguration.current.orientation != Configuration.ORIENTATION_LANDSCAPE
             val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
             // For episodes, show saved state (inLibrary); for songs, show liked state
             val isEpisode = currentSong?.song?.isEpisode == true
             val isFavorite = if (isEpisode) currentSong?.song?.inLibrary != null else currentSong?.song?.liked == true
             val artistsText = mediaMetadata.artists.filter { it.name.isNotBlank() }.joinToString { it.name }
 
-            PulseControlsColumn(design = playerDesign, attachedToPeek = attachedToPeek) {
+            PulseControlsColumn(design = playerDesign) {
                 PulseTrackInfo(
                     design = playerDesign,
                     title = mediaMetadata.title,
@@ -949,8 +950,7 @@ fun BottomSheetPlayer(
                         controlsContent(it)
                     }
 
-                    // The Panel card runs straight into the queue peek; the others keep some air.
-                    Spacer(Modifier.height(if (playerDesign == PlayerDesign.PANEL) 0.dp else 12.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
             }
         }
@@ -978,6 +978,7 @@ fun BottomSheetPlayer(
             )
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

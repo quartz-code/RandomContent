@@ -41,14 +41,14 @@ private val PlayerDesign.label: Int
     get() = when (this) {
         PlayerDesign.CLEAN -> R.string.player_design_clean
         PlayerDesign.RADIO -> R.string.player_design_radio
-        PlayerDesign.PANEL -> R.string.player_design_panel
+        PlayerDesign.SOFT -> R.string.player_design_soft
     }
 
 private val PlayerDesign.description: Int
     get() = when (this) {
         PlayerDesign.CLEAN -> R.string.player_design_clean_desc
         PlayerDesign.RADIO -> R.string.player_design_radio_desc
-        PlayerDesign.PANEL -> R.string.player_design_panel_desc
+        PlayerDesign.SOFT -> R.string.player_design_soft_desc
     }
 
 /** Pulse: the three player designs, each shown as a tiny player so the choice needs no guessing. */
@@ -149,13 +149,13 @@ private fun DrawScope.drawMiniPlayer(design: PlayerDesign) {
     when (design) {
         PlayerDesign.CLEAN -> drawRect(Brush.verticalGradient(0f to Color(0xFF2E3747), 0.75f to Color(0xFF101215)))
         PlayerDesign.RADIO -> drawRect(Brush.verticalGradient(0f to Color(0xFF22261D), 0.5f to Color(0xFF121310)))
-        PlayerDesign.PANEL -> drawRect(Color(0xFF121310))
+        PlayerDesign.SOFT -> drawRect(Brush.verticalGradient(0f to Color(0xFFDCE4EF), 0.7f to Color(0xFFF7F5F2)))
     }
     val w = size.width
     val pad = w * when (design) {
         PlayerDesign.CLEAN -> 0.12f
         PlayerDesign.RADIO -> 0.16f
-        PlayerDesign.PANEL -> 0.08f
+        PlayerDesign.SOFT -> 0.14f
     }
     // Capped by height so wide screens keep the sketch inside the card.
     val art = minOf(w - pad * 2, size.height * 0.52f)
@@ -164,7 +164,7 @@ private fun DrawScope.drawMiniPlayer(design: PlayerDesign) {
     val corner = when (design) {
         PlayerDesign.CLEAN -> 6.dp.toPx()
         PlayerDesign.RADIO -> 3.dp.toPx()
-        PlayerDesign.PANEL -> 9.dp.toPx()
+        PlayerDesign.SOFT -> 8.dp.toPx()
     }
     drawRoundRect(
         brush = Brush.verticalGradient(
@@ -180,21 +180,15 @@ private fun DrawScope.drawMiniPlayer(design: PlayerDesign) {
     )
 
     var y = artTop + art + 8.dp.toPx()
-    val inner = if (design == PlayerDesign.PANEL) left + 6.dp.toPx() else left
+    val inner = left
     val innerWidth = w - inner * 2
-    if (design == PlayerDesign.PANEL) {
-        drawRoundRect(
-            color = p.panel,
-            topLeft = Offset(left, y - 4.dp.toPx()),
-            size = Size(art, size.height - y),
-            cornerRadius = CornerRadius(10.dp.toPx()),
-        )
-        y += 4.dp.toPx()
-    }
-    drawRoundRect(p.content, Offset(inner, y), Size(innerWidth * 0.7f, 5.dp.toPx()), CornerRadius(2.dp.toPx()))
+    // The light design centres its title.
+    val titleX = if (design == PlayerDesign.SOFT) inner + innerWidth * 0.15f else inner
+    val artistX = if (design == PlayerDesign.SOFT) inner + innerWidth * 0.29f else inner
+    drawRoundRect(p.content, Offset(titleX, y), Size(innerWidth * 0.7f, 5.dp.toPx()), CornerRadius(2.dp.toPx()))
     drawRoundRect(
         if (design == PlayerDesign.RADIO) p.accent else p.muted,
-        Offset(inner, y + 8.dp.toPx()),
+        Offset(artistX, y + 8.dp.toPx()),
         Size(innerWidth * 0.42f, 3.dp.toPx()),
         CornerRadius(1.5.dp.toPx()),
     )
@@ -202,7 +196,7 @@ private fun DrawScope.drawMiniPlayer(design: PlayerDesign) {
     y += 22.dp.toPx()
     val x = inner + innerWidth * 0.35f
     when (design) {
-        PlayerDesign.CLEAN -> {
+        PlayerDesign.CLEAN, PlayerDesign.SOFT -> {
             drawRoundRect(p.track, Offset(inner, y), Size(innerWidth, 2.dp.toPx()), CornerRadius(1.dp.toPx()))
             drawRoundRect(p.accent, Offset(inner, y), Size(x - inner, 2.dp.toPx()), CornerRadius(1.dp.toPx()))
             drawCircle(p.accent, 3.dp.toPx(), Offset(x, y + 1.dp.toPx()))
@@ -221,16 +215,12 @@ private fun DrawScope.drawMiniPlayer(design: PlayerDesign) {
             }
             drawRect(needle, Offset(x - 0.75.dp.toPx(), y - 4.dp.toPx()), Size(1.5.dp.toPx(), 10.dp.toPx()))
         }
-        PlayerDesign.PANEL -> {
-            drawRoundRect(p.track, Offset(inner, y), Size(innerWidth, 4.dp.toPx()), CornerRadius(2.dp.toPx()))
-            drawRoundRect(p.accent, Offset(inner, y), Size(x - inner, 4.dp.toPx()), CornerRadius(2.dp.toPx()))
-        }
     }
 
     y += 18.dp.toPx()
     val cx = w / 2
     when (design) {
-        PlayerDesign.CLEAN -> {
+        PlayerDesign.CLEAN, PlayerDesign.SOFT -> {
             drawCircle(p.play, 9.dp.toPx(), Offset(cx, y))
             drawCircle(p.content.copy(alpha = 0.7f), 3.dp.toPx(), Offset(cx - 20.dp.toPx(), y))
             drawCircle(p.content.copy(alpha = 0.7f), 3.dp.toPx(), Offset(cx + 20.dp.toPx(), y))
@@ -240,13 +230,6 @@ private fun DrawScope.drawMiniPlayer(design: PlayerDesign) {
             drawCircle(p.play, 8.dp.toPx(), Offset(cx, y))
             drawCircle(p.content.copy(alpha = 0.7f), 3.dp.toPx(), Offset(cx - 22.dp.toPx(), y))
             drawCircle(p.content.copy(alpha = 0.7f), 3.dp.toPx(), Offset(cx + 22.dp.toPx(), y))
-        }
-        PlayerDesign.PANEL -> {
-            val big = 18.dp.toPx()
-            val small = 13.dp.toPx()
-            drawRoundRect(p.play, Offset(cx - big / 2, y - big / 2), Size(big, big), CornerRadius(6.dp.toPx()))
-            drawRoundRect(p.button, Offset(cx - big / 2 - 5.dp.toPx() - small, y - small / 2), Size(small, small), CornerRadius(4.dp.toPx()))
-            drawRoundRect(p.button, Offset(cx + big / 2 + 5.dp.toPx(), y - small / 2), Size(small, small), CornerRadius(4.dp.toPx()))
         }
     }
 }

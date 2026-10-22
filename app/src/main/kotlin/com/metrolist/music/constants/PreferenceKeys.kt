@@ -457,7 +457,7 @@ val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
 enum class PlayerDesign {
     CLEAN,
     RADIO,
-    PANEL,
+    SOFT,
 }
 
 val TopSize = stringPreferencesKey("topSize")

@@ -40,6 +40,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,16 +58,19 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.graphics.ColorUtils
 import androidx.media3.common.Player
 import com.metrolist.music.R
 import com.metrolist.music.constants.PlayerDesign
@@ -75,24 +79,27 @@ import com.metrolist.music.ui.theme.PtMono
 import com.metrolist.music.utils.makeTimeString
 
 /*
- * Pulse: the three player designs from the Figma board "Pulse — плеер, варианты".
- *  - CLEAN («Чистый», default): background tinted by the artwork, thin slider, round white button.
+ * Pulse: the player designs from the Figma file "Pulse — плеер, варианты".
+ *  - CLEAN («Чистый», default): dark, background tinted by the artwork, thin slider, round white button.
  *  - RADIO («Эфир»): Shortwave frequency dial with a red needle, amber knob, labelled panel.
- *  - PANEL («Пульт»): every control on one card, big targets, thick progress bar, labelled tiles.
- * The player is always drawn dark, whatever the app theme: artwork reads better on dark and the
- * Shortwave colours were made for it.
+ *  - SOFT («Светлый»): light and calm, everything centred, the artwork's own colour on the play button.
  */
 
 private val Cream = Color(0xFFEFE8D6)
 private val Amber = Color(0xFFF0A43A)
 private val Needle = Color(0xFFE0482F)
 private val Grey = Color(0xFF85887C)
-private val Soft = Color(0xFFBDB8A6)
 private val Ink = Color(0xFF1B1A16)
 private val Olive = Color(0xFF22261D)
 private val Night = Color(0xFF121310)
 private val CleanBottom = Color(0xFF101215)
 private val CleanFallbackTop = Color(0xFF3E4A5E)
+private val SoftInk = Color(0xFF1D1B20)
+private val SoftPaper = Color(0xFFF7F5F2)
+private val SoftFallbackAccent = Color(0xFF4A5D7A)
+
+/** The artwork's main colour while a song plays; only the light design uses it for its controls. */
+internal val LocalPulseArtworkColor = compositionLocalOf<Color?> { null }
 
 @Immutable
 internal data class PulsePalette(
@@ -104,7 +111,6 @@ internal data class PulsePalette(
     val onPlay: Color,
     val panel: Color,
     val button: Color,
-    val tile: Color,
     val tileActive: Color,
     val outline: Color,
     val track: Color,
@@ -122,7 +128,6 @@ internal val PlayerDesign.palette: PulsePalette
             onPlay = CleanBottom,
             panel = Color.White.copy(alpha = 0.12f),
             button = Color.White.copy(alpha = 0.16f),
-            tile = Color.White.copy(alpha = 0.12f),
             tileActive = Color.White.copy(alpha = 0.26f),
             outline = Color.White.copy(alpha = 0.2f),
             track = Color.White.copy(alpha = 0.22f),
@@ -137,54 +142,82 @@ internal val PlayerDesign.palette: PulsePalette
             onPlay = Ink,
             panel = Color(0xFF1C1E19),
             button = Color(0xFF2A2C25),
-            tile = Color(0xFF242720),
             tileActive = Color(0xFF4A3417),
             outline = Color(0xFF3E4137),
             track = Color(0xFF3E4137),
             tick = Color(0xFF4A4D42),
         )
-        PlayerDesign.PANEL -> PulsePalette(
-            content = Cream,
-            muted = Soft,
-            accent = Amber,
-            like = Amber,
-            play = Amber,
-            onPlay = Ink,
-            panel = Color(0xFF1C1E19),
-            button = Color(0xFF2A2C25),
-            tile = Color(0xFF242720),
-            tileActive = Color(0xFF4A3417),
-            outline = Color(0xFF2A2C25),
-            track = Color(0xFF2D3029),
-            tick = Color(0xFF4A4D42),
-        )
+        PlayerDesign.SOFT -> softPalette(SoftFallbackAccent)
     }
+
+private fun softPalette(accent: Color) = PulsePalette(
+    content = SoftInk,
+    muted = SoftInk.copy(alpha = 0.55f),
+    accent = accent,
+    like = accent,
+    play = accent,
+    onPlay = Color.White,
+    panel = SoftInk.copy(alpha = 0.05f),
+    button = SoftInk.copy(alpha = 0.06f),
+    tileActive = accent.copy(alpha = 0.14f),
+    outline = SoftInk.copy(alpha = 0.1f),
+    track = SoftInk.copy(alpha = 0.12f),
+    tick = SoftInk.copy(alpha = 0.2f),
+)
+
+/** The palette as drawn right now: the light design takes its accent from the artwork. */
+@Composable
+internal fun pulsePalette(design: PlayerDesign): PulsePalette {
+    if (design != PlayerDesign.SOFT) return design.palette
+    val accent by animateColorAsState(
+        targetValue = LocalPulseArtworkColor.current?.let { softTone(it, lightness = 0.42f, minSaturation = 0.32f) } ?: SoftFallbackAccent,
+        animationSpec = tween(800),
+        label = "pulseSoftAccent",
+    )
+    return softPalette(accent)
+}
+
+/** Keeps the artwork's hue but moves it to a lightness that works on (or as) a light background. */
+private fun softTone(color: Color, lightness: Float, minSaturation: Float, maxSaturation: Float = 0.75f): Color {
+    val hsl = FloatArray(3)
+    ColorUtils.colorToHSL(color.toArgb(), hsl)
+    hsl[1] = hsl[1].coerceIn(minSaturation, maxSaturation)
+    hsl[2] = lightness
+    return Color(ColorUtils.HSLToColor(hsl))
+}
 
 /** Height of the queue sheet's peek, which holds the design's bottom row. */
 internal val PlayerDesign.peekHeight: Dp
     get() = when (this) {
         PlayerDesign.CLEAN -> 72.dp
         PlayerDesign.RADIO -> 84.dp
-        PlayerDesign.PANEL -> 92.dp
+        PlayerDesign.SOFT -> 76.dp
     }
 
 internal val PlayerDesign.artPadding: Dp
     get() = when (this) {
         PlayerDesign.CLEAN -> 24.dp
         PlayerDesign.RADIO -> 32.dp
-        PlayerDesign.PANEL -> 16.dp
+        PlayerDesign.SOFT -> 28.dp
     }
 
 internal val PlayerDesign.artCorner: Dp
     get() = when (this) {
         PlayerDesign.CLEAN -> 14.dp
         PlayerDesign.RADIO -> 8.dp
-        PlayerDesign.PANEL -> 24.dp
+        PlayerDesign.SOFT -> 20.dp
     }
 
-/** Colour under the background while the sheet opens, so light themes never flash through. */
+internal val PlayerDesign.isLight: Boolean
+    get() = this == PlayerDesign.SOFT
+
+/** Colour under the background while the sheet opens, so the app theme never flashes through. */
 internal val PlayerDesign.baseBackground: Color
-    get() = if (this == PlayerDesign.CLEAN) CleanBottom else Night
+    get() = when (this) {
+        PlayerDesign.CLEAN -> CleanBottom
+        PlayerDesign.RADIO -> Night
+        PlayerDesign.SOFT -> SoftPaper
+    }
 
 @Composable
 internal fun PulsePlayerBackground(
@@ -211,11 +244,20 @@ internal fun PulsePlayerBackground(
                 .fillMaxSize()
                 .background(Brush.verticalGradient(0f to Olive, 0.5f to Night)),
         )
-        PlayerDesign.PANEL -> Box(
-            modifier
-                .fillMaxSize()
-                .background(Night),
-        )
+        PlayerDesign.SOFT -> {
+            // A pale wash of the artwork's colour that fades into paper.
+            val top by animateColorAsState(
+                targetValue = artworkColors.firstOrNull()?.let { softTone(it, lightness = 0.9f, minSaturation = 0.2f, maxSaturation = 0.45f) }
+                    ?: Color(0xFFE6EAF0),
+                animationSpec = tween(800),
+                label = "pulseSoftTop",
+            )
+            Box(
+                modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(0f to top, 0.7f to SoftPaper)),
+            )
+        }
     }
 }
 
@@ -230,7 +272,7 @@ internal fun PulsePlayerHeader(
     onMore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val p = design.palette
+    val p = pulsePalette(design)
     val label = listenTogetherLabel
         ?: stringResource(if (design == PlayerDesign.RADIO) R.string.pulse_player_on_air else R.string.now_playing)
     Row(
@@ -245,8 +287,8 @@ internal fun PulsePlayerHeader(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.weight(1f),
         ) {
-            when (design) {
-                PlayerDesign.RADIO -> Row(verticalAlignment = Alignment.CenterVertically) {
+            if (design == PlayerDesign.RADIO) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         Modifier
                             .size(6.dp)
@@ -256,7 +298,8 @@ internal fun PulsePlayerHeader(
                     Spacer(Modifier.width(6.dp))
                     Text(label.uppercase(), color = Amber, style = monoStyle(11, 2.0), maxLines = 1)
                 }
-                PlayerDesign.CLEAN -> Text(
+            } else {
+                Text(
                     text = label.uppercase(),
                     color = p.muted,
                     fontSize = 10.sp,
@@ -264,16 +307,15 @@ internal fun PulsePlayerHeader(
                     letterSpacing = 1.5.sp,
                     maxLines = 1,
                 )
-                PlayerDesign.PANEL -> Text(label.uppercase(), color = Amber, style = monoStyle(10, 1.5), maxLines = 1)
             }
             if (!source.isNullOrBlank()) {
                 Text(
                     text = source,
-                    color = if (design == PlayerDesign.CLEAN) p.content else p.content.copy(alpha = 0.8f),
-                    style = when (design) {
-                        PlayerDesign.CLEAN -> TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        PlayerDesign.RADIO -> TextStyle(fontFamily = Oswald, fontSize = 15.sp)
-                        PlayerDesign.PANEL -> TextStyle(fontFamily = Oswald, fontSize = 16.sp)
+                    color = if (design == PlayerDesign.RADIO) p.content.copy(alpha = 0.8f) else p.content,
+                    style = if (design == PlayerDesign.RADIO) {
+                        TextStyle(fontFamily = Oswald, fontSize = 15.sp)
+                    } else {
+                        TextStyle(fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                     },
                     maxLines = 1,
                     modifier = Modifier.basicMarquee(),
@@ -286,28 +328,18 @@ internal fun PulsePlayerHeader(
 
 // ---------------------------------------------------------------- 3 · title, artist, like
 
-/** Groups the title, progress and buttons; for PANEL it is the top half of the control card. */
+/** Groups the title, progress and buttons under the artwork. */
 @Composable
 internal fun PulseControlsColumn(
     design: PlayerDesign,
-    attachedToPeek: Boolean,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val base = modifier.fillMaxWidth()
-    val styled = when (design) {
-        PlayerDesign.PANEL -> {
-            val shape = if (attachedToPeek) RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp) else RoundedCornerShape(28.dp)
-            base
-                .padding(horizontal = 16.dp)
-                .background(design.palette.panel, shape)
-                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = if (attachedToPeek) 18.dp else 20.dp)
-        }
-        else -> base.padding(horizontal = design.artPadding)
-    }
     Column(
-        verticalArrangement = Arrangement.spacedBy(if (design == PlayerDesign.PANEL) 18.dp else 22.dp),
-        modifier = styled,
+        verticalArrangement = Arrangement.spacedBy(22.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = design.artPadding),
         content = content,
     )
 }
@@ -328,17 +360,20 @@ internal fun PulseTrackInfo(
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    val p = design.palette
+    val p = pulsePalette(design)
+    // The light design centres the title; with a small artwork in front (lyrics open) it reads left.
+    val centred = design == PlayerDesign.SOFT && leading == null
     val titleStyle = when (design) {
         PlayerDesign.CLEAN -> TextStyle(fontSize = 24.sp, lineHeight = 30.sp, fontWeight = FontWeight.Bold)
         PlayerDesign.RADIO -> TextStyle(fontFamily = Oswald, fontWeight = FontWeight.Medium, fontSize = 30.sp, lineHeight = 38.sp)
-        PlayerDesign.PANEL -> TextStyle(fontFamily = Oswald, fontWeight = FontWeight.Medium, fontSize = 26.sp, lineHeight = 32.sp)
+        PlayerDesign.SOFT -> TextStyle(fontSize = 22.sp, lineHeight = 28.sp, fontWeight = FontWeight.SemiBold)
     }
     val artistStyle = when (design) {
         PlayerDesign.CLEAN -> TextStyle(fontSize = 16.sp, color = p.muted)
         PlayerDesign.RADIO -> monoStyle(14, 0.5).copy(color = Amber)
-        PlayerDesign.PANEL -> TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium, color = Soft)
+        PlayerDesign.SOFT -> TextStyle(fontSize = 15.sp, color = p.muted)
     }
+    val align = if (centred) TextAlign.Center else TextAlign.Start
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier.fillMaxWidth(),
@@ -346,8 +381,14 @@ internal fun PulseTrackInfo(
         if (leading != null) {
             leading()
             Spacer(Modifier.width(12.dp))
+        } else if (centred) {
+            // Balances the like button so the text sits in the middle of the screen.
+            Spacer(Modifier.width(60.dp))
         }
-        Column(Modifier.weight(1f)) {
+        Column(
+            horizontalAlignment = if (centred) Alignment.CenterHorizontally else Alignment.Start,
+            modifier = Modifier.weight(1f),
+        ) {
             AnimatedContent(
                 targetState = title,
                 transitionSpec = { fadeIn() togetherWith fadeOut() },
@@ -357,6 +398,7 @@ internal fun PulseTrackInfo(
                     text = text,
                     style = titleStyle,
                     color = p.content,
+                    textAlign = align,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
@@ -373,6 +415,7 @@ internal fun PulseTrackInfo(
                 Text(
                     text = artists,
                     style = artistStyle,
+                    textAlign = align,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier
@@ -392,19 +435,8 @@ internal fun PulseTrackInfo(
             trailing()
         } else {
             val icon = if (isFavorite) R.drawable.favorite else R.drawable.favorite_border
-            when (design) {
-                PlayerDesign.PANEL -> PulseIconButton(
-                    icon = icon,
-                    description = null,
-                    tint = if (isFavorite) p.like else p.content,
-                    onClick = onLike,
-                    size = 52.dp,
-                    iconSize = 24.dp,
-                    container = p.button,
-                )
-                PlayerDesign.RADIO -> PulseIconButton(icon, null, if (isFavorite) p.like else p.content.copy(alpha = 0.7f), onLike, iconSize = 26.dp)
-                PlayerDesign.CLEAN -> PulseIconButton(icon, null, if (isFavorite) p.like else p.content.copy(alpha = 0.8f), onLike, iconSize = 28.dp)
-            }
+            val tint = if (isFavorite) p.like else p.content.copy(alpha = if (design == PlayerDesign.RADIO) 0.7f else 0.8f)
+            PulseIconButton(icon, null, tint, onLike, iconSize = if (design == PlayerDesign.RADIO) 26.dp else 28.dp)
         }
     }
 }
@@ -416,12 +448,7 @@ internal fun PulseTrailingButton(
     @DrawableRes icon: Int,
     onClick: () -> Unit,
 ) {
-    val p = design.palette
-    if (design == PlayerDesign.PANEL) {
-        PulseIconButton(icon, null, p.content, onClick, size = 52.dp, iconSize = 24.dp, container = p.button)
-    } else {
-        PulseIconButton(icon, null, p.content.copy(alpha = 0.85f), onClick, iconSize = 26.dp)
-    }
+    PulseIconButton(icon, null, pulsePalette(design).content.copy(alpha = 0.85f), onClick, iconSize = 26.dp)
 }
 
 // ---------------------------------------------------------------- 4 · progress
@@ -436,7 +463,7 @@ internal fun PulseProgress(
     onSeekFinished: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val p = design.palette
+    val p = pulsePalette(design)
     val fraction = if (duration > 0) (position.toFloat() / duration).coerceIn(0f, 1f) else 0f
     var dragging by remember { mutableStateOf(false) }
     val seek by rememberUpdatedState(onSeek)
@@ -473,11 +500,11 @@ internal fun PulseProgress(
                 }
             }
     }
-    val thumbRadius by animateFloatAsState(if (dragging) 1f else 0f, label = "pulseThumb")
+    val thumbGrow by animateFloatAsState(if (dragging) 1f else 0f, label = "pulseThumb")
 
     Column(modifier.fillMaxWidth()) {
-        when (design) {
-            PlayerDesign.RADIO -> Canvas(
+        if (design == PlayerDesign.RADIO) {
+            Canvas(
                 Modifier
                     .fillMaxWidth()
                     .height(40.dp)
@@ -501,7 +528,7 @@ internal fun PulseProgress(
                     tick += step
                     i++
                 }
-                val glow = (9 + 6 * thumbRadius).dp.toPx()
+                val glow = (9 + 6 * thumbGrow).dp.toPx()
                 drawRoundRect(
                     color = Needle.copy(alpha = 0.25f),
                     topLeft = Offset(x - glow / 2, 0f),
@@ -515,7 +542,9 @@ internal fun PulseProgress(
                     cornerRadius = CornerRadius(1.5.dp.toPx()),
                 )
             }
-            PlayerDesign.CLEAN -> Canvas(
+        } else {
+            val soft = design == PlayerDesign.SOFT
+            Canvas(
                 Modifier
                     .fillMaxWidth()
                     .height(24.dp)
@@ -526,28 +555,11 @@ internal fun PulseProgress(
                 val y = (size.height - h) / 2
                 drawRoundRect(p.track, Offset(0f, y), Size(size.width, h), CornerRadius(h / 2))
                 drawRoundRect(p.accent, Offset(0f, y), Size(x, h), CornerRadius(h / 2))
-                drawCircle(p.accent, radius = (7 + 2 * thumbRadius).dp.toPx(), center = Offset(x, size.height / 2))
-            }
-            PlayerDesign.PANEL -> Canvas(
-                Modifier
-                    .fillMaxWidth()
-                    .height(24.dp)
-                    .then(gestures),
-            ) {
-                val x = fraction * size.width
-                val h = 10.dp.toPx()
-                val y = (size.height - h) / 2
-                drawRoundRect(p.track, Offset(0f, y), Size(size.width, h), CornerRadius(h / 2))
-                drawRoundRect(p.accent, Offset(0f, y), Size(x, h), CornerRadius(h / 2))
-                if (thumbRadius > 0f) {
-                    drawCircle(Cream, radius = 9.dp.toPx() * thumbRadius, center = Offset(x, size.height / 2))
-                }
+                val radius = if (soft) 6 + 3 * thumbGrow else 7 + 2 * thumbGrow
+                drawCircle(p.accent, radius = radius.dp.toPx(), center = Offset(x, size.height / 2))
             }
         }
-        val timeStyle = when (design) {
-            PlayerDesign.CLEAN -> TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
-            else -> monoStyle(12, 0.0)
-        }
+        val timeStyle = if (design == PlayerDesign.RADIO) monoStyle(12, 0.0) else TextStyle(fontSize = 12.sp, fontWeight = FontWeight.Medium)
         val padded = design == PlayerDesign.RADIO
         Row(
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -558,16 +570,12 @@ internal fun PulseProgress(
             Text(
                 text = pulseTime(position, padded),
                 style = timeStyle,
-                color = when (design) {
-                    PlayerDesign.CLEAN -> p.muted
-                    PlayerDesign.RADIO -> Amber
-                    PlayerDesign.PANEL -> Cream.copy(alpha = 0.8f)
-                },
+                color = if (design == PlayerDesign.RADIO) Amber else p.muted,
             )
             Text(
                 text = if (duration > 0) pulseTime(duration, padded) else "",
                 style = timeStyle,
-                color = if (design == PlayerDesign.CLEAN) p.muted else Grey,
+                color = if (design == PlayerDesign.RADIO) Grey else p.muted,
             )
         }
     }
@@ -598,27 +606,12 @@ internal fun PulseTransport(
     modifier: Modifier = Modifier,
     playModifier: Modifier = Modifier,
 ) {
-    val p = design.palette
-    if (design == PlayerDesign.PANEL) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = modifier.fillMaxWidth(),
-        ) {
-            PressableBox(72.dp, RoundedCornerShape(24.dp), p.button, canPrevious, onPrevious) {
-                PulseIcon(R.drawable.pulse_skip_previous, p.content, 34.dp)
-            }
-            PressableBox(96.dp, RoundedCornerShape(32.dp), p.play, true, onPlayPause, playModifier, glow = p.play) {
-                PulseIcon(playIcon, p.onPlay, 44.dp, playDescription)
-            }
-            PressableBox(72.dp, RoundedCornerShape(24.dp), p.button, canNext, onNext) {
-                PulseIcon(R.drawable.pulse_skip_next, p.content, 34.dp)
-            }
-        }
-        return
+    val p = pulsePalette(design)
+    val skipIcon = when (design) {
+        PlayerDesign.RADIO -> 34.dp
+        PlayerDesign.CLEAN -> 40.dp
+        PlayerDesign.SOFT -> 36.dp
     }
-
-    val skipIcon = if (design == PlayerDesign.RADIO) 34.dp else 40.dp
     val toggleIcon = if (design == PlayerDesign.RADIO) 22.dp else 24.dp
     Row(
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -629,21 +622,25 @@ internal fun PulseTransport(
         PressableBox(56.dp, CircleShape, Color.Transparent, canPrevious, onPrevious) {
             PulseIcon(R.drawable.pulse_skip_previous, p.content, skipIcon)
         }
-        if (design == PlayerDesign.RADIO) {
-            // The knob: a dark ring around the amber cap, like on the Sever's front panel.
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(92.dp)
-                    .background(p.panel, CircleShape)
-                    .border(1.dp, p.outline, CircleShape),
-            ) {
-                PressableBox(76.dp, CircleShape, p.play, true, onPlayPause, playModifier, glow = p.play) {
-                    PulseIcon(playIcon, p.onPlay, 34.dp, playDescription)
+        when (design) {
+            PlayerDesign.RADIO -> {
+                // The knob: a dark ring around the amber cap, like on the Sever's front panel.
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .size(92.dp)
+                        .background(p.panel, CircleShape)
+                        .border(1.dp, p.outline, CircleShape),
+                ) {
+                    PressableBox(76.dp, CircleShape, p.play, true, onPlayPause, playModifier, glow = p.play) {
+                        PulseIcon(playIcon, p.onPlay, 34.dp, playDescription)
+                    }
                 }
             }
-        } else {
-            PressableBox(72.dp, CircleShape, p.play, true, onPlayPause, playModifier) {
+            PlayerDesign.CLEAN -> PressableBox(72.dp, CircleShape, p.play, true, onPlayPause, playModifier) {
+                PulseIcon(playIcon, p.onPlay, 34.dp, playDescription)
+            }
+            PlayerDesign.SOFT -> PressableBox(76.dp, CircleShape, p.play, true, onPlayPause, playModifier, glow = p.play) {
                 PulseIcon(playIcon, p.onPlay, 34.dp, playDescription)
             }
         }
@@ -701,7 +698,7 @@ internal fun PulseBottomRow(
     onRepeat: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val p = design.palette
+    val p = pulsePalette(design)
     val queue = stringResource(R.string.pulse_player_queue)
     val lyrics = stringResource(R.string.pulse_player_lyrics)
     val timer = sleepTimerLeft ?: stringResource(R.string.pulse_player_timer)
@@ -739,20 +736,16 @@ internal fun PulseBottomRow(
             Pill(R.drawable.lyrics, lyrics, lyricsShown, true, p, onLyrics)
             PulseIconButton(R.drawable.queue_music, queue, p.content.copy(alpha = 0.7f), onQueue, iconSize = 22.dp)
         }
-        PlayerDesign.PANEL -> Box(modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(p.panel, RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-                    .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
-            ) {
-                Tile(R.drawable.shuffle, stringResource(R.string.pulse_player_shuffle), shuffleOn, controlsEnabled, p, onShuffle)
-                Tile(repeatIcon(repeatMode), stringResource(R.string.pulse_player_repeat), repeatMode != Player.REPEAT_MODE_OFF, controlsEnabled, p, onRepeat)
-                Tile(R.drawable.lyrics, lyrics, lyricsShown, true, p, onLyrics)
-                Tile(R.drawable.bedtime, timer, sleepTimerLeft != null, controlsEnabled, p, onSleepTimer)
-                Tile(R.drawable.queue_music, queue, false, true, p, onQueue)
-            }
+        PlayerDesign.SOFT -> Row(
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier
+                .height(76.dp)
+                .padding(horizontal = 28.dp, vertical = 8.dp),
+        ) {
+            QuietButton(R.drawable.lyrics, lyrics, lyricsShown, true, p, onLyrics)
+            QuietButton(R.drawable.bedtime, timer, sleepTimerLeft != null, controlsEnabled, p, onSleepTimer)
+            QuietButton(R.drawable.queue_music, queue, false, true, p, onQueue)
         }
     }
 }
@@ -798,8 +791,9 @@ private fun PanelDivider(p: PulsePalette) {
     )
 }
 
+/** Light design: an icon with a small caption, tinted when it is on. */
 @Composable
-private fun RowScope.Tile(
+private fun RowScope.QuietButton(
     @DrawableRes icon: Int,
     label: String,
     active: Boolean,
@@ -812,17 +806,17 @@ private fun RowScope.Tile(
         verticalArrangement = Arrangement.Center,
         modifier = Modifier
             .weight(1f)
-            .height(64.dp)
+            .fillMaxHeight()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (active) p.tileActive else p.tile)
+            .background(if (active) p.tileActive else Color.Transparent)
             .clickable(enabled = enabled, onClick = onClick)
             .alpha(if (enabled) 1f else 0.4f),
     ) {
-        PulseIcon(icon, if (active) p.accent else p.content.copy(alpha = 0.85f), 22.dp)
-        Spacer(Modifier.height(5.dp))
+        PulseIcon(icon, if (active) p.accent else p.content.copy(alpha = 0.7f), 22.dp)
+        Spacer(Modifier.height(4.dp))
         Text(
             text = label,
-            fontSize = 10.sp,
+            fontSize = 11.sp,
             fontWeight = FontWeight.Medium,
             color = if (active) p.accent else p.muted,
             maxLines = 1,
@@ -845,7 +839,7 @@ private fun Pill(
         modifier = Modifier
             .height(36.dp)
             .clip(RoundedCornerShape(18.dp))
-            .background(if (active) p.tileActive else p.tile)
+            .background(if (active) p.tileActive else p.panel)
             .clickable(enabled = enabled, onClick = onClick)
             .padding(horizontal = 16.dp),
     ) {
