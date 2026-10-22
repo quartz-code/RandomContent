@@ -1,0 +1,12 @@
+# Pulse: one-click deploy of the Listen Together server on Render (server/).
+services:
+  - type: web
+    name: pulse-together
+    runtime: docker
+    plan: free
+    dockerContext: ./server
+    dockerfilePath: ./server/Dockerfile
+    healthCheckPath: /health
+    buildFilter:
+      paths:
+        - server/**
