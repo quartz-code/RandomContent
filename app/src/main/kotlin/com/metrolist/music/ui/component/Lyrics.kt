@@ -5,11 +5,15 @@
 
 package com.metrolist.music.ui.component
 
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.metrolist.music.constants.ExperimentalLyricsKey
+import com.metrolist.music.ui.player.pulseLyricsFont
+import com.metrolist.music.ui.player.rememberPlayerTheme
 import com.metrolist.music.utils.rememberPreference
 import com.metrolist.music.viewmodels.LyricsViewModel
 
@@ -21,19 +25,23 @@ fun Lyrics(
     lyricsViewModel: LyricsViewModel = hiltViewModel()
 ) {
     val (experimentalLyrics, _) = rememberPreference(key = ExperimentalLyricsKey, defaultValue = true)
+    val lyricsFont = pulseLyricsFont(rememberPlayerTheme())
 
-    if (experimentalLyrics) {
-        ExperimentalLyrics(
-            sliderPositionProvider = sliderPositionProvider,
-            modifier = modifier,
-            showLyrics = showLyrics,
-            lyricsViewModel = lyricsViewModel
-        )
-    } else {
-        OriginalLyrics(
-            sliderPositionProvider = sliderPositionProvider,
-            modifier = modifier,
-            showLyrics = showLyrics
-        )
+    val style = LocalTextStyle.current
+    ProvideTextStyle(if (lyricsFont != null) style.copy(fontFamily = lyricsFont) else style) {
+        if (experimentalLyrics) {
+            ExperimentalLyrics(
+                sliderPositionProvider = sliderPositionProvider,
+                modifier = modifier,
+                showLyrics = showLyrics,
+                lyricsViewModel = lyricsViewModel
+            )
+        } else {
+            OriginalLyrics(
+                sliderPositionProvider = sliderPositionProvider,
+                modifier = modifier,
+                showLyrics = showLyrics
+            )
+        }
     }
 }

@@ -2,6 +2,7 @@ package com.metrolist.music.ui.player
 
 import com.metrolist.music.ui.player.PlayerTheme.Companion.toCode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,6 +21,12 @@ class PlayerThemeTest {
             slider = PlayerTheme.Slider.WAVE,
             artCorner = PlayerTheme.ART_CIRCLE,
             artSpin = true,
+            artShape = PlayerTheme.ArtShape.COOKIE,
+            artBorder = 3,
+            motion = PlayerTheme.Motion.BARS,
+            lyricsFont = PlayerTheme.Font.MONO,
+            lyricsAccent = true,
+            lyricsAlign = PlayerTheme.LyricsAlign.LEFT,
             buttons = listOf(PlayerTheme.BottomButton.SHUFFLE, PlayerTheme.BottomButton.QUEUE),
             mini = MiniTheme(progress = MiniTheme.Progress.LINE, showNext = true),
         )
@@ -42,14 +49,37 @@ class PlayerThemeTest {
             artCorner = 400,
             artMargin = -5,
             titleSize = 90,
+            artBorder = 40,
             buttons = PlayerTheme.BottomButton.entries + PlayerTheme.BottomButton.QUEUE,
             mini = MiniTheme(corner = 99),
         ).sanitized()
         assertEquals(PlayerTheme.ART_CIRCLE, wild.artCorner)
         assertEquals(8, wild.artMargin)
         assertEquals(36, wild.titleSize)
+        assertEquals(8, wild.artBorder)
         assertEquals(PlayerTheme.MAX_BUTTONS, wild.buttons.size)
         assertEquals(32, wild.mini.corner)
+    }
+
+    @Test
+    fun onlyRoundAndFlowerShapesSpin() {
+        assertTrue(PlayerTheme(artCorner = PlayerTheme.ART_CIRCLE).canSpin)
+        assertTrue(PlayerTheme(artShape = PlayerTheme.ArtShape.CLOVER).canSpin)
+        assertFalse(PlayerTheme(artCorner = 20).canSpin)
+        assertFalse(PlayerTheme(artShape = PlayerTheme.ArtShape.ARCH).canSpin)
+        // A round corner value no longer means round once another shape is picked.
+        assertFalse(PlayerTheme(artShape = PlayerTheme.ArtShape.ARCH, artCorner = PlayerTheme.ART_CIRCLE).artRound)
+    }
+
+    @Test
+    fun fftBandsStayInRange() {
+        val fft = ByteArray(1024) { (if (it % 2 == 0) 127 else -128).toByte() }
+        val bands = FloatArray(PulseBands)
+        fftToBands(fft, bands)
+        assertTrue(bands.all { it in 0f..1f })
+        assertTrue(bands.first() > 0.9f)
+        fftToBands(ByteArray(1024), bands)
+        assertTrue(bands.all { it == 0f })
     }
 
     @Test

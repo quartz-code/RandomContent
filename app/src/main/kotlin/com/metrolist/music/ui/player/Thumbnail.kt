@@ -34,6 +34,9 @@ import androidx.compose.foundation.lazy.grid.LazyHorizontalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -213,6 +216,8 @@ fun Thumbnail(
     contentColor: Color? = null,
     artShadow: Boolean = false,
     artSpin: Boolean = false,
+    artShape: Shape? = null,
+    artBorder: BorderStroke? = null,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
     val isPlaying by playerConnection.isPlaying.collectAsState()
@@ -424,6 +429,8 @@ fun Thumbnail(
                                 currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
                                 horizontalPadding = horizontalPadding,
                                 artShadow = artShadow,
+                                artShape = artShape,
+                                artBorder = artBorder,
                                 spinning = artSpin && isPlaying && item.mediaId == mediaMetadata?.id
                             )
                         }
@@ -524,9 +531,12 @@ private fun ThumbnailItem(
     currentMediaThumbnail: String? = null,
     horizontalPadding: Dp = PlayerHorizontalPadding,
     artShadow: Boolean = false,
+    artShape: Shape? = null,
+    artBorder: BorderStroke? = null,
     spinning: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    val shape = artShape ?: RoundedCornerShape(dimensions.cornerRadius)
     // Pulse: round artwork can turn like a record while it plays, and stops where it is on pause.
     val rotation = remember { Animatable(0f) }
     LaunchedEffect(spinning) {
@@ -591,15 +601,11 @@ private fun ThumbnailItem(
         Box(
             modifier = Modifier
                 .size(dimensions.thumbnailSize)
-                .then(
-                    if (artShadow) {
-                        Modifier.shadow(18.dp, RoundedCornerShape(dimensions.cornerRadius))
-                    } else {
-                        Modifier
-                    }
-                )
+                // Turn first, so the shadow and outline of a non-round shape turn with it.
                 .graphicsLayer { rotationZ = rotation.value }
-                .clip(RoundedCornerShape(dimensions.cornerRadius))
+                .then(if (artShadow) Modifier.shadow(18.dp, shape) else Modifier)
+                .clip(shape)
+                .then(artBorder?.let { Modifier.border(it, shape) } ?: Modifier)
         ) {
             if (hidePlayerThumbnail) {
                 HiddenThumbnailPlaceholder(textBackgroundColor = textBackgroundColor)

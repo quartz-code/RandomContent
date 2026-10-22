@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -36,9 +37,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.compositionLocalOf
@@ -60,6 +64,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
@@ -71,6 +76,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -82,6 +88,7 @@ import androidx.media3.common.Player
 import coil3.compose.AsyncImage
 import com.metrolist.music.R
 import com.metrolist.music.ui.player.PlayerTheme.BottomButton
+import com.metrolist.music.ui.screens.settings.LyricsPosition
 import com.metrolist.music.ui.theme.Oswald
 import com.metrolist.music.ui.theme.PtMono
 import com.metrolist.music.utils.makeTimeString
@@ -178,6 +185,40 @@ internal val PlayerTheme.artPadding: Dp get() = artMargin.dp
 
 /** Large enough to make any artwork round. */
 internal val PlayerTheme.artCornerDp: Dp get() = if (artRound) 1000.dp else artCorner.dp
+
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+@Composable
+internal fun pulseArtShape(theme: PlayerTheme): Shape = when (theme.artShape) {
+    PlayerTheme.ArtShape.ROUNDED -> RoundedCornerShape(theme.artCornerDp)
+    PlayerTheme.ArtShape.ARCH -> MaterialShapes.Arch.toShape()
+    PlayerTheme.ArtShape.COOKIE -> MaterialShapes.Cookie9Sided.toShape()
+    PlayerTheme.ArtShape.CLOVER -> MaterialShapes.Clover4Leaf.toShape()
+    PlayerTheme.ArtShape.SUNNY -> MaterialShapes.Sunny.toShape()
+}
+
+/** The artwork's outline in the accent colour; null when the theme has none. */
+@Composable
+internal fun pulseArtBorder(theme: PlayerTheme): BorderStroke? =
+    if (theme.artBorder > 0) BorderStroke(theme.artBorder.dp, pulsePalette(theme).accent) else null
+
+/** Lyrics lines: the text colour, or the accent (from the artwork, if the theme says so). */
+@Composable
+internal fun pulseLyricsColor(theme: PlayerTheme): Color =
+    if (theme.lyricsAccent) pulsePalette(theme).accent else theme.contentColor
+
+/** Null keeps the app font. */
+internal fun pulseLyricsFont(theme: PlayerTheme): FontFamily? = when (theme.lyricsFont) {
+    PlayerTheme.Font.SYSTEM -> null
+    PlayerTheme.Font.OSWALD -> Oswald
+    PlayerTheme.Font.MONO -> PtMono
+}
+
+internal fun lyricsPosition(theme: PlayerTheme, saved: LyricsPosition): LyricsPosition = when (theme.lyricsAlign) {
+    PlayerTheme.LyricsAlign.AUTO -> saved
+    PlayerTheme.LyricsAlign.LEFT -> LyricsPosition.LEFT
+    PlayerTheme.LyricsAlign.CENTER -> LyricsPosition.CENTER
+    PlayerTheme.LyricsAlign.RIGHT -> LyricsPosition.RIGHT
+}
 
 /** Colour under the background while the sheet opens, so the app theme never flashes through. */
 internal val PlayerTheme.baseBackground: Color

@@ -630,6 +630,20 @@ fun BottomSheetPlayer(
                     thumbnailUrl = mediaMetadata?.thumbnailUrl,
                     modifier = Modifier.alpha(backgroundAlpha),
                 )
+                if (playerTheme.motion != PlayerTheme.Motion.NONE) {
+                    // Crossfade swaps the underlying player, so the session is read again per song.
+                    val audioSessionId = remember(mediaMetadata?.id) { playerConnection.player.audioSessionId }
+                    val motionActive = state.isExpanded && isPlaying
+                    val levels = rememberAudioLevels(audioSessionId, motionActive && playerTheme.usesVisualizer)
+                    PulseMotionLayer(
+                        theme = playerTheme,
+                        artworkColors = gradientColors,
+                        accent = pulsePalette(playerTheme).accent,
+                        levels = levels,
+                        active = motionActive,
+                        modifier = Modifier.fillMaxSize().alpha(backgroundAlpha),
+                    )
+                }
             }
         },
         onDismiss =
@@ -877,7 +891,9 @@ fun BottomSheetPlayer(
                                     cornerRadius = playerTheme.artCornerDp,
                                     contentColor = playerTheme.contentColor,
                                     artShadow = playerTheme.artShadow,
-                                    artSpin = playerTheme.artSpin && playerTheme.artRound,
+                                    artSpin = playerTheme.artSpin && playerTheme.canSpin,
+                                    artShape = pulseArtShape(playerTheme),
+                                    artBorder = pulseArtBorder(playerTheme),
                                 )
                             }
                         }
@@ -945,7 +961,9 @@ fun BottomSheetPlayer(
                                     cornerRadius = playerTheme.artCornerDp,
                                     contentColor = playerTheme.contentColor,
                                     artShadow = playerTheme.artShadow,
-                                    artSpin = playerTheme.artSpin && playerTheme.artRound,
+                                    artSpin = playerTheme.artSpin && playerTheme.canSpin,
+                                    artShape = pulseArtShape(playerTheme),
+                                    artBorder = pulseArtBorder(playerTheme),
                                 )
                             }
                         }

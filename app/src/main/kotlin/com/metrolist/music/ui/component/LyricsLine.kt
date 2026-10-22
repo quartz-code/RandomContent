@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -230,7 +231,8 @@ internal fun LyricsLine(
                     lineHeight = if (item.isBackground) (lyricsTextSize * 0.7f * lyricsLineSpacing).sp else (lyricsTextSize * lyricsLineSpacing).sp,
                     letterSpacing = (-0.5).sp,
                     textAlign = agentTextAlign,
-                    fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
+                    // Pulse: the player theme can set the lyrics font through the local text style.
+                    fontFamily = LocalTextStyle.current.fontFamily ?: MaterialTheme.typography.bodyLarge.fontFamily,
                     platformStyle = PlatformTextStyle(includeFontPadding = false),
                     lineHeightStyle = LineHeightStyle(
                         alignment = LineHeightStyle.Alignment.Center,

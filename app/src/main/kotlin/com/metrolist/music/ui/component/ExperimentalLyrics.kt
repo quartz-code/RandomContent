@@ -158,7 +158,7 @@ fun ExperimentalLyrics(
     val listenTogetherManager = LocalListenTogetherManager.current
     val isGuest = listenTogetherManager?.isInRoom == true && !listenTogetherManager.isHost
 
-    val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    val savedLyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)
     val romanizeLyricsList = rememberPreference(LyricsRomanizeList, "")
     val romanizeAsMain by rememberPreference(LyricsRomanizeAsMainKey, false)
@@ -292,7 +292,8 @@ fun ExperimentalLyrics(
     }
 
     // Pulse: the player is always dark, so lyrics take the design's light text colour.
-    val expressiveAccent = playerTheme.contentColor
+    val expressiveAccent = com.metrolist.music.ui.player.pulseLyricsColor(playerTheme)
+    val lyricsTextPosition = com.metrolist.music.ui.player.lyricsPosition(playerTheme, savedLyricsTextPosition)
 
     var activeLineIndices by remember { mutableStateOf(emptySet<Int>()) }
     var scrollTargetIndex by rememberSaveable { mutableIntStateOf(-1) }

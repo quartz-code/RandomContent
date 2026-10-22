@@ -1,5 +1,18 @@
 package com.metrolist.music.ui.screens.settings
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
+import com.metrolist.music.ui.player.PulseMotionLayer
+import com.metrolist.music.ui.player.canVisualize
+import com.metrolist.music.ui.player.lyricsPosition
+import com.metrolist.music.ui.player.pulseArtBorder
+import com.metrolist.music.ui.player.pulseArtShape
+import com.metrolist.music.ui.player.pulseLyricsColor
+import com.metrolist.music.ui.player.pulseLyricsFont
+import com.metrolist.music.ui.player.rememberAudioLevels
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -116,6 +129,16 @@ fun PlayerBuilderScreen(navController: NavController) {
         scope.launch { context.savePlayerTheme(next) }
     }
 
+    // Bars and wave need the microphone permission to hear the player; asked when picked.
+    var canHear by remember { mutableStateOf(context.canVisualize()) }
+    val askToHear = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { canHear = it }
+    fun pickMotion(motion: PlayerTheme.Motion) {
+        update(current.copy(motion = motion))
+        if ((motion == PlayerTheme.Motion.BARS || motion == PlayerTheme.Motion.WAVE) && !canHear) {
+            askToHear.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }
+
     var found by remember { mutableStateOf<PlayerTheme?>(null) }
     var showPaste by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
@@ -187,6 +210,29 @@ fun PlayerBuilderScreen(navController: NavController) {
             if (current.background == PlayerTheme.Background.GRADIENT) {
                 SwatchRow(R.string.player_builder_color_bottom, current.color2) { picked -> picked?.let { update(current.copy(color2 = it)) } }
             }
+            Labeled(R.string.player_builder_motion) {
+                Choice(
+                    listOf(
+                        PlayerTheme.Motion.NONE to R.string.player_builder_motion_none,
+                        PlayerTheme.Motion.FLOW to R.string.player_builder_motion_flow,
+                        PlayerTheme.Motion.BARS to R.string.player_builder_motion_bars,
+                        PlayerTheme.Motion.WAVE to R.string.player_builder_motion_wave,
+                    ),
+                    current.motion,
+                    ::pickMotion,
+                )
+            }
+            if (current.usesVisualizer && !canHear) {
+                Text(
+                    stringResource(R.string.player_builder_motion_permission),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                TextButton(onClick = { askToHear.launch(Manifest.permission.RECORD_AUDIO) }) {
+                    Text(stringResource(R.string.player_builder_motion_allow))
+                }
+            }
         }
 
         Section(R.string.player_builder_colors) {
@@ -233,19 +279,41 @@ fun PlayerBuilderScreen(navController: NavController) {
                     valueRange = 8f..56f,
                 )
             }
-            Labeled(R.string.player_builder_art_corners) {
+            Labeled(R.string.player_builder_art_shape) {
+                Choice(
+                    listOf(
+                        PlayerTheme.ArtShape.ROUNDED to R.string.player_builder_shape_rounded,
+                        PlayerTheme.ArtShape.ARCH to R.string.player_builder_shape_arch,
+                        PlayerTheme.ArtShape.COOKIE to R.string.player_builder_shape_cookie,
+                        PlayerTheme.ArtShape.CLOVER to R.string.player_builder_shape_clover,
+                        PlayerTheme.ArtShape.SUNNY to R.string.player_builder_shape_sunny,
+                    ),
+                    current.artShape,
+                ) { update(current.copy(artShape = it)) }
+            }
+            if (current.artShape == PlayerTheme.ArtShape.ROUNDED) {
+                Labeled(R.string.player_builder_art_corners) {
+                    Slider(
+                        value = current.artCorner.toFloat(),
+                        onValueChange = { update(current.copy(artCorner = it.toInt())) },
+                        valueRange = 0f..PlayerTheme.ART_CIRCLE.toFloat(),
+                    )
+                }
+            }
+            Labeled(R.string.player_builder_art_border) {
                 Slider(
-                    value = current.artCorner.toFloat(),
-                    onValueChange = { update(current.copy(artCorner = it.toInt())) },
-                    valueRange = 0f..PlayerTheme.ART_CIRCLE.toFloat(),
+                    value = current.artBorder.toFloat(),
+                    onValueChange = { update(current.copy(artBorder = it.toInt())) },
+                    valueRange = 0f..8f,
+                    steps = 7,
                 )
             }
             Toggle(R.string.player_builder_art_shadow, current.artShadow) { update(current.copy(artShadow = it)) }
             Toggle(
                 R.string.player_builder_art_spin,
                 current.artSpin,
-                enabled = current.artRound,
-                hint = if (!current.artRound) R.string.player_builder_art_spin_hint else null,
+                enabled = current.canSpin,
+                hint = if (!current.canSpin) R.string.player_builder_art_spin_hint else null,
             ) { update(current.copy(artSpin = it)) }
         }
 
@@ -270,6 +338,37 @@ fun PlayerBuilderScreen(navController: NavController) {
                 )
             }
             Toggle(R.string.player_builder_on_air, current.onAirHeader) { update(current.copy(onAirHeader = it)) }
+        }
+
+        Section(R.string.player_builder_lyrics) {
+            LyricsPreview(current)
+            Labeled(R.string.player_builder_lyrics_font) {
+                Choice(
+                    listOf(
+                        PlayerTheme.Font.SYSTEM to R.string.player_builder_font_system,
+                        PlayerTheme.Font.OSWALD to R.string.player_builder_font_poster,
+                        PlayerTheme.Font.MONO to R.string.player_builder_font_mono,
+                    ),
+                    current.lyricsFont,
+                ) { update(current.copy(lyricsFont = it)) }
+            }
+            Labeled(R.string.player_builder_lyrics_color) {
+                Choice(
+                    listOf(false to R.string.player_builder_lyrics_color_text, true to R.string.player_builder_lyrics_color_accent),
+                    current.lyricsAccent,
+                ) { update(current.copy(lyricsAccent = it)) }
+            }
+            Labeled(R.string.player_builder_lyrics_align) {
+                Choice(
+                    listOf(
+                        PlayerTheme.LyricsAlign.AUTO to R.string.player_builder_lyrics_align_auto,
+                        PlayerTheme.LyricsAlign.LEFT to R.string.player_builder_align_left,
+                        PlayerTheme.LyricsAlign.CENTER to R.string.player_builder_align_center,
+                        PlayerTheme.LyricsAlign.RIGHT to R.string.player_builder_align_right,
+                    ),
+                    current.lyricsAlign,
+                ) { update(current.copy(lyricsAlign = it)) }
+            }
         }
 
         Section(R.string.player_builder_bottom) {
@@ -556,6 +655,11 @@ private fun PreviewPhone(theme: PlayerTheme, thumbnailUrl: String?, title: Strin
             .background(theme.baseBackground),
     ) {
         PulsePlayerBackground(theme, listOf(SampleArtwork), thumbnailUrl)
+        if (theme.motion != PlayerTheme.Motion.NONE) {
+            // No song is heard here, so the bars always move to the made-up beat.
+            val levels = rememberAudioLevels(audioSessionId = 0, active = theme.usesVisualizer)
+            PulseMotionLayer(theme, listOf(SampleArtwork), pulsePalette(theme).accent, levels, active = true, modifier = Modifier.fillMaxSize())
+        }
         Column(Modifier.fillMaxSize().padding(top = 32.dp)) {
             Column(Modifier.weight(1f)) {
                 PulsePlayerHeader(theme, null, "Pulse", {}, {})
@@ -582,17 +686,50 @@ private fun PreviewPhone(theme: PlayerTheme, thumbnailUrl: String?, title: Strin
 
 @Composable
 private fun PreviewArtwork(theme: PlayerTheme, thumbnailUrl: String?) {
-    val shape = RoundedCornerShape(theme.artCornerDp)
+    val shape = pulseArtShape(theme)
+    val border = pulseArtBorder(theme)
     val modifier = Modifier
         .padding(horizontal = theme.artPadding)
         .fillMaxWidth()
         .aspectRatio(1f)
         .then(if (theme.artShadow) Modifier.graphicsLayer { shadowElevation = 40f; this.shape = shape; clip = false } else Modifier)
         .clip(shape)
+        .then(border?.let { Modifier.border(it, shape) } ?: Modifier)
     if (thumbnailUrl != null) {
         AsyncImage(model = thumbnailUrl, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier)
     } else {
         Box(modifier.background(Brush.verticalGradient(listOf(Color(0xFFC9D6EA), Color(0xFF7C93B8), Color(0xFF34548A)))))
+    }
+}
+
+/** Three lines of a song on the player's background, with the theme's lyrics font, colour and alignment. */
+@Composable
+private fun LyricsPreview(theme: PlayerTheme) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(150.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(theme.baseBackground),
+    ) {
+        CompositionLocalProvider(LocalPulseArtworkColor provides SampleArtwork) {
+            PulsePlayerBackground(theme, listOf(SampleArtwork), null)
+            val lineColor = pulseLyricsColor(theme)
+            val align = when (lyricsPosition(theme, LyricsPosition.CENTER)) {
+                LyricsPosition.LEFT -> TextAlign.Start
+                LyricsPosition.CENTER -> TextAlign.Center
+                LyricsPosition.RIGHT -> TextAlign.End
+            }
+            val style = TextStyle(fontFamily = pulseLyricsFont(theme), fontWeight = FontWeight.Bold, fontSize = 20.sp, lineHeight = 26.sp, textAlign = align)
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterVertically),
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+            ) {
+                Text(stringResource(R.string.player_builder_lyrics_sample_1), style = style, color = lineColor.copy(alpha = 0.4f), modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.player_builder_lyrics_sample_2), style = style, color = lineColor, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.player_builder_lyrics_sample_3), style = style, color = lineColor.copy(alpha = 0.4f), modifier = Modifier.fillMaxWidth())
+            }
+        }
     }
 }
 

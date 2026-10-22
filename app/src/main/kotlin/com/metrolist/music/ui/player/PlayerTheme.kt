@@ -35,6 +35,16 @@ data class PlayerTheme(
     val artShadow: Boolean = false,
     /** Round artwork turns like a record while music plays. */
     val artSpin: Boolean = false,
+    val artShape: ArtShape = ArtShape.ROUNDED,
+    /** Outline around the artwork in the accent colour, dp; 0 for none. */
+    val artBorder: Int = 0,
+    /** What moves behind the player: nothing, flowing artwork colours, or bars / a wave to the music. */
+    val motion: Motion = Motion.NONE,
+    val lyricsFont: Font = Font.SYSTEM,
+    /** Lyrics in the accent colour instead of the text colour. */
+    val lyricsAccent: Boolean = false,
+    /** AUTO keeps the alignment from the lyrics settings. */
+    val lyricsAlign: LyricsAlign = LyricsAlign.AUTO,
     val titleCentered: Boolean = false,
     val font: Font = Font.SYSTEM,
     val titleSize: Int = 24,
@@ -58,7 +68,19 @@ data class PlayerTheme(
 
     @Serializable enum class BottomButton { QUEUE, LYRICS, TIMER, SHARE, SHUFFLE, REPEAT }
 
-    val artRound: Boolean get() = artCorner >= ART_CIRCLE
+    /** ROUNDED uses [artCorner]; the others are Material shapes. */
+    @Serializable enum class ArtShape { ROUNDED, ARCH, COOKIE, CLOVER, SUNNY }
+
+    @Serializable enum class Motion { NONE, FLOW, BARS, WAVE }
+
+    @Serializable enum class LyricsAlign { AUTO, LEFT, CENTER, RIGHT }
+
+    val artRound: Boolean get() = artShape == ArtShape.ROUNDED && artCorner >= ART_CIRCLE
+
+    /** A turning square or arch looks broken, so only round and flower-like shapes spin. */
+    val canSpin: Boolean get() = artRound || artShape == ArtShape.COOKIE || artShape == ArtShape.CLOVER || artShape == ArtShape.SUNNY
+
+    val usesVisualizer: Boolean get() = motion == Motion.BARS || motion == Motion.WAVE
 
     companion object {
         const val ART_CIRCLE = 50
@@ -151,6 +173,7 @@ data class PlayerTheme(
         artCorner = artCorner.coerceIn(0, ART_CIRCLE),
         artMargin = artMargin.coerceIn(8, 64),
         titleSize = titleSize.coerceIn(16, 36),
+        artBorder = artBorder.coerceIn(0, 8),
         buttons = buttons.distinct().take(MAX_BUTTONS),
         mini = mini.copy(corner = mini.corner.coerceIn(0, 32)),
     )

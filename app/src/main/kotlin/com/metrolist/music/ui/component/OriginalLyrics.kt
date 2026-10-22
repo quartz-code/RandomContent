@@ -205,7 +205,7 @@ fun OriginalLyrics(
     val shareLyricsStr = stringResource(R.string.share_lyrics)
     val failedToCreateImageTemplate = stringResource(R.string.failed_to_create_image)
 
-    val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    val savedLyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)
     val scrollLyrics by rememberPreference(LyricsScrollKey, true)
     val romanizeLyricsList = rememberPreference(LyricsRomanizeList, "")
@@ -418,7 +418,8 @@ fun OriginalLyrics(
 
     // Use Material 3 expressive accents and keep glow/text colors unified
     // Pulse: the player is always dark, so lyrics take the design's light text colour.
-    val expressiveAccent = playerTheme.contentColor
+    val expressiveAccent = com.metrolist.music.ui.player.pulseLyricsColor(playerTheme)
+    val lyricsTextPosition = com.metrolist.music.ui.player.lyricsPosition(playerTheme, savedLyricsTextPosition)
 
     var currentLineIndex by remember {
         mutableIntStateOf(-1)
