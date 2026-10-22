@@ -145,6 +145,7 @@ fun ListenTogetherScreen(
     val waitingForApprovalText = stringResource(R.string.waiting_for_approval)
     val invalidRoomCodeText = stringResource(R.string.invalid_room_code)
     val joinRequestDeniedText = stringResource(R.string.join_request_denied)
+    val hostNotAllowedText = stringResource(R.string.listen_together_host_not_allowed)
 
     LaunchedEffect(savedUsername) {
         if (usernameInput.isBlank() && savedUsername.isNotBlank()) {
@@ -170,6 +171,21 @@ fun ListenTogetherScreen(
                 is ListenTogetherEvent.JoinApproved -> {
                     isJoiningRoom = false
                     joinErrorMessage = null
+                }
+
+                // Pulse: the server's refusal used to vanish, so "Create" seemed to do nothing.
+                // Shown only for a create or join in progress; reconnect errors stay quiet.
+                is ListenTogetherEvent.ServerError -> {
+                    if (isCreatingRoom || isJoiningRoom || event.code == "host_not_allowed") {
+                        joinErrorMessage =
+                            when (event.code) {
+                                "host_not_allowed" -> hostNotAllowedText
+                                "room_not_found" -> invalidRoomCodeText
+                                else -> event.message.ifBlank { event.code }
+                            }
+                        isCreatingRoom = false
+                        isJoiningRoom = false
+                    }
                 }
 
                 is ListenTogetherEvent.RoomCreated -> {
