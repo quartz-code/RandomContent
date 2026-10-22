@@ -1284,6 +1284,8 @@
     <string name="vk_pick_other">Выбрать другой список</string>
     <string name="vk_error_session">Сессия ВК закончилась. Войди ещё раз.</string>
     <string name="vk_error_denied">ВК не отдал список. Если включён VPN — выключи его и попробуй снова. Чужие закрытые плейлисты прочитать нельзя.</string>
+    <string name="vk_error_answer">Ответ ВК: %1$s</string>
+    <string name="vk_error_answer_copy">Скопировать ответ ВК</string>
     <string name="vk_error_network">Нет связи с ВК. Проверь интернет и попробуй снова.</string>
     <string name="vk_error_link">Это не ссылка на плейлист или альбом ВК.</string>
     <string name="vk_import_empty">Список пуст.</string>

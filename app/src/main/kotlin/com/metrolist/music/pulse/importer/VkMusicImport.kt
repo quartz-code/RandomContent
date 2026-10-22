@@ -56,7 +56,8 @@ object VkMusicImport {
 
     sealed class Failure(message: String) : IOException(message) {
         class NotLoggedIn : Failure("not_logged_in")
-        class AccessDenied : Failure("access_denied")
+        /** [answer] is the start of what VK sent instead of a list, to show the developer. */
+        class AccessDenied(val answer: String? = null) : Failure("access_denied")
         class BadLink : Failure("bad_link")
         class Network(cause: Throwable) : Failure(cause.message ?: "network")
     }
@@ -144,8 +145,9 @@ object VkMusicImport {
         return null
     }
 
-    private suspend fun loadSection(cookies: String, ownerId: Long, playlistId: Long, accessHash: String?): SectionPage {
-        if (!hasSession(cookies)) throw Failure.NotLoggedIn()
+    private suspend fun loadSection(sessionCookies: String, ownerId: Long, playlistId: Long, accessHash: String?): SectionPage {
+        if (!hasSession(sessionCookies)) throw Failure.NotLoggedIn()
+        val cookies = warmUp(sessionCookies)
         val tracks = mutableListOf<ImportedTrack>()
         var title: String? = null
         var offset = 0
@@ -187,7 +189,24 @@ object VkMusicImport {
 
     private fun failureFor(body: String): Failure = when {
         body.contains("login", ignoreCase = true) && body.contains("<html", ignoreCase = true) -> Failure.NotLoggedIn()
-        else -> Failure.AccessDenied()
+        else -> Failure.AccessDenied(answerExcerpt(body))
+    }
+
+    /** Short and without tags, so it fits on screen and in a message. */
+    internal fun answerExcerpt(body: String): String =
+        body.replace(Regex("<script[\\s\\S]*?</script>|<style[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), " ")
+            .let(::cleanText)
+            .take(300)
+
+    /**
+     * The mobile site answers the first music request with a notice page unless these are set, so
+     * "My music" came back as "VK did not give the list". Same cookies as vk_api sets.
+     */
+    internal fun withAudioCookies(cookies: String): String {
+        val extra = listOf("remixaudio_show_alert_today" to "0", "remixmdevice" to "1920/1080/2/!!-!!!!")
+            .filterNot { (name, _) -> Regex("""(^|;\s*)$name=""").containsMatchIn(cookies) }
+            .joinToString("; ") { (name, value) -> "$name=$value" }
+        return listOf(cookies.trim().trimEnd(';'), extra).filter { it.isNotBlank() }.joinToString("; ")
     }
 
     // ---- parsing (pure, unit-tested) ----
@@ -283,10 +302,34 @@ object VkMusicImport {
 
     private fun get(url: String, cookies: String): String? = execute(Request.Builder().url(url).get(), cookies)
 
+    /** Opens the mobile site once, as a browser would, and keeps the cookies it hands out. */
+    private fun warmUp(cookies: String): String {
+        val request = Request.Builder().url("https://m.vk.ru/")
+            .header("User-Agent", USER_AGENT)
+            .header("Cookie", withAudioCookies(cookies))
+            .build()
+        val fresh = runCatching {
+            client.newCall(request).execute().use { response -> response.headers("Set-Cookie") }
+        }.getOrDefault(emptyList())
+        return mergeCookies(cookies, fresh)
+    }
+
+    /** Adds "name=value" from Set-Cookie headers; a cookie VK deletes ("DELETED") is left out. */
+    internal fun mergeCookies(cookies: String, setCookies: List<String>): String {
+        val jar = linkedMapOf<String, String>()
+        cookies.split(';').map { it.trim() }.filter { '=' in it }.forEach { jar[it.substringBefore('=')] = it.substringAfter('=') }
+        setCookies.map { it.substringBefore(';').trim() }.filter { '=' in it }.forEach { pair ->
+            val name = pair.substringBefore('=')
+            val value = pair.substringAfter('=')
+            if (value.isEmpty() || value.equals("DELETED", ignoreCase = true)) jar.remove(name) else jar[name] = value
+        }
+        return jar.entries.joinToString("; ") { "${it.key}=${it.value}" }
+    }
+
     private fun execute(builder: Request.Builder, cookies: String): String? {
         val request = builder
             .header("User-Agent", USER_AGENT)
-            .header("Cookie", cookies)
+            .header("Cookie", withAudioCookies(cookies))
             .header("Referer", "https://m.vk.ru/audio")
             .build()
         return try {

@@ -1,5 +1,7 @@
 package com.metrolist.music.pulse.importer
 
+import com.metrolist.music.BuildConfig
+import androidx.compose.ui.platform.LocalContext
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.view.ViewGroup
@@ -111,18 +113,22 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
     var playlistsError by remember { mutableStateOf<Int?>(null) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<Int?>(null) }
+    // What VK sent instead of a list: without a VK account this is the only way to see what broke.
+    var errorAnswer by remember { mutableStateOf<String?>(null) }
     var loaded by remember { mutableStateOf<ImportedList?>(null) }
     var link by remember { mutableStateOf("") }
 
     fun load(block: suspend () -> ImportedList) {
         loading = true
         error = null
+        errorAnswer = null
         scope.launch {
             try {
                 val list = block()
                 if (list.tracks.isEmpty()) error = R.string.vk_import_empty else loaded = list
             } catch (e: Exception) {
                 error = failureText(e)
+                errorAnswer = (e as? VkMusicImport.Failure.AccessDenied)?.answer?.takeIf { it.isNotBlank() }
                 if (e is VkMusicImport.Failure.NotLoggedIn) onUserIdChange(0L)
             } finally {
                 loading = false
@@ -204,6 +210,18 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
                 }
                 error?.let {
                     Text(stringResource(it), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                    errorAnswer?.let { answer ->
+                        Text(
+                            stringResource(R.string.vk_error_answer, answer),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                        val clipboard = LocalContext.current.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        TextButton(onClick = {
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("VK", "Pulse ${BuildConfig.VERSION_NAME}, VK: $answer"))
+                        }) { Text(stringResource(R.string.vk_error_answer_copy)) }
+                    }
                     Spacer(Modifier.height(8.dp))
                 }
 

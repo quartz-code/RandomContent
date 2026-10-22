@@ -78,4 +78,30 @@ class VkMusicImportTest {
         assertTrue(VkMusicImport.parseRedirect("https://oauth.vk.com/blank.html#error=access_denied&error_description=user+denied") is VkMusicImport.Redirect.Error)
         assertNull(VkMusicImport.parseRedirect("https://id.vk.ru/auth"))
     }
+
+    @Test
+    fun audioCookiesAreAddedOnce() {
+        val cookies = VkMusicImport.withAudioCookies("remixsid=abc; remixlang=0;")
+        assertTrue(cookies.contains("remixsid=abc"))
+        assertTrue(cookies.contains("remixaudio_show_alert_today=0"))
+        assertTrue(cookies.contains("remixmdevice=1920/1080/2/!!-!!!!"))
+        assertEquals(cookies, VkMusicImport.withAudioCookies(cookies))
+        assertEquals("remixaudio_show_alert_today=1; remixmdevice=1920/1080/2/!!-!!!!", VkMusicImport.withAudioCookies("remixaudio_show_alert_today=1"))
+    }
+
+    @Test
+    fun cookiesFromTheSiteAreMerged() {
+        val merged = VkMusicImport.mergeCookies(
+            "remixsid=abc; remixlang=0",
+            listOf("remixlang=3; expires=Fri, 01 Jan 2027 00:00:00 GMT; path=/; domain=.vk.ru", "remixstid=77; path=/", "remixsid=DELETED; path=/"),
+        )
+        assertEquals("remixlang=3; remixstid=77", merged)
+    }
+
+    @Test
+    fun answerExcerptIsShortPlainText() {
+        val html = "<html><head><script>var a = 1;</script><style>b{}</style></head><body><div class=\"x\">Музыка&nbsp;недоступна</div></body></html>"
+        assertEquals("Музыка недоступна", VkMusicImport.answerExcerpt(html))
+        assertEquals(300, VkMusicImport.answerExcerpt("я".repeat(1000)).length)
+    }
 }
