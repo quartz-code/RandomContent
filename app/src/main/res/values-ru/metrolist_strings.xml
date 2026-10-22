@@ -1193,7 +1193,7 @@
     <string name="listen_together_invite">Пригласить</string>
     <string name="listen_together_invite_text">Заходи слушать вместе в Pulse 🎧\nОткрой Together → Войти, код комнаты: %1$s\n\nСкопируй это сообщение — Pulse сам подставит код.</string>
     <string name="listen_together_code_pasted">Код комнаты %1$s вставлен из буфера обмена</string>
-    <string name="listen_together_host_not_allowed">Этот сервер разрешает создавать комнаты только официальному Metrolist. Войти в чужую комнату Pulse может: пусть друг создаст её в Metrolist — или укажи свой сервер в Together → Настройки.</string>
+    <string name="listen_together_host_not_allowed">Этот сервер разрешает создавать комнаты только Metrolist. Выбери сервер «Pulse» в Together → Настройки — там создавать комнаты можно. Войти в комнату на этом сервере Pulse тоже может.</string>
     <string name="listen_together_no_answer">Сервер не ответил. Проверь интернет (и VPN) и попробуй ещё раз.</string>
     <string name="listen_together_server_waking">Сервер просыпается — это может занять до минуты. Не закрывай этот экран.</string>
     <string name="listen_together_reconnect">Заново</string>

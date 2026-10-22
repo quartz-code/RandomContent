@@ -30,6 +30,7 @@ import com.metrolist.music.constants.ListenTogetherAutoApproveSuggestionsKey
 import com.metrolist.music.constants.ListenTogetherIsHostKey
 import com.metrolist.music.constants.ListenTogetherRoomCodeKey
 import com.metrolist.music.constants.ListenTogetherServerUrlKey
+import com.metrolist.music.constants.PulseServerMigratedKey
 import com.metrolist.music.constants.ListenTogetherSessionTimestampKey
 import com.metrolist.music.constants.ListenTogetherSessionTokenKey
 import com.metrolist.music.constants.ListenTogetherUserIdKey
@@ -510,6 +511,23 @@ class ListenTogetherClient
          * Migrate old server URL to new one if needed
          */
         private fun migrateServerUrl() {
+            // Pulse: move people from the shared server (where Pulse cannot create rooms) to Pulse's
+            // own one, once, so someone who picks the shared server again later keeps that choice.
+            try {
+                if (!context.dataStore.get(PulseServerMigratedKey, false)) {
+                    val stored = context.dataStore.get(ListenTogetherServerUrlKey, DEFAULT_SERVER_URL)
+                    scope.launch {
+                        context.safeDataStoreEdit { preferences ->
+                            if (stored.trim() == ListenTogetherServers.MetrolistServerUrl) {
+                                preferences[ListenTogetherServerUrlKey] = DEFAULT_SERVER_URL
+                            }
+                            preferences[PulseServerMigratedKey] = true
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                log(LogLevel.ERROR, "Failed to move to the Pulse server", e.message)
+            }
             try {
                 val configuredUrl = context.dataStore.get(ListenTogetherServerUrlKey, DEFAULT_SERVER_URL)
                 val normalizedUrl = normalizeServerUrl(configuredUrl)

@@ -187,6 +187,8 @@ val EnableGoogleCastKey = booleanPreferencesKey("enableGoogleCast")
 
 // Listen Together
 val ListenTogetherServerUrlKey = stringPreferencesKey("listenTogetherServerUrl")
+// Pulse: set once the server address has been moved from the shared server to Pulse's own.
+val PulseServerMigratedKey = booleanPreferencesKey("pulseTogetherServerMigrated")
 val ListenTogetherUsernameKey = stringPreferencesKey("listenTogetherUsername")
 val ListenTogetherAutoApprovalKey = booleanPreferencesKey("listenTogetherAutoApproval")
 val ListenTogetherAutoApproveSuggestionsKey = booleanPreferencesKey("listenTogetherAutoApproveSuggestions")
