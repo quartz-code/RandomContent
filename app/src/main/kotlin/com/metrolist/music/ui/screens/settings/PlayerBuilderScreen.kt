@@ -1,5 +1,10 @@
 package com.metrolist.music.ui.screens.settings
 
+import android.net.Uri
+import android.provider.Settings
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import com.metrolist.music.constants.LockScreenPlayerKey
+import com.metrolist.music.pulse.LockScreenLauncher
 import android.app.TimePickerDialog
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -164,6 +169,19 @@ fun PlayerBuilderScreen(navController: NavController) {
         scope.launch { context.editThemeGallery { PlayerThemeGallery.add(it, SavedTheme(name = name, theme = received, fromFriend = true)) } }
     }
     var naming by remember { mutableStateOf<SavedTheme?>(null) }
+
+    var lockScreen by rememberPreference(LockScreenPlayerKey, false)
+    // The permission is granted in system settings, so it is checked again on coming back.
+    var canOpenOverLock by remember { mutableStateOf(LockScreenLauncher.canOpen(context)) }
+    LifecycleResumeEffect(Unit) {
+        canOpenOverLock = LockScreenLauncher.canOpen(context)
+        onPauseOrDispose { }
+    }
+    fun askOverlay() {
+        runCatching {
+            context.startActivity(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:${context.packageName}")))
+        }
+    }
 
     // Bars and wave need the microphone permission to hear the player; asked when picked.
     var canHear by remember { mutableStateOf(context.canVisualize()) }
@@ -541,6 +559,22 @@ fun PlayerBuilderScreen(navController: NavController) {
             Toggle(R.string.player_builder_mini_like, current.mini.showLike) { update(current.copy(mini = current.mini.copy(showLike = it))) }
             Toggle(R.string.player_builder_mini_next, current.mini.showNext) { update(current.copy(mini = current.mini.copy(showNext = it))) }
             Toggle(R.string.player_builder_mini_subscribe, current.mini.showSubscribe) { update(current.copy(mini = current.mini.copy(showSubscribe = it))) }
+        }
+
+        Section(R.string.lock_screen_player) {
+            Toggle(R.string.lock_screen_player_toggle, lockScreen, hint = R.string.lock_screen_player_hint) {
+                lockScreen = it
+                if (it && !canOpenOverLock) askOverlay()
+            }
+            if (lockScreen && !canOpenOverLock) {
+                Text(
+                    stringResource(R.string.lock_screen_permission),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+                TextButton(onClick = ::askOverlay) { Text(stringResource(R.string.lock_screen_permission_open)) }
+            }
         }
 
         Spacer(Modifier.height(16.dp))

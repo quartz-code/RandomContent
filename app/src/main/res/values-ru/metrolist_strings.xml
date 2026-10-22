@@ -981,6 +981,12 @@
     <string name="player_builder_gallery_rename">Переименовать</string>
     <string name="player_builder_gallery_delete">Удалить</string>
     <string name="player_builder_gallery_saved">Сохранено в «Мои темы»</string>
+    <string name="lock_screen_player">Экран блокировки</string>
+    <string name="lock_screen_player_toggle">Плеер на экране блокировки</string>
+    <string name="lock_screen_player_hint">Когда экран гаснет во время музыки, поверх блокировки появляется плеер в твоей теме: часы, обложка, кнопки. Проведи вверх, чтобы разблокировать.</string>
+    <string name="lock_screen_permission">Открыть плеер при выключенном экране Android даёт только с разрешением «Поверх других приложений».</string>
+    <string name="lock_screen_permission_open">Открыть настройки</string>
+    <string name="lock_screen_swipe">Проведите вверх, чтобы разблокировать</string>
     <string name="player_builder_title">Название</string>
     <string name="player_builder_align_left">Слева</string>
     <string name="player_builder_align_center">По центру</string>

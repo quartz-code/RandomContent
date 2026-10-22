@@ -1093,6 +1093,12 @@
     <string name="player_builder_gallery_rename">Rename</string>
     <string name="player_builder_gallery_delete">Delete</string>
     <string name="player_builder_gallery_saved">Saved to My themes</string>
+    <string name="lock_screen_player">Lock screen</string>
+    <string name="lock_screen_player_toggle">Player on the lock screen</string>
+    <string name="lock_screen_player_hint">When the screen goes off during playback, the player in your theme shows up over the lock screen: clock, artwork, controls. Swipe up to unlock.</string>
+    <string name="lock_screen_permission">Android only lets Pulse open the player when the screen is off with the “Display over other apps” permission.</string>
+    <string name="lock_screen_permission_open">Open settings</string>
+    <string name="lock_screen_swipe">Swipe up to unlock</string>
     <string name="player_builder_title">Title</string>
     <string name="player_builder_align_left">Left</string>
     <string name="player_builder_align_center">Centred</string>

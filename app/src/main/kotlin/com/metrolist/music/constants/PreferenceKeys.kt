@@ -465,6 +465,9 @@ val PlayerNightToKey = intPreferencesKey("pulsePlayerNightTo")
 const val DefaultNightFrom = 21 * 60
 const val DefaultNightTo = 7 * 60
 
+// Pulse: show the player over the lock screen when the screen goes off during playback.
+val LockScreenPlayerKey = booleanPreferencesKey("pulseLockScreenPlayer")
+
 enum class PlayerDesign {
     CLEAN,
     RADIO,
