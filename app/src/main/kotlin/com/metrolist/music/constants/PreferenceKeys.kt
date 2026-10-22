@@ -453,6 +453,8 @@ enum class AppStyle {
 
 /** Pulse: how the full-screen player looks; the three designs from the Figma board. */
 val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
+/** Pulse: the player builder's theme as JSON; when empty the preset of [PlayerDesignKey] is used. */
+val PlayerThemeKey = stringPreferencesKey("pulsePlayerTheme")
 
 enum class PlayerDesign {
     CLEAN,

@@ -102,9 +102,7 @@ import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterDefaultBaseUrl
 import com.metrolist.music.constants.OpenRouterDefaultModel
 import com.metrolist.music.constants.OpenRouterModelKey
-import com.metrolist.music.constants.PlayerDesign
-import com.metrolist.music.constants.PlayerDesignKey
-import com.metrolist.music.ui.player.palette
+import com.metrolist.music.ui.player.contentColor
 import com.metrolist.music.constants.RespectAgentPositioningKey
 import com.metrolist.music.constants.ShowIntervalIndicatorKey
 import com.metrolist.music.constants.TranslateLanguageKey
@@ -204,10 +202,7 @@ fun ExperimentalLyrics(
     val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val lyrics = remember(lyricsEntity) { lyricsEntity?.lyrics?.trim() }
 
-    val playerDesign by rememberEnumPreference(
-        key = PlayerDesignKey,
-        defaultValue = PlayerDesign.CLEAN,
-    )
+    val playerTheme = com.metrolist.music.ui.player.rememberPlayerTheme()
 
     val enabledLanguages = remember(romanizeLyricsList.value) {
         if (romanizeLyricsList.value.isEmpty()) {
@@ -297,7 +292,7 @@ fun ExperimentalLyrics(
     }
 
     // Pulse: the player is always dark, so lyrics take the design's light text colour.
-    val expressiveAccent = playerDesign.palette.content
+    val expressiveAccent = playerTheme.contentColor
 
     var activeLineIndices by remember { mutableStateOf(emptySet<Int>()) }
     var scrollTargetIndex by rememberSaveable { mutableIntStateOf(-1) }

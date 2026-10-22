@@ -79,6 +79,12 @@ fun SettingsScreen(
             title = stringResource(R.string.pulse_section),
             items = listOf(
                 Material3SettingsItem(
+                    icon = painterResource(R.drawable.palette),
+                    title = { Text(stringResource(R.string.player_builder)) },
+                    description = { Text(stringResource(R.string.player_builder_desc)) },
+                    onClick = { navController.navigate("settings/player_builder") }
+                ),
+                Material3SettingsItem(
                     icon = painterResource(R.drawable.backup),
                     title = { Text(stringResource(R.string.telegram_cloud)) },
                     description = { Text(stringResource(R.string.telegram_connect_desc)) },

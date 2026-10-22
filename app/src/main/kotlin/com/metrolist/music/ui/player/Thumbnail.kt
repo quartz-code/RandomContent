@@ -6,6 +6,10 @@
 package com.metrolist.music.ui.player
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.ui.draw.shadow
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -207,8 +211,11 @@ fun Thumbnail(
     horizontalPadding: Dp = PlayerHorizontalPadding,
     cornerRadius: Dp = ThumbnailCornerRadius * 2,
     contentColor: Color? = null,
+    artShadow: Boolean = false,
+    artSpin: Boolean = false,
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
+    val isPlaying by playerConnection.isPlaying.collectAsState()
     val context = LocalContext.current
     val layoutDirection = LocalLayoutDirection.current
 
@@ -415,7 +422,9 @@ fun Thumbnail(
                                 isListenTogetherGuest = isListenTogetherGuest,
                                 currentMediaId = mediaMetadata?.id,
                                 currentMediaThumbnail = mediaMetadata?.thumbnailUrl,
-                                horizontalPadding = horizontalPadding
+                                horizontalPadding = horizontalPadding,
+                                artShadow = artShadow,
+                                spinning = artSpin && isPlaying && item.mediaId == mediaMetadata?.id
                             )
                         }
                     }
@@ -514,8 +523,18 @@ private fun ThumbnailItem(
     currentMediaId: String? = null,
     currentMediaThumbnail: String? = null,
     horizontalPadding: Dp = PlayerHorizontalPadding,
+    artShadow: Boolean = false,
+    spinning: Boolean = false,
     modifier: Modifier = Modifier,
 ) {
+    // Pulse: round artwork can turn like a record while it plays, and stops where it is on pause.
+    val rotation = remember { Animatable(0f) }
+    LaunchedEffect(spinning) {
+        while (spinning) {
+            rotation.animateTo(rotation.value + 360f, tween(durationMillis = 18_000, easing = LinearEasing))
+            rotation.snapTo(rotation.value % 360f)
+        }
+    }
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
     var skipMultiplier by remember { mutableIntStateOf(1) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
@@ -572,6 +591,14 @@ private fun ThumbnailItem(
         Box(
             modifier = Modifier
                 .size(dimensions.thumbnailSize)
+                .then(
+                    if (artShadow) {
+                        Modifier.shadow(18.dp, RoundedCornerShape(dimensions.cornerRadius))
+                    } else {
+                        Modifier
+                    }
+                )
+                .graphicsLayer { rotationZ = rotation.value }
                 .clip(RoundedCornerShape(dimensions.cornerRadius))
         ) {
             if (hidePlayerThumbnail) {

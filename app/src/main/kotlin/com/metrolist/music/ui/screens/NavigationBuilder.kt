@@ -389,6 +389,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/telegram") {
         TelegramCloudScreen(navController)
     }
+    composable("settings/player_builder") {
+        com.metrolist.music.ui.screens.settings.PlayerBuilderScreen(navController)
+    }
 
     composable("settings/yandex_import") {
         YandexImportScreen(navController)
