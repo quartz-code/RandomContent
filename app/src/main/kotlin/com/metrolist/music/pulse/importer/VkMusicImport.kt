@@ -33,6 +33,8 @@ object VkMusicImport {
     private const val CLIENT_ID = "2685278"
     const val USER_AGENT = "KateMobileAndroid/72.1 lite-535 (Android 11; SDK 30; arm64-v8a; Google Pixel 5; ru)"
     const val REDIRECT_URL = "https://oauth.vk.com/blank.html"
+    /** Where the mobile site's own session is made: opening it walks the login.vk.ru handshake. */
+    const val MOBILE_AUDIO_URL = "https://m.vk.ru/audio"
 
     val COOKIE_HOSTS = listOf(
         "https://vk.ru", "https://m.vk.ru", "https://login.vk.ru", "https://id.vk.ru",
@@ -56,6 +58,11 @@ object VkMusicImport {
 
     sealed class Failure(message: String) : IOException(message) {
         class NotLoggedIn : Failure("not_logged_in")
+        /**
+         * The mobile site has no session of its own yet and sends the browser to [url] on
+         * login.vk.ru to get one. Only a browser can walk that, so the screen opens it in a WebView.
+         */
+        class NeedsHandshake(val url: String) : Failure("needs_handshake")
         /** [answer] is the start of what VK sent instead of a list, to show the developer. */
         class AccessDenied(val answer: String? = null) : Failure("access_denied")
         class BadLink : Failure("bad_link")
@@ -163,6 +170,7 @@ object VkMusicImport {
                 .build()
             val body = post("https://m.vk.ru/audio", cookies, form) ?: post("https://m.vk.com/audio", cookies, form)
                 ?: throw Failure.Network(IOException("no answer"))
+            handshakeUrl(body)?.let { throw Failure.NeedsHandshake(it) }
             val parsed = parseSectionResponse(body) ?: throw failureFor(body)
             if (title == null) title = parsed.title
             tracks += parsed.tracks
@@ -210,6 +218,15 @@ object VkMusicImport {
     }
 
     // ---- parsing (pure, unit-tested) ----
+
+    /** An answer like {"location":"https://login.vk.ru/?role=pda_frame&..."} instead of music. */
+    internal fun handshakeUrl(body: String): String? {
+        val obj = runCatching { json.parseToJsonElement(body.trim().removePrefix("<!--").trim()) }.getOrNull() as? JsonObject ?: return null
+        val location = (obj["location"] as? JsonPrimitive)?.contentOrNull ?: return null
+        return location.takeIf { it.startsWith("https://") && isLoginHost(it) }
+    }
+
+    private fun isLoginHost(url: String) = Regex("""^https://(login|id|oauth)\.vk\.(ru|com)/""").containsMatchIn(url)
 
     /** Parses a load_section / al_audio answer; null when it is not a music answer at all. */
     internal fun parseSectionResponse(body: String): SectionPage? {
@@ -335,8 +352,12 @@ object VkMusicImport {
         return try {
             client.newCall(request).execute().use { response ->
                 if (response.code in 300..399) {
-                    // A redirect to the sign-in page means the session is gone.
-                    if (response.header("Location").orEmpty().contains("login")) throw Failure.NotLoggedIn()
+                    // A redirect to sign-in: the mobile site wants its handshake (or a fresh login,
+                    // which the same WebView then shows).
+                    val location = response.header("Location").orEmpty()
+                    if (location.contains("login")) {
+                        throw Failure.NeedsHandshake(response.request.url.resolve(location)?.toString() ?: MOBILE_AUDIO_URL)
+                    }
                     return null
                 }
                 if (!response.isSuccessful) return null

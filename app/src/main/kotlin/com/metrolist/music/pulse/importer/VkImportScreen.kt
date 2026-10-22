@@ -68,6 +68,9 @@ import kotlinx.coroutines.launch
 
 internal fun collectVkCookies(): String {
     val manager = CookieManager.getInstance()
+    // The music requests go to m.vk.ru: send what a browser would send there. Merging every VK
+    // host let vk.com's session override vk.ru's, and the mobile site answered with a login hop.
+    manager.getCookie(VkMusicImport.MOBILE_AUDIO_URL)?.takeIf { VkMusicImport.hasSession(it) }?.let { return it }
     val merged = linkedMapOf<String, String>()
     for (host in VkMusicImport.COOKIE_HOSTS) {
         manager.getCookie(host)?.split(';')?.forEach { part ->
@@ -93,7 +96,7 @@ private fun clearVkCookies() {
 }
 
 private fun failureText(e: Throwable): Int = when (e) {
-    is VkMusicImport.Failure.NotLoggedIn -> R.string.vk_error_session
+    is VkMusicImport.Failure.NotLoggedIn, is VkMusicImport.Failure.NeedsHandshake -> R.string.vk_error_session
     is VkMusicImport.Failure.AccessDenied -> R.string.vk_error_denied
     is VkMusicImport.Failure.BadLink -> R.string.vk_error_link
     else -> R.string.vk_error_network
@@ -117,15 +120,26 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
     var errorAnswer by remember { mutableStateOf<String?>(null) }
     var loaded by remember { mutableStateOf<ImportedList?>(null) }
     var link by remember { mutableStateOf("") }
+    // The mobile site's login hop, walked in the WebView; then the interrupted load runs again.
+    var handshake by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    var playlistsVersion by remember { mutableIntStateOf(0) }
 
-    fun load(block: suspend () -> ImportedList) {
+    fun load(block: suspend (cookies: String) -> ImportedList, afterHandshake: Boolean = false) {
         loading = true
         error = null
         errorAnswer = null
         scope.launch {
             try {
-                val list = block()
+                val list = block(collectVkCookies())
                 if (list.tracks.isEmpty()) error = R.string.vk_import_empty else loaded = list
+            } catch (e: VkMusicImport.Failure.NeedsHandshake) {
+                // Once is enough: a second hop means the session really is gone.
+                if (afterHandshake) {
+                    error = R.string.vk_error_session
+                    onUserIdChange(0L)
+                } else {
+                    handshake = e.url to { load(block, afterHandshake = true) }
+                }
             } catch (e: Exception) {
                 error = failureText(e)
                 errorAnswer = (e as? VkMusicImport.Failure.AccessDenied)?.answer?.takeIf { it.isNotBlank() }
@@ -136,12 +150,32 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
         }
     }
 
-    LaunchedEffect(loggedIn) {
+    LaunchedEffect(loggedIn, playlistsVersion) {
         if (loggedIn && playlists == null) {
-            runCatching { VkMusicImport.loadPlaylists(userId, cookies) }
-                .onSuccess { playlists = it }
-                .onFailure { playlistsError = failureText(it); playlists = emptyList() }
+            runCatching { VkMusicImport.loadPlaylists(userId, collectVkCookies()) }
+                .onSuccess { playlists = it; playlistsError = null }
+                .onFailure {
+                    if (it is VkMusicImport.Failure.NeedsHandshake && playlistsVersion == 0) {
+                        handshake = it.url to { playlistsVersion++ }
+                    } else {
+                        playlistsError = failureText(it)
+                        playlists = emptyList()
+                    }
+                }
         }
+    }
+
+    handshake?.let { (url, retry) ->
+        VkLoginView(
+            startUrl = url,
+            knownUserId = userId,
+            onDone = { id ->
+                handshake = null
+                cookieVersion++
+                if (id != null) retry() else loading = false
+            },
+        )
+        return
     }
 
     if (showLogin) {
@@ -229,7 +263,7 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
                     title = stringResource(R.string.vk_my_music),
                     subtitle = stringResource(R.string.vk_my_music_desc),
                     enabled = !loading,
-                    onClick = { load { VkMusicImport.loadMyMusic(userId, cookies) } },
+                    onClick = { load({ c -> VkMusicImport.loadMyMusic(userId, c) }) },
                 )
                 HorizontalDivider()
                 Spacer(Modifier.height(12.dp))
@@ -251,7 +285,7 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
                             title = pl.title,
                             subtitle = listOfNotNull(pl.author, pl.trackCount?.let { stringResource(R.string.vk_tracks_count, it) }).joinToString(" · "),
                             enabled = !loading,
-                            onClick = { load { VkMusicImport.loadPlaylist(cookies, pl) } },
+                            onClick = { load({ c -> VkMusicImport.loadPlaylist(c, pl) }) },
                         )
                     }
                 }
@@ -270,7 +304,7 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
                     enabled = link.isNotBlank() && !loading,
                     onClick = {
                         val pl = VkMusicImport.parsePlaylistLink(link)
-                        if (pl == null) error = R.string.vk_error_link else load { VkMusicImport.loadPlaylist(cookies, pl) }
+                        if (pl == null) error = R.string.vk_error_link else load({ c -> VkMusicImport.loadPlaylist(c, pl) })
                     },
                 ) { Text(stringResource(R.string.vk_load)) }
             }
@@ -317,8 +351,8 @@ private fun SourceRow(title: String, subtitle: String, enabled: Boolean, onClick
  */
 @SuppressLint("SetJavaScriptEnabled")
 @Composable
-private fun VkLoginView(onDone: (Long?) -> Unit) {
-    val holder = remember { object { var webView: WebView? = null; var userId: Long? = null; var finished = false } }
+private fun VkLoginView(onDone: (Long?) -> Unit, startUrl: String? = null, knownUserId: Long? = null) {
+    val holder = remember { object { var webView: WebView? = null; var userId: Long? = knownUserId?.takeIf { it > 0 }; var finished = false } }
     var progress by remember { mutableIntStateOf(0) }
     var error by remember { mutableStateOf<String?>(null) }
     var noSession by remember { mutableStateOf(false) }
@@ -337,13 +371,15 @@ private fun VkLoginView(onDone: (Long?) -> Unit) {
                 if (holder.userId != null) return
                 holder.userId = r.userId
                 CookieManager.getInstance().flush()
-                if (VkMusicImport.hasSession(collectVkCookies())) finish(r.userId) else view.loadUrl("https://m.vk.ru/")
+                // Always open the mobile music page: that is where VK gives m.vk.ru its own session.
+                view.loadUrl(VkMusicImport.MOBILE_AUDIO_URL)
             }
             null -> {
                 val id = holder.userId ?: return
-                if (pageLoaded && url?.contains("m.vk.") == true) {
+                if (pageLoaded && url != null && url.startsWith("https://m.vk.") && !url.contains("login")) {
                     CookieManager.getInstance().flush()
-                    if (VkMusicImport.hasSession(collectVkCookies())) finish(id) else noSession = true
+                    val mobile = CookieManager.getInstance().getCookie(VkMusicImport.MOBILE_AUDIO_URL).orEmpty()
+                    if (VkMusicImport.hasSession(mobile)) finish(id) else noSession = true
                 }
             }
         }
@@ -399,7 +435,7 @@ private fun VkLoginView(onDone: (Long?) -> Unit) {
                                 if (request.isForMainFrame) error = "${err.description} (${err.errorCode})"
                             }
                         }
-                        loadUrl(VkMusicImport.authorizeUrl())
+                        loadUrl(startUrl ?: VkMusicImport.authorizeUrl())
                         holder.webView = this
                     }
                 },

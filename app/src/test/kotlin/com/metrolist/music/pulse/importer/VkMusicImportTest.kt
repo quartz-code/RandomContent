@@ -104,4 +104,15 @@ class VkMusicImportTest {
         assertEquals("Музыка недоступна", VkMusicImport.answerExcerpt(html))
         assertEquals(300, VkMusicImport.answerExcerpt("я".repeat(1000)).length)
     }
+
+    @Test
+    fun loginHopIsRecognised() {
+        // What VK sent to a signed-in user in October 2026, with the hashes shortened.
+        val answer = """{"location":"https:\/\/login.vk.ru\/?role=pda_frame&_origin=https%3A%2F%2Fm.vk.ru&ip_h=401ece&to=aHR0cHM6Ly9tLnZrLnJ1L2F1ZGlv&lrt=P1uV&_phash=c018ce","version":"dc3975"}"""
+        val url = VkMusicImport.handshakeUrl(answer)
+        assertTrue(url!!.startsWith("https://login.vk.ru/?role=pda_frame"))
+        assertNull(VkMusicImport.handshakeUrl("""{"location":"https://evil.example/login"}"""))
+        assertNull(VkMusicImport.handshakeUrl("""{"data":[{"list":[]}]}"""))
+        assertNull(VkMusicImport.handshakeUrl("<html>login</html>"))
+    }
 }
