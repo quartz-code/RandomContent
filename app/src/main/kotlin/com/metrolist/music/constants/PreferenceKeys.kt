@@ -456,6 +456,15 @@ val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
 /** Pulse: the player builder's theme as JSON; when empty the preset of [PlayerDesignKey] is used. */
 val PlayerThemeKey = stringPreferencesKey("pulsePlayerTheme")
 
+// Pulse: saved themes ("My themes") and the evening theme with its schedule.
+val PlayerThemeGalleryKey = stringPreferencesKey("pulsePlayerThemeGallery")
+val PlayerNightThemeKey = stringPreferencesKey("pulsePlayerNightTheme")
+val PlayerNightModeKey = stringPreferencesKey("pulsePlayerNightMode")
+val PlayerNightFromKey = intPreferencesKey("pulsePlayerNightFrom")
+val PlayerNightToKey = intPreferencesKey("pulsePlayerNightTo")
+const val DefaultNightFrom = 21 * 60
+const val DefaultNightTo = 7 * 60
+
 enum class PlayerDesign {
     CLEAN,
     RADIO,

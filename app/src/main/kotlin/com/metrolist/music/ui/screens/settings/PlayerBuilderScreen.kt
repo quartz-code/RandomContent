@@ -1,5 +1,25 @@
 package com.metrolist.music.ui.screens.settings
 
+import android.app.TimePickerDialog
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import com.metrolist.music.constants.DefaultNightFrom
+import com.metrolist.music.constants.DefaultNightTo
+import com.metrolist.music.constants.PlayerNightFromKey
+import com.metrolist.music.constants.PlayerNightModeKey
+import com.metrolist.music.constants.PlayerNightToKey
+import com.metrolist.music.ui.player.NightMode
+import com.metrolist.music.ui.player.PlayerThemeGallery
+import com.metrolist.music.ui.player.SavedTheme
+import com.metrolist.music.ui.player.editThemeGallery
+import com.metrolist.music.ui.player.rememberDayPlayerTheme
+import com.metrolist.music.ui.player.rememberNightPlayerTheme
+import com.metrolist.music.ui.player.rememberThemeGallery
+import com.metrolist.music.ui.player.saveNightPlayerTheme
+import com.metrolist.music.utils.rememberEnumPreference
+import com.metrolist.music.utils.rememberPreference
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -99,7 +119,6 @@ import com.metrolist.music.ui.player.baseBackground
 import com.metrolist.music.ui.player.contentColor
 import com.metrolist.music.ui.player.peekHeight
 import com.metrolist.music.ui.player.pulsePalette
-import com.metrolist.music.ui.player.rememberPlayerTheme
 import com.metrolist.music.ui.player.savePlayerTheme
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -121,13 +140,30 @@ private val SampleArtwork = Color(0xFF7C93B8)
 fun PlayerBuilderScreen(navController: NavController) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val saved = rememberPlayerTheme()
-    var theme by remember { mutableStateOf<PlayerTheme?>(null) }
-    val current = theme ?: saved
+    val day = rememberDayPlayerTheme()
+    val night = rememberNightPlayerTheme()
+    val gallery = rememberThemeGallery()
+    var nightMode by rememberEnumPreference(PlayerNightModeKey, NightMode.OFF)
+    var nightFrom by rememberPreference(PlayerNightFromKey, DefaultNightFrom)
+    var nightTo by rememberPreference(PlayerNightToKey, DefaultNightTo)
+    var editNight by remember { mutableStateOf(false) }
+    val editingNight = editNight && night != null
+    // The edit is held here as well as saved, so sliders do not wait for the round trip to storage.
+    var edited by remember { mutableStateOf<Pair<Boolean, PlayerTheme>?>(null) }
+    val current = edited?.takeIf { it.first == editingNight }?.second ?: (if (editingNight) night!! else day)
     fun update(next: PlayerTheme) {
-        theme = next
-        scope.launch { context.savePlayerTheme(next) }
+        edited = editingNight to next
+        val toNight = editingNight
+        scope.launch { if (toNight) context.saveNightPlayerTheme(next) else context.savePlayerTheme(next) }
     }
+
+    /** A theme from a friend's code: applied, and kept in "My themes" to come back to. */
+    fun receive(received: PlayerTheme) {
+        update(received)
+        val name = PlayerThemeGallery.freeName(gallery, context.getString(R.string.player_builder_gallery_friend_name))
+        scope.launch { context.editThemeGallery { PlayerThemeGallery.add(it, SavedTheme(name = name, theme = received, fromFriend = true)) } }
+    }
+    var naming by remember { mutableStateOf<SavedTheme?>(null) }
 
     // Bars and wave need the microphone permission to hear the player; asked when picked.
     var canHear by remember { mutableStateOf(context.canVisualize()) }
@@ -149,6 +185,13 @@ fun PlayerBuilderScreen(navController: NavController) {
     }
 
     PulseScreenScaffold(navController, stringResource(R.string.player_builder)) {
+        if (night != null) {
+            Choice(
+                listOf(false to R.string.player_builder_slot_main, true to R.string.player_builder_slot_night),
+                editingNight,
+            ) { editNight = it }
+            Spacer(Modifier.height(8.dp))
+        }
         Row(verticalAlignment = Alignment.Top, modifier = Modifier.fillMaxWidth()) {
             PlayerPreview(current, modifier = Modifier.width(150.dp))
             Spacer(Modifier.width(16.dp))
@@ -185,10 +228,77 @@ fun PlayerBuilderScreen(navController: NavController) {
                     Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
                         TextButton(onClick = { found = null }) { Text(stringResource(android.R.string.cancel)) }
                         TextButton(onClick = {
-                            update(foundTheme)
+                            receive(foundTheme)
                             found = null
                         }) { Text(stringResource(R.string.player_builder_apply)) }
                     }
+                }
+            }
+        }
+
+        Section(R.string.player_builder_gallery) {
+            if (gallery.isEmpty()) {
+                Text(
+                    stringResource(R.string.player_builder_gallery_empty),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 4.dp),
+                ) {
+                    gallery.forEach { item ->
+                        GalleryCard(
+                            item = item,
+                            selected = item.theme == current,
+                            onApply = { update(item.theme) },
+                            onRename = { naming = item },
+                            onShare = { shareTheme(context, item.theme) },
+                            onDelete = { scope.launch { context.editThemeGallery { PlayerThemeGallery.remove(it, item.id) } } },
+                        )
+                    }
+                }
+            }
+            TextButton(onClick = {
+                naming = SavedTheme(
+                    name = PlayerThemeGallery.freeName(gallery, context.getString(R.string.player_builder_gallery_default_name)),
+                    theme = current,
+                )
+            }) { Text(stringResource(R.string.player_builder_gallery_save)) }
+        }
+
+        Section(R.string.player_builder_night) {
+            Choice(
+                listOf(
+                    NightMode.OFF to R.string.player_builder_night_off,
+                    NightMode.SYSTEM to R.string.player_builder_night_system,
+                    NightMode.HOURS to R.string.player_builder_night_hours,
+                ),
+                nightMode,
+            ) {
+                nightMode = it
+                if (it == NightMode.OFF) editNight = false
+            }
+            if (nightMode == NightMode.HOURS) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                    OutlinedButton(onClick = { pickTime(context, nightFrom) { nightFrom = it } }) {
+                        Text(stringResource(R.string.player_builder_night_from, clockText(nightFrom)))
+                    }
+                    OutlinedButton(onClick = { pickTime(context, nightTo) { nightTo = it } }) {
+                        Text(stringResource(R.string.player_builder_night_to, clockText(nightTo)))
+                    }
+                }
+            }
+            if (nightMode != NightMode.OFF) {
+                Text(
+                    stringResource(R.string.player_builder_night_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                if (!editingNight) {
+                    TextButton(onClick = { editNight = true }) { Text(stringResource(R.string.player_builder_night_edit)) }
                 }
             }
         }
@@ -439,11 +549,28 @@ fun PlayerBuilderScreen(navController: NavController) {
         }
     }
 
+    naming?.let { draft ->
+        NameThemeDialog(
+            initial = draft.name,
+            onDismiss = { naming = null },
+            onSave = { name ->
+                val exists = gallery.any { it.id == draft.id }
+                scope.launch {
+                    context.editThemeGallery {
+                        if (exists) PlayerThemeGallery.rename(it, draft.id, name) else PlayerThemeGallery.add(it, draft.copy(name = name))
+                    }
+                }
+                if (!exists) Toast.makeText(context, R.string.player_builder_gallery_saved, Toast.LENGTH_SHORT).show()
+                naming = null
+            },
+        )
+    }
+
     if (showPaste) {
         PasteThemeDialog(
             onDismiss = { showPaste = false },
             onApply = {
-                update(it)
+                receive(it)
                 showPaste = false
             },
         )
@@ -514,6 +641,76 @@ private fun PasteThemeDialog(onDismiss: () -> Unit, onApply: (PlayerTheme) -> Un
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
     )
+}
+
+private fun clockText(minutes: Int) = "%02d:%02d".format(minutes / 60, minutes % 60)
+
+private fun pickTime(context: Context, minutes: Int, onPick: (Int) -> Unit) {
+    TimePickerDialog(context, { _, hour, minute -> onPick(hour * 60 + minute) }, minutes / 60, minutes % 60, true).show()
+}
+
+@Composable
+private fun NameThemeDialog(initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var name by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.player_builder_gallery_name)) },
+        text = { OutlinedTextField(value = name, onValueChange = { name = it.take(40) }, singleLine = true, modifier = Modifier.fillMaxWidth()) },
+        confirmButton = { TextButton(enabled = name.isNotBlank(), onClick = { onSave(name.trim()) }) { Text(stringResource(android.R.string.ok)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(android.R.string.cancel)) } },
+    )
+}
+
+/** A saved theme: a still preview and its name; tap applies it, long press opens the menu. */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun GalleryCard(
+    item: SavedTheme,
+    selected: Boolean,
+    onApply: () -> Unit,
+    onRename: () -> Unit,
+    onShare: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    var menu by remember { mutableStateOf(false) }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(92.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .combinedClickable(onClick = onApply, onLongClick = { menu = true })
+            .padding(4.dp),
+    ) {
+        Box {
+            PlayerPreview(
+                item.theme,
+                animate = false,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)) else Modifier),
+            )
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                DropdownMenuItem(text = { Text(stringResource(R.string.player_builder_gallery_rename)) }, onClick = { menu = false; onRename() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.player_builder_share)) }, onClick = { menu = false; onShare() })
+                DropdownMenuItem(text = { Text(stringResource(R.string.player_builder_gallery_delete)) }, onClick = { menu = false; onDelete() })
+            }
+        }
+        Text(
+            item.name,
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        if (item.fromFriend) {
+            Text(
+                stringResource(R.string.player_builder_gallery_from_friend),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+            )
+        }
+    }
 }
 
 // ---------------------------------------------------------------- building blocks
@@ -615,7 +812,7 @@ private fun SwatchRow(title: Int, selected: Long?, allowAuto: Boolean = false, o
 
 /** The real player composables at phone size, scaled down; the current song's cover if one plays. */
 @Composable
-private fun PlayerPreview(theme: PlayerTheme, modifier: Modifier = Modifier) {
+private fun PlayerPreview(theme: PlayerTheme, modifier: Modifier = Modifier, animate: Boolean = true) {
     val playerConnection = LocalPlayerConnection.current
     val metadata = playerConnection?.mediaMetadata?.collectAsStateWithLifecycle()?.value
     val title = metadata?.title ?: "Чёрный день свободы"
@@ -640,7 +837,7 @@ private fun PlayerPreview(theme: PlayerTheme, modifier: Modifier = Modifier) {
                     },
             ) {
                 CompositionLocalProvider(LocalPulseArtworkColor provides SampleArtwork) {
-                    PreviewPhone(theme, metadata?.thumbnailUrl, title, artist)
+                    PreviewPhone(theme, metadata?.thumbnailUrl, title, artist, animate)
                 }
             }
         }
@@ -648,7 +845,7 @@ private fun PlayerPreview(theme: PlayerTheme, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun PreviewPhone(theme: PlayerTheme, thumbnailUrl: String?, title: String, artist: String) {
+private fun PreviewPhone(theme: PlayerTheme, thumbnailUrl: String?, title: String, artist: String, animate: Boolean) {
     Box(
         Modifier
             .fillMaxSize()
@@ -657,8 +854,8 @@ private fun PreviewPhone(theme: PlayerTheme, thumbnailUrl: String?, title: Strin
         PulsePlayerBackground(theme, listOf(SampleArtwork), thumbnailUrl)
         if (theme.motion != PlayerTheme.Motion.NONE) {
             // No song is heard here, so the bars always move to the made-up beat.
-            val levels = rememberAudioLevels(audioSessionId = 0, active = theme.usesVisualizer)
-            PulseMotionLayer(theme, listOf(SampleArtwork), pulsePalette(theme).accent, levels, active = true, modifier = Modifier.fillMaxSize())
+            val levels = rememberAudioLevels(audioSessionId = 0, active = animate && theme.usesVisualizer)
+            PulseMotionLayer(theme, listOf(SampleArtwork), pulsePalette(theme).accent, levels, active = animate, modifier = Modifier.fillMaxSize())
         }
         Column(Modifier.fillMaxSize().padding(top = 32.dp)) {
             Column(Modifier.weight(1f)) {
