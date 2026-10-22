@@ -325,6 +325,7 @@ class MusicService :
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private val binder = MusicBinder()
+    private var lockScreenLauncher: com.metrolist.music.pulse.LockScreenLauncher? = null
 
     inner class MusicBinder : Binder() {
         val service: MusicService
@@ -685,6 +686,8 @@ class MusicService :
         )
         player = createExoPlayer(prefs = startupPrefs!!)
         player.addListener(this@MusicService)
+        // Pulse: the player over the lock screen, opened when the screen goes off during playback.
+        lockScreenLauncher = com.metrolist.music.pulse.LockScreenLauncher(this).also { it.register() }
         sleepTimer =
             SleepTimer(scope, player) { multiplier ->
                 sleepTimerVolumeMultiplier.value = multiplier
@@ -4278,6 +4281,7 @@ class MusicService :
             unregisterReceiver(screenStateReceiver)
         } catch (e: Exception) {
         }
+        lockScreenLauncher?.unregister()
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
         castConnectionHandler?.release()
         if (dataStore.get(PersistentQueueKey, true)) {

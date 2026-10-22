@@ -137,9 +137,7 @@ import com.metrolist.music.constants.LyricsTextSizeKey
 import com.metrolist.music.constants.OpenRouterApiKey
 import com.metrolist.music.constants.OpenRouterBaseUrlKey
 import com.metrolist.music.constants.OpenRouterModelKey
-import com.metrolist.music.constants.PlayerDesign
-import com.metrolist.music.constants.PlayerDesignKey
-import com.metrolist.music.ui.player.palette
+import com.metrolist.music.ui.player.contentColor
 import com.metrolist.music.constants.TranslateLanguageKey
 import com.metrolist.music.constants.TranslateModeKey
 import com.metrolist.music.db.entities.LyricsEntity.Companion.LYRICS_NOT_FOUND
@@ -207,7 +205,7 @@ fun OriginalLyrics(
     val shareLyricsStr = stringResource(R.string.share_lyrics)
     val failedToCreateImageTemplate = stringResource(R.string.failed_to_create_image)
 
-    val lyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
+    val savedLyricsTextPosition by rememberEnumPreference(LyricsTextPositionKey, LyricsPosition.CENTER)
     val changeLyrics by rememberPreference(LyricsClickKey, true)
     val scrollLyrics by rememberPreference(LyricsScrollKey, true)
     val romanizeLyricsList = rememberPreference(LyricsRomanizeList, "")
@@ -235,10 +233,7 @@ fun OriginalLyrics(
     val currentSong by playerConnection.currentSong.collectAsStateWithLifecycle(initialValue = null)
     val lyrics = remember(lyricsEntity) { lyricsEntity?.lyrics?.trim() }
 
-    val playerDesign by rememberEnumPreference(
-        key = PlayerDesignKey,
-        defaultValue = PlayerDesign.CLEAN,
-    )
+    val playerTheme = com.metrolist.music.ui.player.rememberPlayerTheme()
 
     val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
     val isSystemInDarkTheme = isSystemInDarkTheme()
@@ -423,7 +418,8 @@ fun OriginalLyrics(
 
     // Use Material 3 expressive accents and keep glow/text colors unified
     // Pulse: the player is always dark, so lyrics take the design's light text colour.
-    val expressiveAccent = playerDesign.palette.content
+    val expressiveAccent = com.metrolist.music.ui.player.pulseLyricsColor(playerTheme)
+    val lyricsTextPosition = com.metrolist.music.ui.player.lyricsPosition(playerTheme, savedLyricsTextPosition)
 
     var currentLineIndex by remember {
         mutableIntStateOf(-1)

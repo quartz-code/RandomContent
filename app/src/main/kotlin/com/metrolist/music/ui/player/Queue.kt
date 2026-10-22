@@ -105,7 +105,6 @@ import com.metrolist.music.LocalListenTogetherManager
 import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.ListItemHeight
-import com.metrolist.music.constants.PlayerDesign
 import com.metrolist.music.constants.QueueEditLockKey
 import com.metrolist.music.extensions.metadata
 import com.metrolist.music.extensions.move
@@ -152,7 +151,7 @@ fun Queue(
     background: Color,
     pureBlack: Boolean,
     showInlineLyrics: Boolean,
-    design: PlayerDesign = PlayerDesign.CLEAN,
+    theme: PlayerTheme = PlayerTheme.Clean,
     onToggleLyrics: () -> Unit = {},
 ) {
     val navController = LocalNavController.current
@@ -255,34 +254,36 @@ fun Queue(
         collapsedContent = {
             val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
             PulseBottomRow(
-                design = design,
-                lyricsShown = showInlineLyrics,
-                sleepTimerLeft = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else null,
-                shuffleOn = shuffleModeEnabled,
-                repeatMode = repeatMode,
-                controlsEnabled = !isListenTogetherGuest,
-                onQueue = { state.expandSoft() },
-                onLyrics = onToggleLyrics,
-                onSleepTimer = {
-                    if (sleepTimerEnabled) {
-                        playerConnection.service.sleepTimer?.clear()
-                    } else {
-                        showSleepTimerDialog = true
-                    }
-                },
-                onShare = {
-                    mediaMetadata?.id?.let { id ->
-                        val intent =
-                            Intent().apply {
-                                action = Intent.ACTION_SEND
-                                type = "text/plain"
-                                putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/watch?v=$id")
-                            }
-                        context.startActivity(Intent.createChooser(intent, null))
-                    }
-                },
-                onShuffle = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
-                onRepeat = { playerConnection.player.toggleRepeatMode() },
+                theme = theme,
+                actions = PulseBottomActions(
+                    lyricsShown = showInlineLyrics,
+                    sleepTimerLeft = if (sleepTimerEnabled) makeTimeString(sleepTimerTimeLeft) else null,
+                    shuffleOn = shuffleModeEnabled,
+                    repeatMode = repeatMode,
+                    controlsEnabled = !isListenTogetherGuest,
+                    onQueue = { state.expandSoft() },
+                    onLyrics = onToggleLyrics,
+                    onSleepTimer = {
+                        if (sleepTimerEnabled) {
+                            playerConnection.service.sleepTimer?.clear()
+                        } else {
+                            showSleepTimerDialog = true
+                        }
+                    },
+                    onShare = {
+                        mediaMetadata?.id?.let { id ->
+                            val intent =
+                                Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    type = "text/plain"
+                                    putExtra(Intent.EXTRA_TEXT, "https://music.youtube.com/watch?v=$id")
+                                }
+                            context.startActivity(Intent.createChooser(intent, null))
+                        }
+                    },
+                    onShuffle = { playerConnection.player.shuffleModeEnabled = !shuffleModeEnabled },
+                    onRepeat = { playerConnection.player.toggleRepeatMode() },
+                ),
                 modifier =
                     Modifier
                         .fillMaxWidth()

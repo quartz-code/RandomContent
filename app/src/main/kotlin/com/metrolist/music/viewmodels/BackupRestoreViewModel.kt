@@ -79,6 +79,7 @@ data class ConvertedSongLog(
 class BackupRestoreViewModel @Inject constructor(
     val database: MusicDatabase,
     val telegramCloud: TelegramCloud,
+    val telegramInbox: com.metrolist.music.cloud.TelegramInbox,
 ) : ViewModel() {
     fun backup(context: Context, uri: Uri) {
         runCatching {

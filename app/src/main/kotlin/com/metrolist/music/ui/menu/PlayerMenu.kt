@@ -1427,32 +1427,20 @@ fun ListenTogetherDialog(
                             }
                             if (isHost) {
                                 Spacer(modifier = Modifier.height(12.dp))
-                                val inviteLink =
-                                    remember(room.roomCode) {
-                                        "https://metrolist.cc/listen?code=${room.roomCode}"
-                                    }
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.Center,
                                 ) {
                                     FilledTonalButton(
-                                        onClick = {
-                                            val clipboard =
-                                                context.getSystemService(
-                                                    Context.CLIPBOARD_SERVICE,
-                                                ) as android.content.ClipboardManager
-                                            val clip = android.content.ClipData.newPlainText("Listen Together Link", inviteLink)
-                                            clipboard.setPrimaryClip(clip)
-                                            Toast.makeText(context, R.string.copied_to_clipboard, Toast.LENGTH_SHORT).show()
-                                        },
+                                        onClick = { com.metrolist.music.listentogether.PulseInvite.share(context, room.roomCode) },
                                     ) {
                                         Icon(
-                                            painter = painterResource(R.drawable.link),
-                                            contentDescription = stringResource(R.string.copy_link),
+                                            painter = painterResource(R.drawable.share),
+                                            contentDescription = stringResource(R.string.listen_together_invite),
                                             modifier = Modifier.size(18.dp),
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text(stringResource(R.string.copy_link))
+                                        Text(stringResource(R.string.listen_together_invite))
                                     }
 
                                     Spacer(modifier = Modifier.width(8.dp))

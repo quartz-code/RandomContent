@@ -56,6 +56,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -116,8 +117,6 @@ import com.metrolist.music.constants.DarkModeKey
 import com.metrolist.music.constants.HidePlayerThumbnailKey
 import com.metrolist.music.constants.HideStatusBarOnFullscreenKey
 import com.metrolist.music.constants.KeepScreenOn
-import com.metrolist.music.constants.PlayerDesign
-import com.metrolist.music.constants.PlayerDesignKey
 import com.metrolist.music.constants.SleepTimerDefaultKey
 import com.metrolist.music.constants.SleepTimerFadeOutKey
 import com.metrolist.music.constants.SleepTimerStopAfterCurrentSongKey
@@ -173,7 +172,7 @@ fun BottomSheetPlayer(
     val bottomSheetPageState = LocalBottomSheetPageState.current
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    val playerDesign by rememberEnumPreference(PlayerDesignKey, defaultValue = PlayerDesign.CLEAN)
+    val playerTheme = rememberPlayerTheme()
     val (hidePlayerThumbnail, onHidePlayerThumbnailChange) = rememberPreference(HidePlayerThumbnailKey, false)
     val (hideStatusBarOnFullscreen) = rememberPreference(HideStatusBarOnFullscreenKey, false)
     val cropAlbumArt by rememberPreference(CropAlbumArtKey, false)
@@ -197,13 +196,13 @@ fun BottomSheetPlayer(
     val isKeepScreenOn by rememberPreference(KeepScreenOn, false)
     val keepScreenOn = isPlaying && isKeepScreenOn
 
-    DisposableEffect(state.isExpanded, useDarkTheme, keepScreenOn, isFullScreen, hideStatusBarOnFullscreen) {
+    DisposableEffect(state.isExpanded, useDarkTheme, keepScreenOn, isFullScreen, hideStatusBarOnFullscreen, playerTheme.light) {
         val window = (context as? android.app.Activity)?.window
         if (window != null && state.isExpanded) {
             val insetsController = WindowCompat.getInsetsController(window, window.decorView)
 
-            // Pulse: every player design is dark, so the status bar icons stay light.
-            insetsController.isAppearanceLightStatusBars = false
+            // Pulse: the status bar follows the player design, not the app theme.
+            insetsController.isAppearanceLightStatusBars = playerTheme.light
 
             if (isFullScreen && hideStatusBarOnFullscreen) {
                 insetsController.hide(WindowInsetsCompat.Type.statusBars())
@@ -330,8 +329,10 @@ fun BottomSheetPlayer(
     val defaultGradientColors = listOf(MaterialTheme.colorScheme.surface, MaterialTheme.colorScheme.surfaceVariant)
     val fallbackColor = MaterialTheme.colorScheme.surface.toArgb()
 
-    LaunchedEffect(mediaMetadata?.id, playerDesign) {
-        if (playerDesign == PlayerDesign.CLEAN) {
+    // The artwork's colour feeds the background and, if the theme asks, the accent.
+    val needsArtworkColors = playerTheme.background == PlayerTheme.Background.ARTWORK || playerTheme.accentFromArtwork
+    LaunchedEffect(mediaMetadata?.id, needsArtworkColors) {
+        if (needsArtworkColors) {
             val currentMetadata = mediaMetadata
             if (currentMetadata != null && currentMetadata.thumbnailUrl != null) {
                 val cachedColors = gradientColorsCache[currentMetadata.id]
@@ -597,7 +598,7 @@ fun BottomSheetPlayer(
         }
     }
 
-    val dismissedBound = playerDesign.peekHeight + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
+    val dismissedBound = playerTheme.peekHeight + WindowInsets.systemBars.asPaddingValues().calculateBottomPadding()
 
     val queueSheetState =
         rememberBottomSheetState(
@@ -607,10 +608,12 @@ fun BottomSheetPlayer(
             initialAnchor = 1,
         )
 
-    val bottomSheetBackgroundColor = playerDesign.baseBackground
+    val bottomSheetBackgroundColor = playerTheme.baseBackground
 
     val backgroundAlpha = state.progress.coerceIn(0f, 1f)
 
+    // Pulse: the light design colours its controls from the artwork.
+    CompositionLocalProvider(LocalPulseArtworkColor provides gradientColors.firstOrNull()) {
     BottomSheet(
         state = state,
         modifier = modifier,
@@ -622,10 +625,25 @@ fun BottomSheetPlayer(
                         .background(bottomSheetBackgroundColor),
             ) {
                 PulsePlayerBackground(
-                    design = playerDesign,
+                    theme = playerTheme,
                     artworkColors = gradientColors,
+                    thumbnailUrl = mediaMetadata?.thumbnailUrl,
                     modifier = Modifier.alpha(backgroundAlpha),
                 )
+                if (playerTheme.motion != PlayerTheme.Motion.NONE) {
+                    // Crossfade swaps the underlying player, so the session is read again per song.
+                    val audioSessionId = remember(mediaMetadata?.id) { playerConnection.player.audioSessionId }
+                    val motionActive = state.isExpanded && isPlaying
+                    val levels = rememberAudioLevels(audioSessionId, motionActive && playerTheme.usesVisualizer)
+                    PulseMotionLayer(
+                        theme = playerTheme,
+                        artworkColors = gradientColors,
+                        accent = pulsePalette(playerTheme).accent,
+                        levels = levels,
+                        active = motionActive,
+                        modifier = Modifier.fillMaxSize().alpha(backgroundAlpha),
+                    )
+                }
             }
         },
         onDismiss =
@@ -655,7 +673,7 @@ fun BottomSheetPlayer(
             }
         val playerHeader: @Composable () -> Unit = {
             PulsePlayerHeader(
-                design = playerDesign,
+                theme = playerTheme,
                 listenTogetherLabel = listenTogetherLabel,
                 source = queueTitle ?: mediaMetadata?.album?.title,
                 onCollapse = { state.collapseSoft() },
@@ -677,17 +695,15 @@ fun BottomSheetPlayer(
         }
 
         val controlsContent: @Composable ColumnScope.(MediaMetadata) -> Unit = { mediaMetadata ->
-            // In portrait the Panel card continues into the queue peek below, so it has no bottom corners.
-            val attachedToPeek = LocalConfiguration.current.orientation != Configuration.ORIENTATION_LANDSCAPE
             val shuffleModeEnabled by playerConnection.shuffleModeEnabled.collectAsStateWithLifecycle()
             // For episodes, show saved state (inLibrary); for songs, show liked state
             val isEpisode = currentSong?.song?.isEpisode == true
             val isFavorite = if (isEpisode) currentSong?.song?.inLibrary != null else currentSong?.song?.liked == true
             val artistsText = mediaMetadata.artists.filter { it.name.isNotBlank() }.joinToString { it.name }
 
-            PulseControlsColumn(design = playerDesign, attachedToPeek = attachedToPeek) {
+            PulseControlsColumn(theme = playerTheme) {
                 PulseTrackInfo(
-                    design = playerDesign,
+                    theme = playerTheme,
                     title = mediaMetadata.title,
                     artists = artistsText,
                     isFavorite = isFavorite,
@@ -725,7 +741,7 @@ fun BottomSheetPlayer(
                                     modifier =
                                         Modifier
                                             .size(56.dp)
-                                            .clip(RoundedCornerShape(playerDesign.artCorner / 2)),
+                                            .clip(RoundedCornerShape(if (playerTheme.artRound) 28.dp else (playerTheme.artCorner / 2).dp)),
                                 )
                             }
                         } else {
@@ -736,7 +752,7 @@ fun BottomSheetPlayer(
                             {
                                 val currentLyrics by playerConnection.currentLyrics.collectAsStateWithLifecycle(initialValue = null)
                                 PulseTrailingButton(
-                                    design = playerDesign,
+                                    theme = playerTheme,
                                     icon = R.drawable.more_horiz,
                                     onClick = {
                                         menuState.show {
@@ -763,7 +779,7 @@ fun BottomSheetPlayer(
                 )
 
                 PulseProgress(
-                    design = playerDesign,
+                    theme = playerTheme,
                     position = sliderPosition ?: effectivePosition,
                     duration = if (duration == C.TIME_UNSET) 0L else duration,
                     enabled = !isListenTogetherGuest,
@@ -783,7 +799,7 @@ fun BottomSheetPlayer(
                 )
 
                 PulseTransport(
-                    design = playerDesign,
+                    theme = playerTheme,
                     playIcon =
                         when {
                             isListenTogetherGuest -> if (isMuted) R.drawable.volume_off else R.drawable.volume_up
@@ -791,7 +807,7 @@ fun BottomSheetPlayer(
                             effectiveIsPlaying -> R.drawable.pulse_pause
                             else -> R.drawable.pulse_play
                         },
-                    playDescription =
+                    playLabel =
                         when {
                             isListenTogetherGuest -> stringResource(if (isMuted) R.string.unmute else R.string.mute)
                             effectiveIsPlaying -> stringResource(R.string.player_pause)
@@ -871,9 +887,13 @@ fun BottomSheetPlayer(
                                     isPlayerExpanded = isExpandedProvider,
                                     isLandscape = true,
                                     isListenTogetherGuest = isListenTogetherGuest,
-                                    horizontalPadding = playerDesign.artPadding,
-                                    cornerRadius = playerDesign.artCorner,
-                                    contentColor = playerDesign.palette.content,
+                                    horizontalPadding = playerTheme.artPadding,
+                                    cornerRadius = playerTheme.artCornerDp,
+                                    contentColor = playerTheme.contentColor,
+                                    artShadow = playerTheme.artShadow,
+                                    artSpin = playerTheme.artSpin && playerTheme.canSpin,
+                                    artShape = pulseArtShape(playerTheme),
+                                    artBorder = pulseArtBorder(playerTheme),
                                 )
                             }
                         }
@@ -937,9 +957,13 @@ fun BottomSheetPlayer(
                                     isPlayerExpanded = isExpandedProvider,
                                     isListenTogetherGuest = isListenTogetherGuest,
                                     header = playerHeader,
-                                    horizontalPadding = playerDesign.artPadding,
-                                    cornerRadius = playerDesign.artCorner,
-                                    contentColor = playerDesign.palette.content,
+                                    horizontalPadding = playerTheme.artPadding,
+                                    cornerRadius = playerTheme.artCornerDp,
+                                    contentColor = playerTheme.contentColor,
+                                    artShadow = playerTheme.artShadow,
+                                    artSpin = playerTheme.artSpin && playerTheme.canSpin,
+                                    artShape = pulseArtShape(playerTheme),
+                                    artBorder = pulseArtBorder(playerTheme),
                                 )
                             }
                         }
@@ -949,8 +973,7 @@ fun BottomSheetPlayer(
                         controlsContent(it)
                     }
 
-                    // The Panel card runs straight into the queue peek; the others keep some air.
-                    Spacer(Modifier.height(if (playerDesign == PlayerDesign.PANEL) 0.dp else 12.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
             }
         }
@@ -971,13 +994,14 @@ fun BottomSheetPlayer(
                     },
                 pureBlack = pureBlack,
                 showInlineLyrics = showInlineLyrics,
-                design = playerDesign,
+                theme = playerTheme,
                 onToggleLyrics = {
                     showInlineLyrics = !showInlineLyrics
                 },
             )
         }
     }
+}
 }
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)

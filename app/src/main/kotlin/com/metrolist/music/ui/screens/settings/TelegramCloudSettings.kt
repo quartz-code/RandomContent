@@ -33,7 +33,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.metrolist.music.R
 import com.metrolist.music.cloud.TelegramCloud
+import com.metrolist.music.cloud.TelegramInbox
 import com.metrolist.music.constants.TelegramAutoUploadKey
+import com.metrolist.music.constants.TelegramInboxKey
 import com.metrolist.music.constants.TelegramChatTitleKey
 import com.metrolist.music.ui.component.Material3SettingsGroup
 import com.metrolist.music.ui.component.Material3SettingsItem
@@ -43,11 +45,13 @@ import kotlinx.coroutines.launch
 
 /** Pulse: Telegram as a second, free place for downloaded songs. */
 @Composable
-fun TelegramCloudSettings(telegramCloud: TelegramCloud) {
+fun TelegramCloudSettings(telegramCloud: TelegramCloud, telegramInbox: TelegramInbox) {
     val scope = rememberCoroutineScope()
     val chatTitle by rememberPreference(TelegramChatTitleKey, defaultValue = "")
     val (autoUpload, onAutoUploadChange) = rememberPreference(TelegramAutoUploadKey, defaultValue = false)
     val state by telegramCloud.state.collectAsState()
+    val inboxState by telegramInbox.state.collectAsState()
+    val (inbox, onInboxChange) = rememberPreference(TelegramInboxKey, defaultValue = true)
     var showConnect by remember { mutableStateOf(false) }
     var showGuide by remember { mutableStateOf(false) }
     val connected = chatTitle.isNotBlank()
@@ -59,6 +63,13 @@ fun TelegramCloudSettings(telegramCloud: TelegramCloud) {
             if (s.failed == 0) stringResource(R.string.telegram_finished, s.sent)
             else stringResource(R.string.telegram_finished_errors, s.sent, s.failed, s.error.orEmpty())
         TelegramCloud.State.Idle -> null
+    }
+    val inboxText = when (val s = inboxState) {
+        TelegramInbox.State.Checking -> stringResource(R.string.telegram_inbox_checking)
+        is TelegramInbox.State.Done ->
+            if (s.error != null) stringResource(R.string.telegram_inbox_error, s.error)
+            else stringResource(R.string.telegram_inbox_done, s.added)
+        TelegramInbox.State.Idle -> null
     }
     val counts = remember(state, connected) {
         telegramCloud.uploadedCount().coerceAtMost(telegramCloud.downloadedIds().size) to telegramCloud.downloadedIds().size
@@ -116,6 +127,40 @@ fun TelegramCloudSettings(telegramCloud: TelegramCloud) {
                 )
                 add(
                     Material3SettingsItem(
+                        icon = painterResource(R.drawable.download),
+                        title = { Text(stringResource(R.string.telegram_inbox)) },
+                        description = { Text(stringResource(R.string.telegram_inbox_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = inbox,
+                                onCheckedChange = {
+                                    onInboxChange(it)
+                                    if (it) scope.launch { telegramInbox.checkNow() }
+                                },
+                                thumbContent = {
+                                    Icon(
+                                        painter = painterResource(if (inbox) R.drawable.check else R.drawable.close),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(SwitchDefaults.IconSize),
+                                    )
+                                },
+                            )
+                        },
+                        onClick = { onInboxChange(!inbox) },
+                    ),
+                )
+                if (inbox) {
+                    add(
+                        Material3SettingsItem(
+                            icon = painterResource(R.drawable.sync),
+                            title = { Text(stringResource(R.string.telegram_inbox_check)) },
+                            description = { Text(inboxText ?: stringResource(R.string.telegram_inbox_check_desc)) },
+                            onClick = { scope.launch { telegramInbox.checkNow() } },
+                        ),
+                    )
+                }
+                add(
+                    Material3SettingsItem(
                         icon = painterResource(R.drawable.backup),
                         title = { Text(stringResource(R.string.telegram_upload_now)) },
                         description = { Text(stringResource(R.string.telegram_upload_now_desc)) },
@@ -164,6 +209,8 @@ private fun telegramUseSteps() = listOf(
     stringResource(R.string.telegram_use_3),
     stringResource(R.string.telegram_use_4),
     stringResource(R.string.telegram_use_5),
+    stringResource(R.string.telegram_use_6),
+    stringResource(R.string.telegram_use_7),
 )
 
 @Composable

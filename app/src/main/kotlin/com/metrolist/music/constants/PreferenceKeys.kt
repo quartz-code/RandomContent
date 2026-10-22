@@ -437,6 +437,10 @@ val TelegramBotTokenKey = stringPreferencesKey("telegramBotToken")
 val TelegramChatIdKey = stringPreferencesKey("telegramChatId")
 val TelegramChatTitleKey = stringPreferencesKey("telegramChatTitle")
 val TelegramAutoUploadKey = booleanPreferencesKey("telegramAutoUpload")
+// Pulse: the other direction — songs and links the user sends to the bot.
+val TelegramInboxKey = booleanPreferencesKey("telegramInbox")
+val TelegramInboxOffsetKey = longPreferencesKey("telegramInboxOffset")
+val TelegramInboxPlaylistKey = stringPreferencesKey("telegramInboxPlaylist")
 val PulseSeenChangelogKey = intPreferencesKey("pulseSeenChangelog")
 val VkUserIdKey = longPreferencesKey("vkUserId")
 
@@ -449,11 +453,28 @@ enum class AppStyle {
 
 /** Pulse: how the full-screen player looks; the three designs from the Figma board. */
 val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
+/** Pulse: the player builder's theme as JSON; when empty the preset of [PlayerDesignKey] is used. */
+val PlayerThemeKey = stringPreferencesKey("pulsePlayerTheme")
+
+// Pulse: saved themes ("My themes") and the evening theme with its schedule.
+val PlayerThemeGalleryKey = stringPreferencesKey("pulsePlayerThemeGallery")
+val PlayerNightThemeKey = stringPreferencesKey("pulsePlayerNightTheme")
+val PlayerNightModeKey = stringPreferencesKey("pulsePlayerNightMode")
+val PlayerNightFromKey = intPreferencesKey("pulsePlayerNightFrom")
+val PlayerNightToKey = intPreferencesKey("pulsePlayerNightTo")
+const val DefaultNightFrom = 21 * 60
+const val DefaultNightTo = 7 * 60
+
+// Pulse: show the player over the lock screen when the screen goes off during playback.
+val LockScreenPlayerKey = booleanPreferencesKey("pulseLockScreenPlayer")
+
+// Pulse: recaps already offered on opening the app, comma-separated ("2026-09,2026").
+val RecapOfferedKey = stringPreferencesKey("pulseRecapOffered")
 
 enum class PlayerDesign {
     CLEAN,
     RADIO,
-    PANEL,
+    SOFT,
 }
 
 val TopSize = stringPreferencesKey("topSize")

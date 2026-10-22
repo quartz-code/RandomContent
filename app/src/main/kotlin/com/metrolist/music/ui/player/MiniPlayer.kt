@@ -180,11 +180,17 @@ private fun NewMiniPlayer(
 ) {
     val playerConnection = LocalPlayerConnection.current ?: return
 
-    // Theme settings - these rarely change
-    val miniPlayerBackground by rememberEnumPreference(
-        MiniPlayerBackgroundStyleKey,
-        defaultValue = MiniPlayerBackgroundStyle.DEFAULT,
-    )
+    // Pulse: the mini player's look comes from the player builder's theme.
+    val playerTheme = rememberPlayerTheme()
+    val mini = playerTheme.mini
+    val usePlayerColors = mini.background == MiniTheme.Background.PLAYER
+    val miniPlayerBackground =
+        when (mini.background) {
+            MiniTheme.Background.APP, MiniTheme.Background.PLAYER -> MiniPlayerBackgroundStyle.DEFAULT
+            MiniTheme.Background.BLUR -> MiniPlayerBackgroundStyle.BLUR
+            MiniTheme.Background.BLACK -> MiniPlayerBackgroundStyle.PURE_BLACK
+        }
+    val miniShape = RoundedCornerShape(mini.corner.dp)
     val context = LocalContext.current
     var gradientColors by remember { mutableStateOf<List<Color>>(emptyList()) }
     val isSystemInDarkTheme = isSystemInDarkTheme()
@@ -246,9 +252,10 @@ private fun NewMiniPlayer(
             (600 / (1f + kotlin.math.exp(-(-11.44748 * swipeSensitivity + 9.04945)))).roundToInt()
         }
 
-    LaunchedEffect(mediaMetadata?.id, miniPlayerBackground) {
+    val needsArtworkColors = usePlayerColors && playerTheme.background == PlayerTheme.Background.ARTWORK
+    LaunchedEffect(mediaMetadata?.id, needsArtworkColors) {
         gradientColors = emptyList()
-        if (miniPlayerBackground == MiniPlayerBackgroundStyle.GRADIENT) {
+        if (needsArtworkColors) {
             val url = mediaMetadata?.thumbnailUrl
             if (url != null) {
                 withContext(Dispatchers.IO) {
@@ -297,10 +304,23 @@ private fun NewMiniPlayer(
             miniPlayerBackground == MiniPlayerBackgroundStyle.BLUR ||
             miniPlayerBackground == MiniPlayerBackgroundStyle.GRADIENT)
 
-    val primaryColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.primary
-    val outlineColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.outline
-    val onSurfaceColor = if (forceLightColors) Color.White else MaterialTheme.colorScheme.onSurface
-    val errorColor = if (forceLightColors) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
+    val playerPalette = pulsePalette(playerTheme)
+    val primaryColor = when {
+        usePlayerColors -> playerPalette.accent
+        forceLightColors -> Color.White
+        else -> MaterialTheme.colorScheme.primary
+    }
+    val outlineColor = when {
+        usePlayerColors -> playerPalette.content
+        forceLightColors -> Color.White
+        else -> MaterialTheme.colorScheme.outline
+    }
+    val onSurfaceColor = when {
+        usePlayerColors -> playerPalette.content
+        forceLightColors -> Color.White
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+    val errorColor = if (forceLightColors || (usePlayerColors && !playerTheme.light)) Color(0xFFFF6B6B) else MaterialTheme.colorScheme.error
 
     Box(
         modifier =
@@ -379,15 +399,35 @@ private fun NewMiniPlayer(
                     .then(if (isTabletLandscape) Modifier.width(500.dp).align(Alignment.Center) else Modifier.fillMaxWidth())
                     .height(64.dp)
                     .offset { IntOffset(offsetXAnimatable.value.roundToInt(), 0) }
-                    .clip(RoundedCornerShape(32.dp))
+                    .clip(miniShape)
                     .background(color = backgroundColor)
-                    .border(1.dp, outlineColor.copy(alpha = 0.3f), RoundedCornerShape(32.dp))
+                    .border(1.dp, outlineColor.copy(alpha = 0.3f), miniShape)
+                    .then(
+                        if (mini.progress == MiniTheme.Progress.LINE) {
+                            // A thin line along the bottom edge instead of the ring around the cover.
+                            Modifier.drawWithContent {
+                                drawContent()
+                                val h = 3.dp.toPx()
+                                drawRect(outlineColor.copy(alpha = 0.15f), Offset(0f, size.height - h), Size(size.width, h))
+                                drawRect(primaryColor, Offset(0f, size.height - h), Size(size.width * progressState.progress, h))
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
                     .clickable(
                         interactionSource = interactionSource,
                         indication = LocalIndication.current,
                         onClick = onClick
                     ),
         ) {
+            if (usePlayerColors) {
+                PulsePlayerBackground(
+                    theme = playerTheme,
+                    artworkColors = gradientColors,
+                    thumbnailUrl = mediaMetadata?.thumbnailUrl,
+                )
+            }
             when (miniPlayerBackground) {
                 MiniPlayerBackgroundStyle.BLUR -> {
                     if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
@@ -440,6 +480,7 @@ private fun NewMiniPlayer(
                     primaryColor = primaryColor,
                     outlineColor = outlineColor,
                     listenTogetherManager = listenTogetherManager,
+                    showRing = mini.progress == MiniTheme.Progress.RING,
                 )
 
                 Spacer(modifier = Modifier.width(16.dp))
@@ -466,7 +507,7 @@ private fun NewMiniPlayer(
                 }
 
 // Subscribe button - isolated composable
-                mediaMetadata?.artists?.firstOrNull()?.id?.let { artistId ->
+                mediaMetadata?.artists?.firstOrNull()?.id?.takeIf { mini.showSubscribe }?.let { artistId ->
                     SubscribeButton(
                         artistId = artistId,
                         metadata = mediaMetadata!!,
@@ -479,12 +520,30 @@ private fun NewMiniPlayer(
                 Spacer(modifier = Modifier.width(8.dp))
 
 // Favorite button - isolated composable
-                mediaMetadata?.let { FavoriteButton(
+                mediaMetadata?.takeIf { mini.showLike }?.let { FavoriteButton(
                     songId = it.id,
                     errorColor = errorColor,
                     outlineColor = outlineColor,
                     onSurfaceColor = onSurfaceColor,
                 )
+                }
+
+                if (mini.showNext) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .clickable(enabled = canSkipNext && !isListenTogetherGuest) { playerConnection.seekToNext() },
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.pulse_skip_next),
+                            contentDescription = null,
+                            tint = onSurfaceColor.copy(alpha = if (canSkipNext) 1f else 0.4f),
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
         }
@@ -506,6 +565,7 @@ private fun NewMiniPlayerPlayButton(
     primaryColor: Color,
     outlineColor: Color,
     listenTogetherManager: ListenTogetherManager?,
+    showRing: Boolean = true,
 ) {
     val isPlaying by playerConnection.isPlaying.collectAsState()
     val castIsPlaying by castHandler?.castIsPlaying?.collectAsState() ?: remember { mutableStateOf(false) }
@@ -523,6 +583,7 @@ private fun NewMiniPlayerPlayButton(
                 .size(48.dp)
                 .drawWithContent {
                     drawContent()
+                    if (!showRing) return@drawWithContent
                     // Draw progress arc - this reads progressState.progress during draw phase only
                     val progress = progressState.progress
                     val stroke = Stroke(width = strokeWidth.toPx(), cap = StrokeCap.Round)
