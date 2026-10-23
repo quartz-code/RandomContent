@@ -1,12 +1,14 @@
 """Turns an art into 'drawn' layers for the canvas: ink lines (3 slightly different takes for a hand-drawn boil),
 a charcoal tone and a colour-accent layer (only strongly coloured pixels: eyes, ribbons, gold, magic).
-usage: python3 drawn.py <image> <out_prefix> [max_side]"""
+usage: python3 drawn.py <image> <out_prefix> [max_side] [photo]
+'photo' smooths textures first (edge-preserving) so photoreal arts give clean contours instead of noise."""
 import sys, numpy as np
 from PIL import Image
 from scipy.ndimage import gaussian_filter, map_coordinates
 
 src, pre = sys.argv[1], sys.argv[2]
 side = int(sys.argv[3]) if len(sys.argv) > 3 else 1100
+photo = len(sys.argv) > 4 and sys.argv[4] == 'photo'
 im = Image.open(src)
 im = im.convert('RGBA') if im.mode in ('RGBA', 'LA', 'P') else im.convert('RGB')
 im.thumbnail((side, side), Image.LANCZOS)
@@ -14,6 +16,14 @@ a = np.asarray(im).astype(np.float32) / 255
 rgb = a[..., :3]
 alpha = a[..., 3] if a.shape[2] == 4 else np.ones(a.shape[:2], np.float32)
 L = rgb @ np.array([0.299, 0.587, 0.114], np.float32)
+if photo:  # flatten skin and fabric texture, keep the contours
+    import cv2
+    sm = (rgb * 255).astype(np.uint8)
+    for _ in range(3): sm = cv2.bilateralFilter(sm, 9, 40, 7)
+    sm = cv2.edgePreservingFilter(sm, flags=1, sigma_s=40, sigma_r=0.35)
+    L = (sm.astype(np.float32) / 255) @ np.array([0.299, 0.587, 0.114], np.float32)
+    L = np.clip((L - L.min()) / (np.percentile(L, 99.5) - L.min() + 1e-6), 0, 1) ** 0.85
+    L = cv2.createCLAHE(clipLimit=2.2, tileGridSize=(6, 6)).apply((L * 255).astype(np.uint8)).astype(np.float32) / 255  # lift dark arts
 h, w = L.shape
 s = max(h, w) / 1000
 
@@ -38,10 +48,11 @@ for v in range(3):
     dx = gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), 18 * s) * 60 * s
     dy = gaussian_filter(rng.standard_normal((h, w)).astype(np.float32), 18 * s) * 60 * s
     Lw = map_coordinates(L, [yy + dy, xx + dx], order=1, mode='nearest')
-    ink = np.clip(xdog(Lw, 1.1 * s) * 0.85 + xdog(Lw, 2.4 * s, eps=-0.008) * 0.5, 0, 1) * alpha
+    if photo: ink = np.clip(xdog(Lw, 1.25 * s, eps=-0.0045) * 0.9 + xdog(Lw, 2.8 * s, eps=-0.009) * 0.55, 0, 1) * alpha
+    else: ink = np.clip(xdog(Lw, 1.1 * s) * 0.85 + xdog(Lw, 2.4 * s, eps=-0.008) * 0.5, 0, 1) * alpha
     rgba((236, 228, 214), ink).save(f'{pre}-lines{v}.png')
 # charcoal tone: smooth, dim luminance with a little grain
-tone = np.clip(gaussian_filter(L, 1.5 * s) ** 1.15 * 0.62 + (rng.random((h, w)) - 0.5) * 0.05, 0, 1)
+tone = np.clip(gaussian_filter(L, 1.5 * s) ** (1.05 if photo else 1.15) * (0.7 if photo else 0.62) + (rng.random((h, w)) - 0.5) * 0.05, 0, 1)
 rgba((tone[..., None] * np.array([255, 246, 236])).astype(np.uint8), alpha).save(f'{pre}-tone.png')
 # colour accents: saturated and not dark
 mx, mn = rgb.max(2), rgb.min(2)
