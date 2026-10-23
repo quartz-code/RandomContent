@@ -37,18 +37,18 @@
   const bar = k => 0.937 + BAR * k;
   const BLAST = bar(33), eb = k => BLAST + BAR * (k + 1); // eb(k): bar k of the intro, heard again after the blast
   const DROP = bar(8), BREAK = bar(16), FREEZE = BLAST - 0.3, CLICK = eb(5), END = CLICK + 4;
-  // what the picture punches on: beats 1 and 3 of the drop, the downbeats of B, every beat of the climax
-  const HITS = [...Array.from({ length: 8 }, (_, i) => [bar(8 + i), bar(8 + i) + 2 * BEAT]).flat(), ...Array.from({ length: 8 }, (_, i) => bar(17 + i)),
-    ...Array.from({ length: 32 }, (_, i) => bar(25) + i * BEAT)].filter(h => h < FREEZE);
+  // what the picture punches on: the song's own accents (audio/accents.py) — here beats 1, 2 and 4 (and the push before 4), never the weak 3
+  const ACC = (A.acc || []).filter(([t]) => t < FREEZE);
   const since = (list, t) => { let b = 1e9; for (const k of list) if (k <= t) b = Math.min(b, t - k); return b; };
-  const hit = t => Math.exp(-since(HITS, t) * 9);
+  const hit = t => { let v = 0; for (const [a, s] of ACC) { if (a > t) break; if (t - a < 0.5) v = Math.max(v, (0.35 + 0.65 * K.clamp((s - 0.75) / 0.25)) * Math.exp(-(t - a) * 9)); } return v; };
+  const strong = (t, a, b, min = 0.85) => ACC.filter(([x, s]) => x >= a && x < b && s >= min).map(x => x[0]); // the hard hits in a span
   const win = (t, a, b) => t >= a && t < b;
 
   // ---- the needle: [time, x, move duration, overshoot] ----
   const U = u => NX0 + u * (NX1 - NX0), SX = n => ST(n).x;
   const NK = [[0, U(0.62), 0, 0], [bar(1) - 0.45, U(0.12), 0.45, 0], [bar(1) + BEAT - 0.3, U(0.55), 0.45, 0], [bar(1) + 2 * BEAT - 0.3, U(0.86), 0.4, 0], [bar(1) + 3 * BEAT - 0.3, U(0.30), 0.5, 1]];
   NK.push([bar(9) - 0.17, SX('БЕРЛИН'), 0.16, 1], [bar(10) - 0.3, SX('ЛОНДОН'), 0.25, 1], [bar(11) - 0.3, SX('МОСКВА'), 0.25, 1]);
-  NK.push([bar(12), SX('БЕРЛИН'), 0.12, 0.6], [bar(12) + BEAT, SX('ЛОНДОН'), 0.12, 0.6], [bar(12) + 2 * BEAT, SX('МОСКВА'), 0.12, 0.6], [bar(12) + 3 * BEAT, U(0.63), 0.2, 1]);
+  NK.push([bar(12), SX('БЕРЛИН'), 0.12, 0.6], [bar(12) + BEAT, SX('ЛОНДОН'), 0.12, 0.6], [bar(12) + 2.5 * BEAT, SX('МОСКВА'), 0.12, 0.6], [bar(12) + 3 * BEAT, U(0.63), 0.2, 1]);
   const CROWD = ['БЕРЛИН', 'ЛОНДОН', 'МОСКВА', 'БЕРЛИН', 'ЛОНДОН', 'МОСКВА', 'БУХАРЕСТ', 'БЕРЛИН'];
   CROWD.forEach((n, i) => NK.push([bar(14) + i * BEAT / 2, SX(n), 0.1, 0.5]));
   NK.push([bar(15), U(0.5), 0.3, 0]);
@@ -103,11 +103,11 @@
   const PUNCH = { s: '(одно и то же)', a: bar(7) + 2.5 * BEAT, t: DROP };
   // the second page of the log: the station without a call sign
   const LOG2 = [
-    { me: 1, s: 'кто передаёт? приём', t: bar(19), a: bar(19) - 0.9 },
-    { s: 'ранен. у моста', t: bar(19) + 2 * BEAT, a: bar(19) + 2 * BEAT - 0.6 },
-    { me: 1, s: 'на каком языке тебе отвечать?', t: bar(20) + BEAT, a: bar(20) - 0.3 },
-    { s: 'на любом.', t: bar(21), a: bar(21) - 0.45 },
-    { me: 1, s: 'иду.', t: bar(21) + 2 * BEAT, a: bar(21) + 2 * BEAT - 0.35 },
+    { me: 1, s: 'кто передаёт? приём', t: bar(19) + 3 * BEAT, a: bar(19) + 0.1 },               // each line lands on a hit of the song
+    { s: 'ранен. у моста', t: bar(20) + 1.5 * BEAT, a: bar(19) + 3 * BEAT + 0.15 },
+    { me: 1, s: 'на каком языке тебе отвечать?', t: bar(21), a: bar(20) + 2 * BEAT },
+    { s: 'на любом.', t: bar(21) + BEAT, a: bar(21) + 0.15 },
+    { me: 1, s: 'иду.', t: bar(21) + 3 * BEAT, a: bar(21) + 2.2 * BEAT },
   ];
   const CLOCK = [[0, '03:12'], [bar(4), '03:13'], [bar(5), '03:14'], [bar(6), '03:15'], [bar(10), '03:19'], [bar(12), '03:23'], [bar(13), '03:28'], [bar(13) + 2 * BEAT, '03:31'],
     [bar(15), '03:40'], [bar(17), '03:41'], [bar(19), '03:42'], [bar(21), '03:44'], [bar(23), '03:47'], [bar(25), '03:52'], [BLAST, '03:58']];
@@ -197,7 +197,7 @@
     const pop = [...steps.map(s => s[0]), eb(4), eb(4) + 2 * BEAT].some(s => t >= s && t < s + 0.07) ? 0.3 : 1;
     return p * pop * (0.92 + 0.08 * K.hash(Math.floor(t * 18), 7));
   };
-  const overdrive = t => win(t, bar(15), BREAK) ? K.prog(t, bar(15), BREAK) * 0.85 : win(t, bar(27) + 3 * BEAT, bar(28)) ? 0.7 : win(t, bar(29), bar(30)) ? 0.3 + 0.5 * K.prog(t, bar(29), bar(30)) : win(t, bar(30), BLAST) ? 0.25 + 0.35 * K.prog(t, bar(30), FREEZE) : 0;
+  const overdrive = t => win(t, bar(15), BREAK) ? K.prog(t, bar(15), BREAK) * 0.85 : win(t, bar(29), bar(30)) ? 0.3 + 0.5 * K.prog(t, bar(29), bar(30)) : win(t, bar(30), BLAST) ? 0.25 + 0.35 * K.prog(t, bar(30), FREEZE) : 0;
   const eyeTune = t => {
     let v = tuned(t);
     for (const m of [...LOG, ...LOG2]) if (!m.me && !m.st && win(t, m.a, m.t + 1.4)) v = Math.max(v, 0.62 + 0.1 * Math.sin(t * 9));
@@ -686,7 +686,7 @@
   // the log cuts its framing as each line starts: his lines wide, their lines close on the eye and the dial
   const LOGCAM = [[bar(2) - 0.8, [1.39, 540, 1142]], [bar(3) - 0.5, [1.46, 520, 1130]], [bar(4) - BEAT, [1.8, 510, 990]], [bar(5) - 0.75, [1.42, 560, 1136]],
     [bar(5) + 2 * BEAT - 0.55, [1.62, 540, 880]], [bar(6) - 0.8, [1.47, 530, 1126]], [bar(6) + 2 * BEAT - 0.5, [1.85, 570, 1000]]];
-  const LOG2CAM = [[bar(19) - 0.9, [1.42, 540, 1136]], [bar(19) + 2 * BEAT - 0.6, [1.8, 520, 990]], [bar(20) - 0.3, [1.46, 560, 1130]], [bar(21) - 0.45, [1.9, 540, 960]], [bar(21) + 2 * BEAT - 0.35, [1.5, 540, 1120]]];
+  const LOG2CAM = [[bar(19), [1.42, 540, 1136]], [bar(19) + 3 * BEAT + 0.15, [1.85, 520, 990]], [bar(20) + 2 * BEAT, [1.46, 560, 1130]], [bar(21) + 0.15, [1.95, 540, 960]], [bar(21) + 2.2 * BEAT, [1.55, 540, 1110]]];
   const camAt = (list, t, glide = 0.9) => {
     let i = 0; while (i + 1 < list.length && t >= list[i + 1][0]) i++;
     const a = list[Math.max(0, i - 1)][1], c = list[i][1], q = i === 0 ? 1 : K.ease.inOutSine(K.prog(t, list[i][0], list[i][0] + glide)), d = 1 + 0.01 * Math.sin(t * 0.4);
@@ -728,11 +728,13 @@
     const id = key + mode; if (BAKE[id]) return BAKE[id];
     const c = K.makeCanvas(432, 464), x = c.getContext('2d'), P = PICS[key];
     x.filter = mode === 'cold' ? 'grayscale(0.7) sepia(0.25) hue-rotate(115deg) saturate(0.7) contrast(1.35) brightness(0.75)' : 'sepia(0.38) saturate(0.75) contrast(1.15) brightness(0.98)';
-    K.cover(x, I(key), { x: 0, y: 0, w: 432, h: 464 }, P.z || 1, P.fx ?? 0.5, P.fy ?? 0.4);
+    K.cover(x, I(P.img || key), { x: 0, y: 0, w: 432, h: 464 }, P.z || 1, P.fx ?? 0.5, P.fy ?? 0.4);
     x.filter = 'none';
     return (BAKE[id] = c);
   };
-  const PICS = { tent: { fx: 0.5, fy: 0.25, z: 1.0 }, coat: { fx: 0.45, fy: 0.35, z: 1.0 }, walk: { fx: 0.5, fy: 0.5, z: 1.0 }, head: { fx: 0.5, fy: 0.3, z: 1.0 }, carry: { fx: 0.5, fy: 0.35, z: 1.0 } };
+  const PICS = { tent: { fx: 0.5, fy: 0.25, z: 1.0 }, coat: { fx: 0.45, fy: 0.35, z: 1.0 }, walk: { fx: 0.5, fy: 0.5, z: 1.0 }, head: { fx: 0.5, fy: 0.3, z: 1.0 }, carry: { fx: 0.5, fy: 0.35, z: 1.0 },
+    // closer crops of the same pictures, for the cuts of the climax
+    carryFace: { img: 'carry', fx: 0.55, fy: 0.27, z: 2.0 }, carryMan: { img: 'carry', fx: 0.3, fy: 0.36, z: 1.9 }, carryHand: { img: 'carry', fx: 0.72, fy: 0.68, z: 2.0 }, headClose: { img: 'head', fx: 0.5, fy: 0.3, z: 1.45 } };
   const PR = { x: 0, y: 300, w: W, h: 1160 };
   const noiseFill = (ctx, frame, y0, y1, a) => {
     if (y1 <= y0 || a <= 0) return;
@@ -794,24 +796,6 @@
   const caption = (ctx, s, t, t0, o = {}) => slam(ctx, s, W / 2, o.y || 1640, t, t0, { size: o.size || 104, color: o.color || '#fbf3e6', align: 'center', bold: true, ...o });
   const reply = (ctx, s, t, t0, o = {}) => slam(ctx, '> ' + s, W / 2, o.y || 1770, t, t0, { size: o.size || 76, color: AMBER, align: 'center', from: 1.2, ...o });
 
-  // his hand on the key: the arm comes from the camera side, two fingers rest on the knob, rim-lit by the dial
-  const handOnKey = (ctx, t, down) => {
-    const pw = power(t), kx = KEY.x - 120, ky = KEY.y - 84 + (down ? 9 : 0);
-    ctx.save(); ctx.translate(kx, ky); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.fillStyle = '#0d0907';
-    ctx.beginPath(); ctx.moveTo(18, 22); ctx.quadraticCurveTo(60, 2, 92, 14); ctx.lineTo(300, 300); ctx.lineTo(120, 360); ctx.closePath(); ctx.fill(); // sleeve
-    ctx.fillStyle = '#6e4630';
-    ctx.beginPath(); ctx.ellipse(40, 14, 44, 26, 0.45, 0, 7); ctx.fill();                                                                   // back of the hand
-    ctx.strokeStyle = '#6e4630'; ctx.lineWidth = 15;
-    ctx.beginPath(); ctx.moveTo(18, -2); ctx.quadraticCurveTo(2, -12, -12, -6); ctx.stroke();                                                 // index finger on the knob
-    ctx.beginPath(); ctx.moveTo(24, 10); ctx.quadraticCurveTo(6, 6, -6, 10); ctx.stroke();                                                     // middle finger
-    ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(34, 26); ctx.quadraticCurveTo(14, 30, 4, 28); ctx.stroke();                               // thumb under
-    ctx.fillStyle = `rgba(255,190,130,${0.35 * pw})`; ctx.beginPath(); ctx.ellipse(36, 0, 26, 9, 0.35, 0, 7); ctx.fill();                  // light on the knuckles
-    ctx.strokeStyle = `rgba(255,185,110,${0.8 * pw})`; ctx.lineWidth = 2.5;
-    ctx.beginPath(); ctx.moveTo(-18, -10); ctx.quadraticCurveTo(2, -20, 22, -10); ctx.quadraticCurveTo(58, -18, 84, 2); ctx.stroke(); // rim
-    ctx.restore();
-  };
-
   // ================= scenes =================
   const keyIsDown = t => keyDown(MY, t);
   const tick = (ctx, t, a = 1) => { ctx.save(); ctx.globalAlpha = a; ticker(ctx, [...MY.map(m => ({ ...m, color: AMBER })), ...THEIR.map(m => ({ ...m, color: WARM }))], t, 60, 1110, W - 120); ctx.restore(); };
@@ -832,27 +816,26 @@
       const [z, cx, cy] = camAt(LOGCAM, t); shot(ctx, t, frame, z, cx, cy);
       header(ctx, t); logView(ctx, t, frame); tick(ctx, t);
     } },
-    // he hesitates over the key; then slowly taps the answer
+    // the key, close: the lever waits, then taps the answer; the song's push on beat 4 shoves the frame in
     { a: bar(7), b: DROP, draw(ctx, t, frame) {
-      const p = K.prog(t, bar(7), DROP), down = keyIsDown(t);
-      const z = 2.3 + 0.25 * p, cx = KEY.x - 70, cy = KEY.y - 210;
+      const p = K.prog(t, bar(7), DROP);
+      const z = (2.2 + 0.3 * K.ease.inQuad(p)) * (1 + 0.04 * hit(t)), cx = KEY.x - 90, cy = KEY.y - 170;
       shot(ctx, t, frame, z, cx, cy);
-      ctx.save(); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-cx, -cy); handOnKey(ctx, t, down); ctx.restore();
       const g = ctx.createLinearGradient(0, 0, 0, 760); g.addColorStop(0, 'rgba(0,0,0,0.88)'); g.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, 760);
       header(ctx, t);
       txt(ctx, '< и что кричат?', 62, 300, { size: 48, color: WARM, alpha: 0.6 });
       const s = t < PUNCH.a ? '' : typedS(PUNCH.s, t, PUNCH.a, PUNCH.t);
       txt(ctx, '> ' + s + (t < PUNCH.a ? (Math.floor(t * 4) % 2 ? '·' : '··') : cursor(t)), 62, 400, { size: 64, color: t < PUNCH.a ? '#57ff9a' : RED, bold: t >= PUNCH.a });
     } },
-    // DROP: the answer fills the screen, the eye slams shut
+    // DROP: the answer fills the screen
     { a: DROP, b: bar(9) - 0.17, draw(ctx, t, frame) {
-      const k = hit(t), z = 1.42 * (1 + 0.05 * k);
-      shot(ctx, t, frame, z, 540, 1110, { dx: (K.hash(frame, 1) - 0.5) * 16 * k });
+      const k = hit(t), z = 1.42 * (1 + 0.06 * k);
+      shot(ctx, t, frame, z, 540, 1110, { dx: (K.hash(frame, 1) - 0.5) * 18 * k });
       header(ctx, t);
       const sh = t > bar(8) + 3 * BEAT ? K.prog(t, bar(8) + 3 * BEAT, bar(9) - 0.17) : 0;
       ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fillRect(0, 1180, W, 300); ctx.restore();
       if (sh <= 0) slam(ctx, PUNCH.s, W / 2, 1370, t, DROP, { size: 120, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.6)', blur: 30, from: 1.25 });
-      else { // shatters into flying letters
+      else { // shatters into flying letters on beat 4
         const s = PUNCH.s; ctx.save(); ctx.font = `bold 120px ${MONO}`; const w = ctx.measureText(s).width; ctx.restore();
         for (let i = 0; i < s.length; i++) {
           const x = W / 2 - w / 2 + (i + 0.5) * w / s.length + (K.hash(i, 1) - 0.5) * 900 * sh * sh, y = 1370 + (K.hash(i, 2) - 0.3) * 1400 * sh * sh;
@@ -863,40 +846,41 @@
     } },
     // whip across the dial
     { a: bar(9) - 0.17, b: bar(9), draw(ctx, t, frame) { shot(ctx, t, frame, 2.2, 540, 732); staticBurst(ctx, frame, 0.6); } },
-    // three stations: the same call, the same answer
+    // three stations: the call on beat 2, the answer on the push before 4
     ...CALLS.map(([st, img, call, ans], i) => ({
       a: bar(9 + i), b: bar(10 + i), draw(ctx, t, frame) {
         const a = bar(9 + i);
-        ctx.save(); pulse(ctx, t); sstv(ctx, t, frame, { img, a, shake: true }); ctx.restore();
+        ctx.save(); pulse(ctx, t, 760, 0.04); ctx.translate(W / 2, 760); ctx.scale(1 + 0.04 * K.prog(t, a, a + BAR), 1 + 0.04 * K.prog(t, a, a + BAR)); ctx.translate(-W / 2, -760);
+        sstv(ctx, t, frame, { img, a, shake: true }); ctx.restore();
         plate(ctx, st, t, a);
-        caption(ctx, call, t, a + BEAT); reply(ctx, ans, t, a + 2 * BEAT);
-        const bt = a + BAR - BEAT / 2; if (t > bt) staticBurst(ctx, frame, K.prog(t, bt, a + BAR) * 0.9);
+        caption(ctx, call, t, a + BEAT); reply(ctx, ans, t, a + 2.5 * BEAT);
+        const bt = a + BAR - 0.22; if (t > bt) staticBurst(ctx, frame, K.prog(t, bt, a + BAR) * 0.9);
       },
     })),
     // the same three, side by side, as the needle hops
     { a: bar(12), b: bar(13), draw(ctx, t, frame) {
-      shot(ctx, t, frame, DIALCAM[0] * (1 + 0.03 * hit(t)), DIALCAM[1], DIALCAM[2]); header(ctx, t); shade(ctx);
-      const f = win(t, bar(12) + 3 * BEAT, bar(12) + 3 * BEAT + 0.3);
+      shot(ctx, t, frame, DIALCAM[0] * (1 + 0.04 * hit(t)) * (1 + 0.03 * K.prog(t, bar(12), bar(13))), DIALCAM[1], DIALCAM[2]); header(ctx, t); shade(ctx);
+      const f = win(t, bar(12) + 3 * BEAT, bar(12) + 3 * BEAT + 0.3), T0 = [0, BEAT, 2.5 * BEAT];
       CALLS.forEach(([, , c, r], i) => {
-        const t0 = bar(12) + i * BEAT; if (t < t0) return;
+        const t0 = bar(12) + T0[i]; if (t < t0) return;
         slam(ctx, c, 70, 1260 + i * 130, t, t0, { size: 72, color: f ? '#fff' : WARM, bold: true, from: 1.2 });
         slam(ctx, '> ' + r, 610, 1260 + i * 130, t, t0 + 0.12, { size: 72, color: f ? '#ffd9a0' : AMBER, from: 1.2 });
       });
     } },
     // a night of it, line after line
     { a: bar(13), b: bar(14), draw(ctx, t, frame) {
-      shot(ctx, t, frame, DIALCAM[0] * (1 + 0.03 * hit(t)), DIALCAM[1], DIALCAM[2]); header(ctx, t); shade(ctx);
-      const L = [['03:28', 'осколок, бедро', bar(13)], ['03:29', 'жгут. морфий', bar(13) + BEAT], ['03:31', 'следующий', bar(13) + 2 * BEAT]];
+      shot(ctx, t, frame, DIALCAM[0] * (1 + 0.04 * hit(t)) * (1.03 - 0.03 * K.prog(t, bar(13), bar(14))), DIALCAM[1], DIALCAM[2]); header(ctx, t); shade(ctx);
+      const L = [['03:28', 'осколок, бедро', bar(13)], ['03:29', 'жгут. морфий', bar(13) + BEAT], ['03:31', 'следующий', bar(13) + 3 * BEAT]];
       L.forEach(([c, s, t0], i) => { if (t < t0) return; txt(ctx, c, 70, 1260 + i * 110, { size: 52, color: GREYT, alpha: K.prog(t, t0, t0 + 0.1) }); txt(ctx, decodeS(s, t, t0, 0.18), 270, 1260 + i * 110, { size: 60, color: i === 2 ? AMBER : WARM, bold: i === 2 }); });
     } },
-    // the ether floods: calls pile up faster than he can answer
+    // the ether floods: a call on every eighth, the last one on beat 4
     { a: bar(14), b: bar(15), draw(ctx, t, frame) {
-      shot(ctx, t, frame, DIALCAM[0] * (1 + 0.03 * hit(t)), DIALCAM[1], DIALCAM[2]); header(ctx, t);
+      shot(ctx, t, frame, DIALCAM[0] * (1 + 0.04 * hit(t)), DIALCAM[1], DIALCAM[2]); header(ctx, t);
       ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
-      const C = ['Hilfe!', 'Help!', '> иду', 'Помогите!', 'Sanitäter!', '> иду', 'Medic!', 'Санитара!', 'Mama!'];
+      const C = ['Hilfe!', 'Help!', '> иду', 'Помогите!', 'Sanitäter!', '> иду', 'Medic!', 'Mama!'];
       let lane = 0;
       C.forEach((s, i) => {
-        const t0 = bar(14) + i * BEAT * 0.42; if (t < t0) return;
+        const t0 = bar(14) + i * BEAT / 2 - (i === 7 ? BEAT / 2 : 0); if (t < t0) return;
         const me = s[0] === '>', last = i === C.length - 1, age = (t - t0) / BAR, size = me ? 64 : last ? 130 : 84 + K.hash(i, 13) * 30;
         ctx.save(); ctx.font = `${size}px ${MONO}`; const w = ctx.measureText(s).width; ctx.restore();
         const x = me ? 70 : last ? W / 2 - w / 2 : 60 + K.hash(i, 11) * Math.max(0, W - 120 - w), y = me ? 1700 + (lane++) * 80 : last ? 1080 : [420, 640, 860, 1300, 1480, 560, 1180, 960][i % 8];
@@ -906,24 +890,31 @@
     // overload: the glass goes white, the needle can't hold
     { a: bar(15), b: BREAK, draw(ctx, t, frame) {
       const p = K.prog(t, bar(15), BREAK);
-      shot(ctx, t, frame, K.lerp(1.6, 2.6, K.ease.inQuad(p)), 540, K.lerp(1000, 780, p), { dx: (K.hash(frame, 3) - 0.5) * 20 * p });
+      shot(ctx, t, frame, K.lerp(1.6, 2.6, K.ease.inQuad(p)) * (1 + 0.04 * hit(t)), 540, K.lerp(1000, 780, p), { dx: (K.hash(frame, 3) - 0.5) * 20 * p });
       header(ctx, t);
       ticker(ctx, THEIR.map(m => ({ ...m, color: WARM })), t, 0, 1500, W, { pxs: 900, h: 22 });
       ticker(ctx, THEIR.map(m => ({ ...m, color: AMBER })), t - 0.11, 0, 1580, W, { pxs: 700, h: 18 });
       if (t > BREAK - 0.55) staticBurst(ctx, frame, K.prog(t, BREAK - 0.55, BREAK));
     } },
-    // the break: the music drops out; he turns the dial in the quiet, and between the stations something is keying
+    // the break: the music drops out and the room goes dark; he turns the dial, and between the stations something is keying
     { a: BREAK, b: bar(17), draw(ctx, t, frame) {
       const p = e(t, BREAK, bar(17));
-      shot(ctx, t, frame, K.lerp(2.1, 2.45, p), K.lerp(560, NOCALL * RS + RX, p * 0.5), K.lerp(800, 760, p));
-      header(ctx, t);
-      ticker(ctx, [{ ...SOS0, color: WARM }], t, 0, 1560, W, { pxs: 420, h: 30 });
-      if (t > bar(17) - 0.3) staticBurst(ctx, frame, K.prog(t, bar(17) - 0.3, bar(17)) * 0.7);
+      shot(ctx, t, frame, K.lerp(2.0, 2.5, p), K.lerp(540, RX + NOCALL * RS, p * 0.6), K.lerp(780, 740, p));
+      ctx.fillStyle = `rgba(0,0,0,${0.35 + 0.15 * p})`; ctx.fillRect(0, 0, W, H);
+      header(ctx, t, { alpha: 0.6 }); shade(ctx, 1180, 1420, 0.9);
+      // the dots arrive one by one, big and still, below the dial in the dark
+      let x = W / 2 - 250;
+      SOS0.els.forEach(q => {
+        if (q.a > t) return; const on = t < q.b, a = on ? 1 : 0.75;
+        ctx.fillStyle = `rgba(251,243,230,${a})`;
+        if (q.dash) { rr(ctx, x, 1640 - 14, 84, 28, 14); ctx.fill(); x += 106; } else { ctx.beginPath(); ctx.arc(x + 15, 1640, 16, 0, 7); ctx.fill(); x += 46; }
+      });
+      if (t > bar(17) - 0.25) staticBurst(ctx, frame, K.prog(t, bar(17) - 0.25, bar(17)) * 0.7);
     } },
-    // no call sign: a torn picture, SOS
+    // no call sign: a torn picture, SOS; the frame creeps in over two bars
     { a: bar(17), b: bar(19), draw(ctx, t, frame) {
-      const p = K.prog(t, bar(17), bar(19));
-      ctx.save(); pulse(ctx, t, 760, 0.035); ctx.translate(W / 2, 760); ctx.scale(1 + 0.06 * p, 1 + 0.06 * p); ctx.translate(-W / 2, -760);
+      const p = e(t, bar(17), bar(19));
+      ctx.save(); pulse(ctx, t, 760, 0.04); ctx.translate(W / 2, 760); ctx.scale(1 + 0.22 * p, 1 + 0.22 * p); ctx.translate(-W / 2, -720);
       sstv(ctx, t, frame, { img: 'head', a: bar(17), torn: true, shake: true }); ctx.restore();
       plate(ctx, 'БЕЗ ПОЗЫВНОГО', t, bar(17), { flick: true, u: 0.27 });
       const xs = [70, 70]; // the dots and dashes build up big, one word a row
@@ -934,71 +925,74 @@
       });
       if (t > bar(17) + 3 * BEAT) slam(ctx, 'SOS', W / 2, 1830, t, bar(17) + 3 * BEAT, { size: 120, color: '#fbf3e6', align: 'center', bold: true });
     } },
-    // he answers it
+    // he answers it; the framing changes with each line
     { a: bar(19), b: bar(22), draw(ctx, t, frame) {
-      const [z, cx, cy] = camAt(LOG2CAM, t); shot(ctx, t, frame, z * (1 + 0.012 * hit(t)), cx, cy);
+      const [z, cx, cy] = camAt(LOG2CAM, t, 0.4); shot(ctx, t, frame, z * (1 + 0.03 * hit(t)), cx, cy);
       header(ctx, t); logView(ctx, t, frame, { list: LOG2 }); tick(ctx, t);
     } },
     // and is gone: the room, the set still keying to nobody
     { a: bar(22), b: bar(23), draw(ctx, t, frame) {
-      const p = e(t, bar(22), bar(23)), c = LOG2CAM[LOG2CAM.length - 1][1];
-      shot(ctx, t, frame, K.lerp(c[0], 1.02, p), 540, K.lerp(c[2], 970, p));
+      const p = e(t, bar(22), bar(22) + 3 * BEAT), c = LOG2CAM[LOG2CAM.length - 1][1];
+      shot(ctx, t, frame, K.lerp(c[0], 1.02, p) * (1 + 0.03 * hit(t)), 540, K.lerp(c[2], 970, p));
       header(ctx, t, { alpha: 1 - p });
       logView(ctx, t, frame, { list: LOG2, alpha: 1 - p });
     } },
-    // the ether pulls at him: the needle can't choose, the pictures flash on the beats
+    // the ether pulls at him: the needle hops on the eighths, the pictures hit on the song's hard hits
     { a: bar(23), b: bar(25), draw(ctx, t, frame) {
       const k = hit(t), p = K.prog(t, bar(23), bar(25));
-      shot(ctx, t, frame, K.lerp(1.9, 2.2, p) * (1 + 0.05 * k), 540, 760, { dx: (K.hash(frame, 4) - 0.5) * 22 * k, dy: (K.hash(frame, 5) - 0.5) * 22 * k });
+      shot(ctx, t, frame, K.lerp(1.95, 2.25, p) * (1 + 0.05 * k), 540, 760, { dx: (K.hash(frame, 4) - 0.5) * 22 * k, dy: (K.hash(frame, 5) - 0.5) * 22 * k });
       const i = Math.min(15, Math.floor((t - bar(23)) / (BEAT / 2))); plate(ctx, PANIC[i], t, bar(23) + i * BEAT / 2);
-      const FL = ['tent', 'coat', 'walk', 'head', 'tent', 'coat', 'walk', 'carry'], j = Math.floor((t - bar(23)) / BEAT);
-      if (j < 8 && t - (bar(23) + j * BEAT) < 0.1) sstv(ctx, t, frame, { img: FL[j], a: 0, instant: true });
+      const FL = ['tent', 'coat', 'walk', 'headClose', 'tent', 'coat', 'walk', 'carry'], hh = strong(t, bar(23), bar(25), 0.8);
+      const j = hh.filter(x => x <= t).length - 1;
+      if (j >= 0 && t - hh[j] < 0.12) sstv(ctx, t, frame, { img: FL[j % FL.length], a: 0, instant: true });
     } },
-    // the climax: he carries a man
-    { a: bar(25), b: bar(27), draw(ctx, t, frame) {
-      const p = K.prog(t, bar(25), bar(27));
-      ctx.save(); pulse(ctx, t, 760); ctx.translate(W / 2, 760); ctx.scale(1 + 0.05 * p, 1 + 0.05 * p); ctx.translate(-W / 2, -760);
+    // the climax: he carries a man. A cut on every downbeat, a shove on beats 2 and 4
+    { a: bar(25), b: bar(26), draw(ctx, t, frame) {
+      const p = K.prog(t, bar(25), bar(26));
+      ctx.save(); pulse(ctx, t, 760, 0.04); ctx.translate(W / 2, 760); ctx.scale(1 + 0.04 * p, 1 + 0.04 * p); ctx.translate(-W / 2, -760);
       sstv(ctx, t, frame, { img: 'carry', a: bar(25), shake: true }); ctx.restore();
       plate(ctx, 'БЕЗ ПОЗЫВНОГО', t, bar(25) - 1, { u: 0.27 });
-      reply(ctx, 'несу.', t, bar(25) + 2 * BEAT, { y: 1730, size: 84 });
+      reply(ctx, 'несу.', t, bar(25) + 3 * BEAT, { y: 1730, size: 84 });
     } },
-    // the others keep calling, one a beat
+    { a: bar(26), b: bar(27), draw(ctx, t, frame) {
+      const p = K.prog(t, bar(26), bar(27));
+      ctx.save(); pulse(ctx, t, 700, 0.05); ctx.translate(W / 2, 700); ctx.scale(1 + 0.07 * p, 1 + 0.07 * p); ctx.translate(-W / 2, -700);
+      sstv(ctx, t, frame, { img: 'carryFace', a: 0, instant: true, shake: true }); ctx.restore();
+      plate(ctx, 'БЕЗ ПОЗЫВНОГО', t, bar(26) - 1, { u: 0.27 });
+      reply(ctx, 'несу.', t, bar(26) - 1, { y: 1730, size: 84, alpha: 0.5 });
+    } },
+    // the others keep calling: beat 1, beat 2, beat 4
     { a: bar(27), b: bar(28), draw(ctx, t, frame) {
-      const j = Math.min(3, Math.floor((t - bar(27)) / BEAT)), a = bar(27) + j * BEAT;
-      if (j < 3) {
-        const [st, img, call] = CALLS[j];
-        ctx.save(); pulse(ctx, t, H / 2, 0.05); sstv(ctx, t, frame, { img, a: 0, instant: true, shake: true }); ctx.restore();
-        plate(ctx, st, t, a); caption(ctx, call, t, a + 0.05, { y: 1700 });
-      } else {
-        shot(ctx, t, frame, DIALCAM[0] * (1 + 0.05 * hit(t)), DIALCAM[1], DIALCAM[2]); shade(ctx);
-        CALLS.forEach(([, , c], i) => txt(ctx, c, W / 2, 1300 + i * 130, { size: 80, color: '#fff', align: 'center', bold: true }));
-      }
-      if (t - a > BEAT - 0.06) staticBurst(ctx, frame, 0.6);
+      const T0 = [0, BEAT, 3 * BEAT], j = T0.filter(x => t >= bar(27) + x).length - 1, a = bar(27) + T0[j], [st, img, call] = CALLS[j];
+      ctx.save(); pulse(ctx, t, 760, 0.06); sstv(ctx, t, frame, { img, a: 0, instant: true, shake: true }); ctx.restore();
+      plate(ctx, st, t, a); caption(ctx, call, t, a + 0.03, { y: 1700 });
+      const nx = j < 2 ? bar(27) + T0[j + 1] : bar(28); if (t > nx - 0.08) staticBurst(ctx, frame, 0.6);
     } },
     { a: bar(28), b: bar(29), draw(ctx, t, frame) {
-      ctx.save(); pulse(ctx, t, 760, 0.04); ctx.translate(W / 2, 760); ctx.scale(1.06, 1.06); ctx.translate(-W / 2, -760);
-      sstv(ctx, t, frame, { img: 'carry', a: 0, instant: true, torn: K.hash(Math.floor(t * 8), 2) > 0.7, shake: true }); ctx.restore();
+      const p = K.prog(t, bar(28), bar(29));
+      ctx.save(); pulse(ctx, t, 760, 0.05); ctx.translate(W / 2, 760); ctx.scale(1 + 0.06 * p, 1 + 0.06 * p); ctx.translate(-W / 2, -760);
+      sstv(ctx, t, frame, { img: 'carryMan', a: 0, instant: true, shake: true, torn: K.hash(Math.floor(t * 8), 2) > 0.8 }); ctx.restore();
       plate(ctx, 'БЕЗ ПОЗЫВНОГО', t, bar(28) - 1, { u: 0.27 });
       reply(ctx, 'держись.', t, bar(28) + BEAT, { y: 1730, size: 84 });
     } },
     // the set can't hold it
     { a: bar(29), b: bar(30), draw(ctx, t, frame) {
       const p = K.prog(t, bar(29), bar(30));
-      shot(ctx, t, frame, K.lerp(1.7, 2.4, K.ease.inQuad(p)) * (1 + 0.04 * hit(t)), 540, K.lerp(980, 790, p), { dx: (K.hash(frame, 3) - 0.5) * 24 * (0.4 + p) });
+      shot(ctx, t, frame, K.lerp(1.7, 2.4, K.ease.inQuad(p)) * (1 + 0.05 * hit(t)), 540, K.lerp(980, 790, p), { dx: (K.hash(frame, 3) - 0.5) * 24 * (0.4 + p) });
       header(ctx, t);
       ticker(ctx, THEIR.map(m => ({ ...m, color: WARM })), t, 0, 1500, W, { pxs: 900, h: 22 });
       ticker(ctx, THEIR.map(m => ({ ...m, color: AMBER })), t - 0.11, 0, 1580, W, { pxs: 700, h: 18 });
-      if (t > bar(30) - 0.3) staticBurst(ctx, frame, K.prog(t, bar(30) - 0.3, bar(30)));
+      if (t > bar(30) - 0.2) staticBurst(ctx, frame, K.prog(t, bar(30) - 0.2, bar(30)));
     } },
-    // almost there: the light comes up from below on every beat
+    // almost there: wide, then his face, then wide and closing in; the light comes up from below on every hit
     { a: bar(30), b: FREEZE, draw(ctx, t, frame) {
-      const z = (1 + 0.03 * hit(t)) * K.lerp(1.04, 1.18, K.ease.inQuad(K.prog(t, bar(30), FREEZE)));
-      ctx.save(); ctx.translate(W / 2, 760); ctx.scale(z, z); ctx.translate(-W / 2, -760);
-      sstv(ctx, t, frame, { img: 'carry', a: 0, instant: true, shake: true }); ctx.restore();
+      const face = win(t, bar(31), bar(32)), p = K.prog(t, bar(30), FREEZE), q = K.prog(t, bar(32), FREEZE);
+      const z = (1 + 0.05 * hit(t)) * (face ? 1 + 0.08 * K.prog(t, bar(31), bar(32)) : t < bar(31) ? 1.02 + 0.04 * K.prog(t, bar(30), bar(31)) : 1.05 + 0.2 * K.ease.inQuad(q)), cy = face ? 700 : 760;
+      ctx.save(); ctx.translate(W / 2, cy); ctx.scale(z, z); ctx.translate(-W / 2, -cy);
+      sstv(ctx, t, frame, { img: face ? 'carryFace' : t < bar(31) ? 'carryHand' : 'carry', a: 0, instant: true, shake: true }); ctx.restore();
       plate(ctx, 'БЕЗ ПОЗЫВНОГО', t, bar(30) - 1, { u: 0.27 });
-      const b2 = bar(31), beats = Array.from({ length: 12 }, (_, i) => bar(30) + i * BEAT);
-      if (t > b2) reply(ctx, 'почти дошли.', t, b2, { y: 1700, size: 84 });
-      const n = Math.floor((t - bar(30)) / BEAT), fb = Math.exp(-since(beats, t) * 6) * (0.12 + 0.05 * n);
+      if (t > bar(31)) reply(ctx, 'почти дошли.', t, bar(31), { y: 1700, size: 84 });
+      const fb = hit(t) * (0.12 + 0.55 * p * p);
       const g = ctx.createLinearGradient(0, H, 0, H * 0.3); g.addColorStop(0, `rgba(255,236,200,${fb})`); g.addColorStop(1, 'rgba(255,236,200,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     } },
     // held breath: the frame stops
@@ -1070,13 +1064,13 @@
       if (t > CLICK + 1.1) slam(ctx, decodeS('и то же)', t, CLICK + 1.1, 0.3), W / 2, 1070, t, CLICK + 1.1, { size: 140, color: RED, align: 'center', bold: true, glow: 'rgba(255,40,30,0.55)', blur: 34, from: 1.1, alpha: fo });
     } },
   ];
-  const CUTS = [DROP, bar(9), bar(10), bar(11), bar(12), bar(13), bar(14), bar(17), bar(19), bar(23), bar(25), bar(27), bar(27) + BEAT, bar(27) + 2 * BEAT, bar(27) + 3 * BEAT, bar(28), bar(29), bar(30),
+  const CUTS = [DROP, bar(9), bar(10), bar(11), bar(12), bar(13), bar(14), bar(17), bar(19), bar(23), bar(25), bar(26), bar(27), bar(27) + BEAT, bar(27) + 3 * BEAT, bar(28), bar(29), bar(30), bar(31), bar(32),
     eb(0), eb(0) + 2 * BEAT, eb(1), eb(1) + 2 * BEAT, eb(2)];
 
   // ================= sound automation for audio/radio_mix.py =================
-  const BURSTS = [[bar(9) - 0.17, bar(9), 0.9], ...[9, 10, 11].map(k => [bar(k) + BAR - BEAT / 2, bar(k + 1), 0.75]), [BREAK - 0.55, BREAK, 1], [bar(17) - 0.3, bar(17), 0.7],
+  const BURSTS = [[bar(9) - 0.17, bar(9), 0.9], ...[9, 10, 11].map(k => [bar(k) + BAR - 0.22, bar(k + 1), 0.75]), [BREAK - 0.55, BREAK, 1], [bar(17) - 0.25, bar(17), 0.7],
     ...PANIC.map((_, i) => [bar(23) + i * BEAT / 2 - 0.05, bar(23) + i * BEAT / 2, 0.5]), ...CROWD.map((_, i) => [bar(14) + i * BEAT / 2 - 0.04, bar(14) + i * BEAT / 2, 0.4]),
-    ...[1, 2, 3, 4].map(j => [bar(27) + j * BEAT - 0.06, bar(27) + j * BEAT, 0.5]), [bar(30) - 0.3, bar(30), 0.8],
+    [bar(27) + BEAT - 0.08, bar(27) + BEAT, 0.5], [bar(27) + 3 * BEAT - 0.08, bar(27) + 3 * BEAT, 0.5], [bar(28) - 0.08, bar(28), 0.5], [bar(30) - 0.2, bar(30), 0.8],
     [eb(0) - 0.2, eb(0), 0.6], [eb(0) + 2 * BEAT - 0.08, eb(0) + 2 * BEAT, 0.6], [eb(1) - 0.08, eb(1), 0.6], [eb(1) + 2 * BEAT - 0.08, eb(1) + 2 * BEAT, 0.5], [BLAST, BLAST + 0.6, 1]];
   const curves = t => {
     const theirs = list => Math.max(0, ...list.filter(m => !m.me && !m.st).map(m => win(t, m.a, m.t + 1.2) ? 0.3 : 0));
