@@ -23,7 +23,7 @@
     const im = I(`${key}-tone`), s = Math.max(r.w / im.width, r.h / im.height) * (o.z || 1);
     const dw = im.width * s, dh = im.height * s, dx = r.x + (r.w - dw) * (o.fx ?? 0.5), dy = r.y + (r.h - dh) * (o.fy ?? 0.5);
     ctx.save(); ctx.globalAlpha = (o.alpha ?? 1); ctx.drawImage(im, dx, dy, dw, dh);
-    ctx.drawImage(I(`${key}-lines${Math.floor(t * 8) % 3}`), dx, dy, dw, dh);
+    ctx.drawImage(I(`${key}-lines${(Math.floor(t * 8) % 3 + 3) % 3}`), dx, dy, dw, dh); // t can be negative: the reflection is late
     ctx.globalAlpha = (o.alpha ?? 1) * (o.color ?? 1); ctx.drawImage(I(`${key}-color`), dx, dy, dw, dh);
     ctx.restore();
   };
