@@ -63,6 +63,7 @@ import app.pulse.desktop.res.Res
 import app.pulse.desktop.res.close
 import app.pulse.desktop.res.oswald
 import app.pulse.desktop.res.palette
+import app.pulse.desktop.res.person
 import app.pulse.desktop.res.playlist_add
 import app.pulse.desktop.res.playlist_play
 import app.pulse.desktop.res.pt_mono
@@ -111,7 +112,12 @@ private fun selfTestAndExit(args: Array<String>): Nothing {
 private fun runWindow() = application {
     val scope = rememberCoroutineScope()
     val controller = remember { PlayerController(scope).also { it.setVolume(Settings.volume) } }
-    LaunchedEffect(Unit) { runCatching { YouTubeSetup.init() } }
+    val library = remember { LibraryModel(scope) }
+    LaunchedEffect(Unit) {
+        runCatching { YouTubeSetup.init() }
+        runCatching { Account.restore() }
+        library.refresh()
+    }
     Window(
         onCloseRequest = {
             controller.close()
@@ -130,24 +136,35 @@ private fun runWindow() = application {
             }
         },
     ) {
-        PulseApp(controller)
+        PulseApp(controller, library)
     }
 }
 
 @Composable
-fun PulseApp(controller: PlayerController, initialTheme: PlayerTheme = Settings.loadTheme()) {
+fun PulseApp(controller: PlayerController, library: LibraryModel, initialTheme: PlayerTheme = Settings.loadTheme()) {
     val state by controller.state.collectAsState()
+    val likedIds by library.likedIds.collectAsState()
+    val account by Account.info.collectAsState()
     var theme by remember { mutableStateOf(initialTheme) }
     var showTheme by remember { mutableStateOf(false) }
+    var showAccount by remember { mutableStateOf(false) }
     val fonts = ThemeFonts(FontFamily(Font(Res.font.oswald)), FontFamily(Font(Res.font.pt_mono)))
     LaunchedEffect(state.volume) { Settings.volume = state.volume }
 
     MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB8C4FF), surface = Color(0xFF15161A), background = Color(0xFF101114))) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxSize()) {
-                Library(controller, state, onTheme = { showTheme = true }, modifier = Modifier.weight(1f).fillMaxHeight())
-                PlayerPanel(theme, state, controller, fonts, Modifier.width(420.dp).fillMaxHeight())
+                Library(controller, library, state, onTheme = { showTheme = true }, onAccount = { showAccount = true }, modifier = Modifier.weight(1f).fillMaxHeight())
+                PlayerPanel(
+                    theme, state, controller, fonts,
+                    liked = state.current?.let { it.videoId in likedIds }.takeIf { account != null },
+                    onLike = { state.current?.let(library::toggleLike) },
+                    modifier = Modifier.width(420.dp).fillMaxHeight(),
+                )
             }
+        }
+        if (showAccount) {
+            AccountDialog(library, onDismiss = { showAccount = false })
         }
         if (showTheme) {
             ThemeDialog(
@@ -163,7 +180,8 @@ fun PulseApp(controller: PlayerController, initialTheme: PlayerTheme = Settings.
 }
 
 @Composable
-private fun Library(controller: PlayerController, state: PlayerState, onTheme: () -> Unit, modifier: Modifier) {
+private fun Library(controller: PlayerController, library: LibraryModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, modifier: Modifier) {
+    val account by Account.info.collectAsState()
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Track>?>(null) }
@@ -198,16 +216,25 @@ private fun Library(controller: PlayerController, state: PlayerState, onTheme: (
                 modifier = Modifier.weight(1f).onEnter(::search),
             )
             IconButton(onClick = onTheme) { Icon(painterResource(Res.drawable.palette), Strings.theme) }
+            IconButton(onClick = onAccount) {
+                if (account?.avatar != null) {
+                    AsyncImage(account?.avatar, Strings.account, contentScale = ContentScale.Crop, modifier = Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape))
+                } else {
+                    Icon(painterResource(Res.drawable.person), Strings.account)
+                }
+            }
         }
         Spacer(Modifier.height(8.dp))
         TabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
             Tab(tab == 0, onClick = { tab = 0 }, text = { Text(Strings.searchTab) })
-            Tab(tab == 1, onClick = { tab = 1 }, text = { Text("${Strings.queue} · ${state.queue.size}") })
+            Tab(tab == 1, onClick = { tab = 1 }, text = { Text(Strings.myMusic) })
+            Tab(tab == 2, onClick = { tab = 2 }, text = { Text("${Strings.queue} · ${state.queue.size}") })
         }
         Spacer(Modifier.height(8.dp))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                tab == 1 -> QueueList(state, controller)
+                tab == 1 -> LibraryTab(library, controller, state, onSignIn = onAccount)
+                tab == 2 -> QueueList(state, controller)
                 searching -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 results == null -> Hint(Strings.searchEmpty)
                 results!!.isEmpty() -> Hint(if (failed) Strings.searchFailed else Strings.searchNothing)
@@ -217,10 +244,7 @@ private fun Library(controller: PlayerController, state: PlayerState, onTheme: (
                             track = track,
                             playing = state.current?.videoId == track.videoId,
                             onClick = { controller.playQueue(results!!, i) },
-                            actions = {
-                                IconButton(onClick = { controller.playNext(track) }) { Icon(painterResource(Res.drawable.playlist_play), Strings.playNext, modifier = Modifier.size(20.dp)) }
-                                IconButton(onClick = { controller.enqueue(track) }) { Icon(painterResource(Res.drawable.playlist_add), Strings.addToQueue, modifier = Modifier.size(20.dp)) }
-                            },
+                            actions = { TrackActions(controller, track) },
                         )
                     }
                 }
@@ -249,7 +273,13 @@ private fun QueueList(state: PlayerState, controller: PlayerController) {
 }
 
 @Composable
-private fun SongRow(track: Track, playing: Boolean, onClick: () -> Unit, actions: @Composable () -> Unit) {
+internal fun TrackActions(controller: PlayerController, track: Track) {
+    IconButton(onClick = { controller.playNext(track) }) { Icon(painterResource(Res.drawable.playlist_play), Strings.playNext, modifier = Modifier.size(20.dp)) }
+    IconButton(onClick = { controller.enqueue(track) }) { Icon(painterResource(Res.drawable.playlist_add), Strings.addToQueue, modifier = Modifier.size(20.dp)) }
+}
+
+@Composable
+internal fun SongRow(track: Track, playing: Boolean, onClick: () -> Unit, actions: @Composable () -> Unit) {
     val hover = remember { MutableInteractionSource() }
     val hovered by hover.collectIsHoveredAsState()
     Row(
@@ -276,7 +306,7 @@ private fun SongRow(track: Track, playing: Boolean, onClick: () -> Unit, actions
 }
 
 @Composable
-private fun Hint(text: String) {
+internal fun Hint(text: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text(text, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
     }

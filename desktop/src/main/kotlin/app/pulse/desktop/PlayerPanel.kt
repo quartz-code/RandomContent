@@ -60,6 +60,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.pulse.desktop.res.Res
+import app.pulse.desktop.res.favorite
+import app.pulse.desktop.res.favorite_border
 import app.pulse.desktop.res.music_note
 import app.pulse.desktop.res.pulse_pause
 import app.pulse.desktop.res.pulse_play
@@ -86,6 +88,9 @@ fun PlayerPanel(
     controller: PlayerController,
     fonts: ThemeFonts,
     modifier: Modifier = Modifier,
+    /** Null when signed out: there is nothing to like into. */
+    liked: Boolean? = null,
+    onLike: () -> Unit = {},
 ) {
     val track = state.current
     val artworkUrl = track?.artwork
@@ -102,7 +107,7 @@ fun PlayerPanel(
                 Artwork(theme, p, artworkUrl, state.isPlaying, Modifier.size(side))
             }
             Spacer(Modifier.height(16.dp))
-            TrackInfo(theme, p, fonts, track)
+            TrackInfo(theme, p, fonts, track, liked, onLike)
             Spacer(Modifier.height(14.dp))
             Progress(theme, p, fonts, state, controller::seekTo)
             Spacer(Modifier.height(10.dp))
@@ -164,8 +169,10 @@ private fun Artwork(theme: PlayerTheme, p: Palette, url: String?, playing: Boole
 }
 
 @Composable
-private fun TrackInfo(theme: PlayerTheme, p: Palette, fonts: ThemeFonts, track: Track?) {
+private fun TrackInfo(theme: PlayerTheme, p: Palette, fonts: ThemeFonts, track: Track?, liked: Boolean?, onLike: () -> Unit) {
     val align = if (theme.titleCentered) TextAlign.Center else TextAlign.Start
+    Row(verticalAlignment = Alignment.CenterVertically) {
+    Column(Modifier.weight(1f)) {
     Text(
         track?.title ?: Strings.nothingPlaying,
         style = theme.headline(theme.titleSize.sp, fonts.oswald, fonts.mono),
@@ -185,6 +192,11 @@ private fun TrackInfo(theme: PlayerTheme, p: Palette, fonts: ThemeFonts, track: 
             textAlign = align,
             modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
         )
+    }
+    }
+    if (track != null && liked != null) {
+        IconTap(painterResource(if (liked) Res.drawable.favorite else Res.drawable.favorite_border), Strings.like, if (liked) p.like else p.muted, onLike)
+    }
     }
 }
 

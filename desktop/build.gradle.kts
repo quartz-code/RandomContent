@@ -29,6 +29,7 @@ val sharedSources by tasks.registering(Sync::class) {
     from("../innertube/src/main/kotlin")
     from("../app/src/main/kotlin") {
         include("com/metrolist/music/ui/player/PlayerTheme.kt")
+        include("com/metrolist/music/pulse/LoginTransfer.kt")
     }
     into(layout.buildDirectory.dir("shared-src"))
 }
@@ -44,7 +45,8 @@ sourceSets {
 val sharedIcons = listOf(
     "pulse_play", "pulse_pause", "pulse_skip_next", "pulse_skip_previous", "shuffle", "shuffle_on",
     "repeat", "repeat_on", "repeat_one_on", "queue_music", "search", "close", "volume_up", "volume_off",
-    "palette", "music_note", "delete", "playlist_add", "playlist_play",
+    "palette", "music_note", "delete", "playlist_add", "playlist_play", "person", "favorite",
+    "favorite_border", "arrow_back", "library_music", "group", "logout", "login",
 )
 val composeRes by tasks.registering(Sync::class) {
     // Gradle does not see changes inside filter {}; this makes an edit to it rerun the copy.

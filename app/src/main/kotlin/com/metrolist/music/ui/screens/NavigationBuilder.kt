@@ -392,6 +392,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/player_builder") {
         com.metrolist.music.ui.screens.settings.PlayerBuilderScreen(navController)
     }
+    composable("settings/pc_login") {
+        com.metrolist.music.ui.screens.settings.PcLoginScreen(navController)
+    }
     composable("pulse/recaps") {
         com.metrolist.music.ui.screens.recap.RecapListScreen(navController)
     }
