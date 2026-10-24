@@ -1304,6 +1304,7 @@
     <string name="pc_login_copied">The message is copied. Send it to yourself and paste it on the computer within 30 minutes.</string>
     <string name="pc_login_copied_toast">Copied</string>
     <string name="pc_login_send">Send…</string>
+    <string name="pc_login_with_vk">Also pass the VK sign-in, to import from VK on the computer</string>
     <string name="pc_login_warning">The message opens only with the code from your computer\'s screen and only for 30 minutes. Do not send it or the code to other people. Delete the message from the chat after signing in.</string>
     <string name="yandex_setup_1">In Yandex Music open the playlist, album, track or artist → “⋯” → “Share” → “Copy link”. For “Liked”, open that playlist in your collection and copy its link the same way.</string>
     <string name="yandex_setup_2">The playlist must be public. If Pulse says it is private, open access to your collection in Yandex Music privacy settings.</string>

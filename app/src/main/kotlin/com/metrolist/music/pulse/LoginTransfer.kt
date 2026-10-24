@@ -18,7 +18,8 @@ import javax.crypto.spec.SecretKeySpec
  * it and hands over a "PULSELOGIN1-…" message the user sends to themselves. The code never travels
  * with the message, so a copy left in a chat is useless without it, and the slow key derivation
  * makes guessing the 40-bit code impractical. Plain Kotlin and javax.crypto: the desktop build
- * compiles this same file.
+ * compiles this same file. The VK fields are optional, so the YouTube part alone keeps working
+ * both ways between older and newer versions.
  */
 object LoginTransfer {
     @Serializable
@@ -29,6 +30,9 @@ object LoginTransfer {
         val authUser: String = "0",
         val accountName: String = "",
         val createdAtMs: Long = 0,
+        /** VK, for importing on the computer: the m.vk.ru session of the phone's VK import, if it is passed too. */
+        val vkUserId: Long = 0,
+        val vkCookies: String = "",
     )
 
     const val PREFIX = "PULSELOGIN1-"

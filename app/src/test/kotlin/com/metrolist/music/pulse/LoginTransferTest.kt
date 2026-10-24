@@ -30,6 +30,18 @@ class LoginTransferTest {
     }
 
     @Test
+    fun theVkSignInTravelsAlongAndOldMessagesStillOpen() {
+        val withVk = session.copy(vkUserId = 42, vkCookies = "remixsid=xyz; remixlang=0")
+        val sealed = LoginTransfer.seal(withVk, "K7QP-9XMB", nowMs = 0)
+        assertTrue("remixsid" !in sealed)
+        assertEquals(LoginTransfer.Opened.Ok(withVk), LoginTransfer.open(sealed, "K7QP-9XMB", nowMs = 0))
+        // A message without VK, as older versions make it, opens with no VK session in it.
+        val plain = LoginTransfer.open(LoginTransfer.seal(session, "K7QP-9XMB", nowMs = 0), "K7QP-9XMB", nowMs = 0) as LoginTransfer.Opened.Ok
+        assertEquals(0L, plain.session.vkUserId)
+        assertEquals("", plain.session.vkCookies)
+    }
+
+    @Test
     fun codesAreEightUnambiguousCharacters() {
         repeat(50) {
             val code = LoginTransfer.newPairingCode()

@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,6 +14,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,6 +22,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -32,7 +35,10 @@ import com.metrolist.music.constants.DataSyncIdKey
 import com.metrolist.music.constants.InnerTubeAuthUserKey
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.VisitorDataKey
+import com.metrolist.music.constants.VkUserIdKey
 import com.metrolist.music.pulse.LoginTransfer
+import com.metrolist.music.pulse.importer.VkMusicImport
+import com.metrolist.music.pulse.importer.collectVkCookies
 import com.metrolist.music.ui.component.StepGuide
 import com.metrolist.music.utils.rememberPreference
 import kotlinx.coroutines.Dispatchers
@@ -54,6 +60,11 @@ fun PcLoginScreen(navController: NavController) {
     val authUser by rememberPreference(InnerTubeAuthUserKey, "0")
     val accountName by rememberPreference(AccountNameKey, "")
     val signedIn = "SAPISID" in cookie
+    // VK goes along when the phone's VK import is signed in: the computer has no browser to sign in with.
+    val vkUserId by rememberPreference(VkUserIdKey, 0L)
+    val vkCookies = remember(vkUserId) { collectVkCookies() }
+    val vkSignedIn = vkUserId > 0 && VkMusicImport.hasSession(vkCookies)
+    var withVk by remember { mutableStateOf(true) }
     var code by remember { mutableStateOf("") }
     var message by remember { mutableStateOf<String?>(null) }
     var working by remember { mutableStateOf(false) }
@@ -62,7 +73,7 @@ fun PcLoginScreen(navController: NavController) {
     PulseScreenScaffold(navController, stringResource(R.string.pc_login)) {
         IntroCard(stringResource(R.string.pc_login_intro))
         Spacer(Modifier.height(16.dp))
-        if (!signedIn) {
+        if (!signedIn && !vkSignedIn) {
             Text(stringResource(R.string.pc_login_not_signed_in), color = MaterialTheme.colorScheme.error)
             return@PulseScreenScaffold
         }
@@ -88,16 +99,31 @@ fun PcLoginScreen(navController: NavController) {
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
             modifier = Modifier.fillMaxWidth(),
         )
+        if (vkSignedIn) {
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.pc_login_with_vk), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                Switch(checked = withVk, onCheckedChange = { withVk = it })
+            }
+        }
         Spacer(Modifier.height(12.dp))
         Button(
-            enabled = validCode && !working,
+            enabled = validCode && !working && (signedIn || withVk),
             onClick = {
                 working = true
                 scope.launch {
                     // The key derivation is slow on purpose; keep it off the main thread.
-                    val sealed = withContext(Dispatchers.Default) {
-                        LoginTransfer.seal(LoginTransfer.Session(cookie, visitorData, dataSyncId, authUser, accountName), code)
-                    }
+                    val vk = withVk && vkSignedIn
+                    val session = LoginTransfer.Session(
+                        cookie = if (signedIn) cookie else "",
+                        visitorData = visitorData,
+                        dataSyncId = dataSyncId,
+                        authUser = authUser,
+                        accountName = accountName,
+                        vkUserId = if (vk) vkUserId else 0,
+                        vkCookies = if (vk) vkCookies else "",
+                    )
+                    val sealed = withContext(Dispatchers.Default) { LoginTransfer.seal(session, code) }
                     val text = context.getString(R.string.pc_login_message, sealed)
                     message = text
                     copy(context, text)

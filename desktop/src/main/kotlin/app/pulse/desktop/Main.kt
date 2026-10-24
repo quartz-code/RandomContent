@@ -162,9 +162,17 @@ class Songs(val controller: PlayerController, val together: TogetherSession) {
 }
 
 @Composable
-fun PulseApp(controller: PlayerController, library: LibraryModel, together: TogetherSession, initialTheme: PlayerTheme = Settings.loadTheme()) {
+fun PulseApp(
+    controller: PlayerController,
+    library: LibraryModel,
+    together: TogetherSession,
+    initialTheme: PlayerTheme = Settings.loadTheme(),
+    importer: ImportModel? = null,
+) {
     val state by controller.state.collectAsState()
     val songs = remember(controller, together) { Songs(controller, together) }
+    val appScope = rememberCoroutineScope()
+    val importer = remember { importer ?: ImportModel(appScope) }
     val likedIds by library.likedIds.collectAsState()
     val account by Account.info.collectAsState()
     var theme by remember { mutableStateOf(initialTheme) }
@@ -176,7 +184,7 @@ fun PulseApp(controller: PlayerController, library: LibraryModel, together: Toge
     MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB8C4FF), surface = Color(0xFF15161A), background = Color(0xFF101114))) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxSize()) {
-                Library(songs, library, state, onTheme = { showTheme = true }, onAccount = { showAccount = true }, modifier = Modifier.weight(1f).fillMaxHeight())
+                Library(songs, library, importer, state, onTheme = { showTheme = true }, onAccount = { showAccount = true }, modifier = Modifier.weight(1f).fillMaxHeight())
                 PlayerPanel(
                     theme, state, controller, fonts,
                     liked = state.current?.let { it.videoId in likedIds }.takeIf { account != null },
@@ -202,7 +210,7 @@ fun PulseApp(controller: PlayerController, library: LibraryModel, together: Toge
 }
 
 @Composable
-private fun Library(songs: Songs, library: LibraryModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, modifier: Modifier) {
+private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, modifier: Modifier) {
     val account by Account.info.collectAsState()
     val room by songs.together.state.collectAsState()
     val scope = rememberCoroutineScope()
@@ -253,6 +261,7 @@ private fun Library(songs: Songs, library: LibraryModel, state: PlayerState, onT
             Tab(tab == 1, onClick = { tab = 1 }, text = { Text(Strings.myMusic) })
             Tab(tab == 2, onClick = { tab = 2 }, text = { Text("${Strings.queue} · ${state.queue.size}") })
             Tab(tab == 3, onClick = { tab = 3 }, text = { Text(if (room.inRoom) "${Strings.together} · ${room.members.size}" else Strings.together) })
+            Tab(tab == 4, onClick = { tab = 4 }, text = { Text(Strings.importTab) })
         }
         Spacer(Modifier.height(8.dp))
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -260,6 +269,10 @@ private fun Library(songs: Songs, library: LibraryModel, state: PlayerState, onT
                 tab == 1 -> LibraryTab(library, songs, state, onSignIn = onAccount)
                 tab == 2 -> QueueList(state, songs.controller)
                 tab == 3 -> TogetherTab(songs.together)
+                tab == 4 -> ImportTab(importer, songs, library, onOpenLibrary = {
+                    library.refresh()
+                    tab = 1
+                })
                 searching -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 results == null -> Hint(Strings.searchEmpty)
                 results!!.isEmpty() -> Hint(if (failed) Strings.searchFailed else Strings.searchNothing)

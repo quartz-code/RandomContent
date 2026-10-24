@@ -163,12 +163,14 @@ private fun PlaylistRow(playlist: LibraryModel.Playlist, liked: Boolean, onClick
 
 /**
  * Sign-in from the phone: this window shows a code, the phone encrypts its session with it, and
- * the message pasted back here opens only with that code.
+ * the message pasted back here opens only with that code. [passFromPhone] shows that even when
+ * signed in, for the VK sign-in the phone passes along.
  */
 @Composable
-fun AccountDialog(library: LibraryModel, onDismiss: () -> Unit) {
+fun AccountDialog(library: LibraryModel, onDismiss: () -> Unit, passFromPhone: Boolean = false) {
     val scope = rememberCoroutineScope()
-    val account by Account.info.collectAsState()
+    val signedIn by Account.info.collectAsState()
+    val account = signedIn.takeUnless { passFromPhone }
     var code by remember { mutableStateOf(LoginTransfer.newPairingCode()) }
     var message by remember { mutableStateOf("") }
     var working by remember { mutableStateOf(false) }

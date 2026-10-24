@@ -36,14 +36,32 @@ val sharedSources by tasks.registering(Sync::class) {
         include("com/metrolist/music/listentogether/Protocol.kt")
         include("com/metrolist/music/listentogether/MessageCodec.kt")
         include("com/metrolist/music/listentogether/ServerClock.kt")
+        include("com/metrolist/music/pulse/importer/ImportedTrack.kt")
+        include("com/metrolist/music/pulse/importer/TrackMatcher.kt")
+        include("com/metrolist/music/pulse/importer/YandexMusicImport.kt")
+        include("com/metrolist/music/pulse/importer/VkMusicImport.kt")
     }
     into(layout.buildDirectory.dir("shared-src"))
+}
+
+// The app's own tests of that code run here too, on the same copies.
+val sharedTests by tasks.registering(Sync::class) {
+    from("../app/src/test/kotlin") {
+        include("com/metrolist/music/pulse/LoginTransferTest.kt")
+        include("com/metrolist/music/pulse/importer/TrackMatcherTest.kt")
+        include("com/metrolist/music/pulse/importer/YandexMusicImportTest.kt")
+        include("com/metrolist/music/pulse/importer/VkMusicImportTest.kt")
+    }
+    into(layout.buildDirectory.dir("shared-test"))
 }
 
 sourceSets {
     main {
         kotlin.srcDir(sharedSources)
         proto { srcDir("../app/src/main/proto") }
+    }
+    test {
+        kotlin.srcDir(sharedTests)
     }
 }
 

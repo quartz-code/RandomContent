@@ -8,9 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import com.metrolist.music.pulse.importer.VkMusicImport
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.attribute.PosixFilePermission
 
 /**
  * Pulse desktop: the YouTube Music account, carried over from the phone (see LoginTransfer).
@@ -50,13 +49,17 @@ object Account {
             LoginTransfer.Opened.WrongCode -> return Result.WrongCode
             LoginTransfer.Opened.Expired -> return Result.Expired
         }
+        // The phone may pass its VK sign-in along, for importing here; it is kept on its own.
+        val withVk = session.vkUserId > 0 && VkMusicImport.hasSession(session.vkCookies)
+        if (withVk) VkAccount.save(session.vkUserId, session.vkCookies)
+        if (session.cookie.isBlank()) return if (withVk) Result.Ok else Result.Rejected
         apply(session)
         val account = YouTube.accountInfo().getOrNull()
         if (account == null) {
             clear()
             return Result.Rejected
         }
-        save(session.copy(accountName = account.name))
+        save(session.copy(accountName = account.name, vkUserId = 0, vkCookies = ""))
         _info.value = Info(account.name, account.thumbnailUrl)
         return Result.Ok
     }
@@ -80,16 +83,6 @@ object Account {
         YouTube.authUser = "0"
     }
 
-    private fun save(session: LoginTransfer.Session) {
-        runCatching {
-            file.writeText(json.encodeToString(LoginTransfer.Session.serializer(), session))
-            runCatching {
-                Files.setPosixFilePermissions(file.toPath(), setOf(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE))
-            }.onFailure {
-                // Windows has no POSIX modes; %APPDATA% is already private to the user.
-                file.setReadable(false, false)
-                file.setReadable(true, true)
-            }
-        }
-    }
+    private fun save(session: LoginTransfer.Session) =
+        AppDirs.writePrivate(file, json.encodeToString(LoginTransfer.Session.serializer(), session))
 }
