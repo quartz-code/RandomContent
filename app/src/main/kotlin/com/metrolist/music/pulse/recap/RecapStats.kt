@@ -58,7 +58,7 @@ data class RecapNumbers(
 
 /**
  * Pulse: the numbers behind a recap, from plain plays so they are unit-tested. Times are the
- * phone's wall-clock time, as the history stores them.
+ * phone's wall-clock time, as the history stores them. The desktop build compiles this file too.
  */
 object RecapCalculator {
     /** Below this a recap would be a few lonely numbers, so it is not offered. */
@@ -118,6 +118,22 @@ object RecapCalculator {
     fun candidates(now: LocalDateTime): List<RecapPeriod> = buildList {
         if (now.monthValue == 1) add(RecapPeriod(now.year - 1))
         add(RecapPeriod.monthOf(now).previous())
+    }
+}
+
+/** A month or year with enough music for a recap, for the list of recaps. */
+data class RecapEntry(val period: RecapPeriod, val totalMs: Long)
+
+/**
+ * Groups monthly totals into the list shown to the user (pure, so it is tested). Here rather than
+ * next to the database queries, so Pulse on a computer lists its own recaps the same way.
+ */
+fun listRecaps(months: List<RecapEntry>): List<RecapEntry> {
+    val enough = months.filter { it.totalMs / 60_000 >= RecapCalculator.MIN_MINUTES }
+    return months.groupBy { it.period.year }.toSortedMap(compareByDescending { it }).flatMap { (year, inYear) ->
+        val total = inYear.sumOf { it.totalMs }
+        val yearEntry = RecapEntry(RecapPeriod(year), total).takeIf { total / 60_000 >= RecapCalculator.MIN_MINUTES }
+        listOfNotNull(yearEntry) + enough.filter { it.period.year == year }.sortedByDescending { it.period.month }
     }
 }
 

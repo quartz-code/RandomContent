@@ -67,7 +67,7 @@ data class PlayerState(
  * download it, hand it to [AudioEngine], move on when it ends. The next song is downloaded in
  * the background, so changing songs is instant.
  */
-class PlayerController(private val scope: CoroutineScope) : RoomPlayer {
+class PlayerController(private val scope: CoroutineScope, private val history: History? = null) : RoomPlayer {
     private val engine = AudioEngine()
     private val _state = MutableStateFlow(PlayerState())
     override val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -84,12 +84,22 @@ class PlayerController(private val scope: CoroutineScope) : RoomPlayer {
     private var prefetchJob: Job? = null
     private var shuffleOrder: List<Int> = emptyList()
 
+    /** The song being heard, for the recap history: only time with sound counts. */
+    private class Listening(val track: Track, val startedAt: Long) {
+        var heardMs = 0L
+    }
+    @Volatile private var listening: Listening? = null
+
     init {
         engine.volume = _state.value.volume
         engine.onSamples = levels::feed
         scope.launch {
+            var tick = System.nanoTime()
             while (isActive) {
                 val playing = engine.isPlaying
+                val now = System.nanoTime()
+                if (playing) listening?.let { it.heardMs += (now - tick) / 1_000_000 }
+                tick = now
                 _state.update { it.copy(isPlaying = playing, positionMs = if (it.loading == null) engine.positionMs else it.positionMs, durationMs = engine.durationMs.takeIf { d -> d > 0 } ?: it.durationMs) }
                 delay(if (playing) 200 else 500)
             }
@@ -185,7 +195,18 @@ class PlayerController(private val scope: CoroutineScope) : RoomPlayer {
         })
     }
 
-    fun close() = engine.stop()
+    fun close() {
+        finishListening()
+        engine.stop()
+    }
+
+    /** Writes the song just heard to the history, if it was heard long enough to count. */
+    private fun finishListening() {
+        val done = listening ?: return
+        listening = null
+        if (done.heardMs < History.MIN_PLAY_MS) return
+        history?.add(History.Entry(done.track.videoId, done.track.title, done.track.artists, done.track.thumbnail, done.startedAt, done.heardMs))
+    }
 
     override fun upcoming(): List<Track> {
         val s = _state.value
@@ -277,6 +298,9 @@ class PlayerController(private val scope: CoroutineScope) : RoomPlayer {
         loadJob?.cancel()
         engine.stop()
         levels.reset()
+        // A new song, or the same one again: each time it starts is a play of its own.
+        finishListening()
+        listening = Listening(track, System.currentTimeMillis())
         _state.update { it.copy(positionMs = 0, durationMs = (track.durationSec ?: 0) * 1000L, loading = 0f, isPlaying = false, error = null) }
         loadJob = scope.launch(Dispatchers.IO) {
             val file = runCatching { fetch(track) { p -> _state.update { it.copy(loading = p) } } }

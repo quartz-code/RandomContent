@@ -4,7 +4,8 @@ import java.util.Locale
 
 /** Pulse desktop: the window's texts, Russian or English by the system language. */
 object Strings {
-    private val ru = Locale.getDefault().language in setOf("ru", "uk", "be", "kk")
+    private val locale: Locale = Locale.getDefault()
+    private val ru = locale.language in setOf("ru", "uk", "be", "kk")
     private fun t(ruText: String, en: String) = if (ru) ruText else en
 
     val appName = "Pulse"
@@ -186,10 +187,75 @@ object Strings {
     fun importVkDenied(answer: String?) = t("ВК не отдал список. Его ответ: ${answer.orEmpty()}", "VK did not give the list. Its answer: ${answer.orEmpty()}")
     val importEmpty = t("В списке нет песен", "There are no songs in the list")
     val importSaveFailed = t("YouTube Music не принял изменения — попробуй ещё раз", "YouTube Music did not take the changes: try again")
+
+    val recaps = t("Итоги", "Recaps")
+    val recapsIntro = t(
+        "Итоги есть у каждого месяца, где на этом компьютере набралось хотя бы полчаса музыки, и у каждого года. Они рисуются в твоей теме плеера. У телефона — свои итоги.",
+        "Every month with at least half an hour of music on this computer has a recap, and so does every year. They are drawn in your player theme. The phone keeps its own.",
+    )
+    val recapsEmpty = t(
+        "Итогов пока нет: послушай в этом месяце хотя бы полчаса музыки на компьютере — в следующем они появятся здесь.",
+        "No recaps yet: listen to at least half an hour of music on this computer this month, and next month it will be here.",
+    )
+    fun monthName(month: Int): String =
+        java.time.Month.of(month).getDisplayName(java.time.format.TextStyle.FULL_STANDALONE, locale).replaceFirstChar { it.uppercase() }
+    fun periodTitle(year: Int, month: Int?) = if (month == null) t("$year год", "$year") else "${monthName(month)} $year"
+    fun dayText(day: java.time.LocalDate): String = day.format(java.time.format.DateTimeFormatter.ofPattern(if (ru) "d MMMM" else "MMMM d", locale))
+    val recapIntroMonth = t("Что у тебя звучало в этом месяце, сколько и когда", "What you played this month, how much and when")
+    val recapIntroYear = t("Весь твой год в музыке", "Your whole year in music")
+    val recapHint = t("Нажми справа или стрелку →, чтобы листать дальше", "Click on the right or press → to go on")
+    val recapMinutesKicker = t("Наслушано", "Listened")
+    fun recapMinutesWord(n: Long) = if (ru) plural(n, "минуту музыки", "минуты музыки", "минут музыки") else if (n == 1L) "minute of music" else "minutes of music"
+    fun hoursMinutes(ms: Long): String {
+        val minutes = ms / 60_000
+        if (minutes < 60) return t("$minutes мин", "$minutes min")
+        return t("${minutes / 60} ч ${minutes % 60} мин", "${minutes / 60} h ${minutes % 60} min")
+    }
+    fun minutesOf(ms: Long): String {
+        val n = ms / 60_000
+        return if (ru) "$n ${plural(n, "минута", "минуты", "минут")}" else "$n min"
+    }
+    fun timesCount(n: Int) = if (ru) "$n ${plural(n.toLong(), "раз", "раза", "раз")}" else "$n time${if (n == 1) "" else "s"}"
+    fun playsWord(n: Int) = if (ru) plural(n.toLong(), "прослушивание", "прослушивания", "прослушиваний") else if (n == 1) "play" else "plays"
+    fun songsWord(n: Int) = if (ru) plural(n.toLong(), "песня", "песни", "песен") else if (n == 1) "song" else "songs"
+    fun artistsWord(n: Int) = if (ru) plural(n.toLong(), "артист", "артиста", "артистов") else if (n == 1) "artist" else "artists"
+    fun songOf(year: Boolean) = if (year) t("Песня года", "Song of the year") else t("Песня месяца", "Song of the month")
+    fun artistOf(year: Boolean) = if (year) t("Артист года", "Artist of the year") else t("Артист месяца", "Artist of the month")
+    val recapTimeKicker = t("Твоё время для музыки", "Your time for music")
+    val partNames = listOf(t("Утро", "Morning"), t("День", "Day"), t("Вечер", "Evening"), t("Ночь", "Night"))
+    val partLines = listOf(
+        t("Музыка раньше всего остального: больше всего звучало с 5 до 11.", "Music before anything else: most of it played from 5 to 11."),
+        t("Музыка под дела: больше всего звучало с 11 до 17.", "Music for getting things done: most of it played from 11 to 17."),
+        t("Вечера — для музыки: больше всего звучало с 17 до 23.", "Evenings are for music: most of it played from 17 to 23."),
+        t("Ночной слушатель: больше всего звучало после 23.", "A night listener: most of it played after 23."),
+    )
+    fun busiestDay(day: java.time.LocalDate, ms: Long) = t("Самый музыкальный день — ${dayText(day)}: ${hoursMinutes(ms)}.", "The most musical day was ${dayText(day)}: ${hoursMinutes(ms)}.")
+    val recapMonthsKicker = t("Самый музыкальный месяц", "The most musical month")
+    val recapNewKicker = t("Впервые", "First time")
+    fun newSongsWord(n: Int) = if (ru) plural(n.toLong(), "песня прозвучала у тебя впервые", "песни прозвучали у тебя впервые", "песен прозвучали у тебя впервые") else if (n == 1) "song you heard for the first time" else "songs you heard for the first time"
+    val recapStreakKicker = t("Подряд", "In a row")
+    fun streakWord(n: Int) = if (ru) plural(n.toLong(), "день с музыкой подряд", "дня с музыкой подряд", "дней с музыкой подряд") else if (n == 1) "day with music in a row" else "days with music in a row"
+    fun activeDays(n: Int) = if (ru) "Музыка звучала $n ${plural(n.toLong(), "день", "дня", "дней")}" else "Music played on $n day${if (n == 1) "" else "s"}"
+    val recapCardKicker = t("Всё на одной карточке", "All on one card")
+    val recapCardBrand = t("Pulse · итоги", "Pulse · recap")
+    val recapCardSongs = t("Песни", "Songs")
+    val recapCardArtists = t("Артисты", "Artists")
+    val saveImage = t("Сохранить картинкой", "Save as a picture")
+    fun savedTo(path: String) = t("Сохранено: $path", "Saved: $path")
+    val saveFailed = t("Не получилось сохранить картинку", "Could not save the picture")
+    fun recapOffer(title: String) = t("$title: итоги готовы", "$title: your recap is ready")
+    val recapOfferText = t(
+        "Сколько музыки, что звучало чаще всего и в какое время — в твоей теме плеера. Итоги лежат и под кнопкой со столбиками вверху.",
+        "How much music, what played most and when, in your player theme. Recaps are also under the bar-chart button at the top.",
+    )
+    val recapOfferOpen = t("Смотреть", "Open")
+    val recapOfferLater = t("Позже", "Later")
     fun songsCount(n: Int) = if (ru) "$n ${plural(n, "песня", "песни", "песен")}" else "$n song${if (n == 1) "" else "s"}"
-    private fun plural(n: Int, one: String, few: String, many: String): String {
-        val m10 = n % 10
-        val m100 = n % 100
+    private fun plural(n: Int, one: String, few: String, many: String): String = plural(n.toLong(), one, few, many)
+
+    private fun plural(n: Long, one: String, few: String, many: String): String {
+        val m10 = (n % 10).toInt()
+        val m100 = (n % 100).toInt()
         return when {
             m10 == 1 && m100 != 11 -> one
             m10 in 2..4 && m100 !in 12..14 -> few

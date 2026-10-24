@@ -23,6 +23,14 @@ object Settings {
             save()
         }
 
+    /** Recaps already offered on start, as "2026-09,2026", so each is offered once. */
+    var recapsOffered: String?
+        get() = props.getProperty("recapsOffered")
+        set(value) {
+            props.setProperty("recapsOffered", value.orEmpty())
+            save()
+        }
+
     var volume: Float
         get() = props.getProperty("volume")?.toFloatOrNull() ?: 0.8f
         set(value) {

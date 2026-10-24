@@ -68,13 +68,16 @@ import app.pulse.desktop.res.playlist_add
 import app.pulse.desktop.res.playlist_play
 import app.pulse.desktop.res.pt_mono
 import app.pulse.desktop.res.search
+import app.pulse.desktop.res.stats
 import coil3.compose.AsyncImage
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.ui.player.PlayerTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.painterResource
 
@@ -122,7 +125,7 @@ private fun selfTestAndExit(args: Array<String>): Nothing {
 
 private fun runWindow() = application {
     val scope = rememberCoroutineScope()
-    val controller = remember { PlayerController(scope).also { it.setVolume(Settings.volume) } }
+    val controller = remember { PlayerController(scope, History.default).also { it.setVolume(Settings.volume) } }
     val library = remember { LibraryModel(scope) }
     val together = remember { TogetherSession(scope, controller) }
     LaunchedEffect(Unit) {
@@ -179,12 +182,29 @@ fun PulseApp(
     var showTheme by remember { mutableStateOf(false) }
     var showAccount by remember { mutableStateOf(false) }
     val fonts = ThemeFonts(FontFamily(Font(Res.font.oswald)), FontFamily(Font(Res.font.pt_mono)))
+    var recapList by remember { mutableStateOf<List<com.metrolist.music.pulse.recap.RecapEntry>?>(null) }
+    var recap by remember { mutableStateOf<Recaps.Recap?>(null) }
+    var offer by remember { mutableStateOf<com.metrolist.music.pulse.recap.RecapPeriod?>(null) }
     LaunchedEffect(state.volume) { Settings.volume = state.volume }
+    fun openRecap(period: com.metrolist.music.pulse.recap.RecapPeriod) {
+        appScope.launch { recap = withContext(Dispatchers.IO) { Recaps.build(History.default.all(), period) } }
+    }
+    // Last month's recap (and last year's in January), offered once, as the phone does.
+    LaunchedEffect(Unit) {
+        offer = withContext(Dispatchers.IO) { Recaps.toOffer(History.default.all(), Settings.recapsOffered) }
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB8C4FF), surface = Color(0xFF15161A), background = Color(0xFF101114))) {
+        Box(Modifier.fillMaxSize()) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxSize()) {
-                Library(songs, library, importer, state, onTheme = { showTheme = true }, onAccount = { showAccount = true }, modifier = Modifier.weight(1f).fillMaxHeight())
+                Library(
+                    songs, library, importer, state,
+                    onTheme = { showTheme = true },
+                    onAccount = { showAccount = true },
+                    onRecaps = { appScope.launch { recapList = withContext(Dispatchers.IO) { Recaps.list(History.default.all()) } } },
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                )
                 PlayerPanel(
                     theme, state, controller, fonts,
                     liked = state.current?.let { it.videoId in likedIds }.takeIf { account != null },
@@ -192,6 +212,24 @@ fun PulseApp(
                     modifier = Modifier.width(420.dp).fillMaxHeight(),
                 )
             }
+        }
+        recap?.let { RecapStories(it, theme, fonts, onClose = { recap = null }) }
+        }
+        recapList?.let { entries ->
+            RecapsDialog(entries, onOpen = { recapList = null; openRecap(it) }, onDismiss = { recapList = null })
+        }
+        offer?.let { period ->
+            fun done() {
+                Settings.recapsOffered = listOfNotNull(Settings.recapsOffered, period.key).joinToString(",")
+                offer = null
+            }
+            AlertDialog(
+                onDismissRequest = ::done,
+                title = { Text(Strings.recapOffer(Strings.periodTitle(period.year, period.month))) },
+                text = { Text(Strings.recapOfferText) },
+                confirmButton = { TextButton(onClick = { done(); openRecap(period) }) { Text(Strings.recapOfferOpen) } },
+                dismissButton = { TextButton(onClick = ::done) { Text(Strings.recapOfferLater) } },
+            )
         }
         if (showAccount) {
             AccountDialog(library, onDismiss = { showAccount = false })
@@ -210,7 +248,7 @@ fun PulseApp(
 }
 
 @Composable
-private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, modifier: Modifier) {
+private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, onRecaps: () -> Unit, modifier: Modifier) {
     val account by Account.info.collectAsState()
     val room by songs.together.state.collectAsState()
     val scope = rememberCoroutineScope()
@@ -246,6 +284,7 @@ private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, 
                 shape = RoundedCornerShape(24.dp),
                 modifier = Modifier.weight(1f).onEnter(::search),
             )
+            IconButton(onClick = onRecaps) { Icon(painterResource(Res.drawable.stats), Strings.recaps) }
             IconButton(onClick = onTheme) { Icon(painterResource(Res.drawable.palette), Strings.theme) }
             IconButton(onClick = onAccount) {
                 if (account?.avatar != null) {

@@ -40,6 +40,7 @@ val sharedSources by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/importer/TrackMatcher.kt")
         include("com/metrolist/music/pulse/importer/YandexMusicImport.kt")
         include("com/metrolist/music/pulse/importer/VkMusicImport.kt")
+        include("com/metrolist/music/pulse/recap/RecapStats.kt")
     }
     into(layout.buildDirectory.dir("shared-src"))
 }
@@ -51,6 +52,7 @@ val sharedTests by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/importer/TrackMatcherTest.kt")
         include("com/metrolist/music/pulse/importer/YandexMusicImportTest.kt")
         include("com/metrolist/music/pulse/importer/VkMusicImportTest.kt")
+        include("com/metrolist/music/pulse/recap/RecapCalculatorTest.kt")
     }
     into(layout.buildDirectory.dir("shared-test"))
 }
@@ -84,7 +86,8 @@ val sharedIcons = listOf(
     "pulse_play", "pulse_pause", "pulse_skip_next", "pulse_skip_previous", "shuffle", "shuffle_on",
     "repeat", "repeat_on", "repeat_one_on", "queue_music", "search", "close", "volume_up", "volume_off",
     "palette", "music_note", "delete", "playlist_add", "playlist_play", "person", "favorite",
-    "favorite_border", "arrow_back", "library_music", "group", "logout", "login",
+    "favorite_border", "arrow_back", "library_music", "group", "logout", "login", "stats", "download",
+    "navigate_next",
 )
 val composeRes by tasks.registering(Sync::class) {
     // Gradle does not see changes inside filter {}; this makes an edit to it rerun the copy.

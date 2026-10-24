@@ -22,9 +22,6 @@ data class Recap(
     val newSongs: Int,
 )
 
-/** A month or year with enough music for a recap, for the list of recaps. */
-data class RecapEntry(val period: RecapPeriod, val totalMs: Long)
-
 object RecapRepository {
     suspend fun load(database: MusicDatabase, period: RecapPeriod): Recap = withContext(Dispatchers.IO) {
         val from = period.start
@@ -65,14 +62,4 @@ object RecapRepository {
 
     suspend fun minutesIn(database: MusicDatabase, period: RecapPeriod): Long =
         withContext(Dispatchers.IO) { database.recapTotalMs(period.start, period.end) / 60_000 }
-}
-
-/** Groups monthly totals into the list shown to the user (pure, so it is tested). */
-fun listRecaps(months: List<RecapEntry>): List<RecapEntry> {
-    val enough = months.filter { it.totalMs / 60_000 >= RecapCalculator.MIN_MINUTES }
-    return months.groupBy { it.period.year }.toSortedMap(compareByDescending { it }).flatMap { (year, inYear) ->
-        val total = inYear.sumOf { it.totalMs }
-        val yearEntry = RecapEntry(RecapPeriod(year), total).takeIf { total / 60_000 >= RecapCalculator.MIN_MINUTES }
-        listOfNotNull(yearEntry) + enough.filter { it.period.year == year }.sortedByDescending { it.period.month }
-    }
 }
