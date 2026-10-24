@@ -60,8 +60,9 @@ import org.jetbrains.compose.resources.painterResource
 
 /** "My music": liked songs and the account's playlists, or an invitation to sign in. */
 @Composable
-fun LibraryTab(library: LibraryModel, controller: PlayerController, state: PlayerState, onSignIn: () -> Unit) {
+fun LibraryTab(library: LibraryModel, songs: Songs, state: PlayerState, onSignIn: () -> Unit) {
     val account by Account.info.collectAsState()
+    val controller = songs.controller
     val liked by library.liked.collectAsState()
     val playlists by library.playlists.collectAsState()
     val failed by library.failed.collectAsState()
@@ -86,9 +87,11 @@ fun LibraryTab(library: LibraryModel, controller: PlayerController, state: Playe
                 IconButton(onClick = { open = null }) { Icon(painterResource(Res.drawable.arrow_back), Strings.back) }
                 Text(current.title, style = MaterialTheme.typography.titleLarge, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 val list = tracks.orEmpty()
-                FilledTonalButton(enabled = list.isNotEmpty(), onClick = { controller.playQueue(list, 0) }) { Text(Strings.play) }
+                // A guest of a room suggests songs one by one; whole playlists are the host's to start.
+                val canPlay = list.isNotEmpty() && state.followingHost == null
+                FilledTonalButton(enabled = canPlay, onClick = { controller.playQueue(list, 0) }) { Text(Strings.play) }
                 Spacer(Modifier.width(8.dp))
-                IconButton(enabled = list.isNotEmpty(), onClick = {
+                IconButton(enabled = canPlay, onClick = {
                     controller.playQueue(list.shuffled(), 0)
                 }) { Icon(painterResource(Res.drawable.shuffle), Strings.shuffle) }
             }
@@ -99,7 +102,7 @@ fun LibraryTab(library: LibraryModel, controller: PlayerController, state: Playe
                 list.isEmpty() -> Hint(Strings.playlistEmpty)
                 else -> LazyColumn {
                     itemsIndexed(list, key = { i, t -> "${t.videoId}_$i" }) { i, track ->
-                        SongRow(track, playing = state.current?.videoId == track.videoId, onClick = { controller.playQueue(list, i) }, actions = { TrackActions(controller, track) })
+                        SongRow(track, playing = state.current?.videoId == track.videoId, onClick = { songs.play(list, i) }, actions = { TrackActions(songs, track) })
                     }
                 }
             }

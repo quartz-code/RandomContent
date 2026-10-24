@@ -1,3 +1,4 @@
+import com.google.protobuf.gradle.proto
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 
 plugins {
@@ -5,6 +6,7 @@ plugins {
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.kotlin.serialization)
     id("org.jetbrains.compose") version "1.12.2"
+    alias(libs.plugins.protobuf)
 }
 
 kotlin {
@@ -24,12 +26,16 @@ val javacppVersion = "1.5.14"
 val ffmpegVersion = "8.1.2-$javacppVersion"
 
 // Code shared with the Android app, copied read-only at build time: the YouTube Music client
-// (the innertube module, Android-free but for Timber) and the player theme model.
+// (the innertube module, Android-free but for Timber), the player theme model, the phone sign-in
+// and the Listen Together wire format, so the computer and the phone speak the same protocol.
 val sharedSources by tasks.registering(Sync::class) {
     from("../innertube/src/main/kotlin")
     from("../app/src/main/kotlin") {
         include("com/metrolist/music/ui/player/PlayerTheme.kt")
         include("com/metrolist/music/pulse/LoginTransfer.kt")
+        include("com/metrolist/music/listentogether/Protocol.kt")
+        include("com/metrolist/music/listentogether/MessageCodec.kt")
+        include("com/metrolist/music/listentogether/ServerClock.kt")
     }
     into(layout.buildDirectory.dir("shared-src"))
 }
@@ -37,6 +43,20 @@ val sharedSources by tasks.registering(Sync::class) {
 sourceSets {
     main {
         kotlin.srcDir(sharedSources)
+        proto { srcDir("../app/src/main/proto") }
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:${libs.versions.protobuf.get()}"
+    }
+    generateProtoTasks {
+        all().configureEach {
+            builtins {
+                named("java") { option("lite") }
+            }
+        }
     }
 }
 
@@ -82,6 +102,7 @@ dependencies {
     implementation("io.coil-kt.coil3:coil-compose:${libs.versions.coil.get()}")
     implementation("io.coil-kt.coil3:coil-network-okhttp:${libs.versions.coil.get()}")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.11.0")
+    implementation(libs.protobuf.javalite)
 
     // Audio: FFmpeg decodes every YouTube format; its natives ship inside these jars.
     implementation("org.bytedeco:javacv:$javacppVersion") { isTransitive = false }

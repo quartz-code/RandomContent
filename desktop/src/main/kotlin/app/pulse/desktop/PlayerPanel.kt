@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
@@ -111,7 +112,11 @@ fun PlayerPanel(
             Spacer(Modifier.height(14.dp))
             Progress(theme, p, fonts, state, controller::seekTo)
             Spacer(Modifier.height(10.dp))
-            Transport(theme, p, state, controller)
+            // A guest of a room hears the host's choices: the buttons stay, faded, and do nothing.
+            Box(Modifier.alpha(if (state.followingHost != null) 0.35f else 1f)) { Transport(theme, p, state, controller) }
+            state.followingHost?.let { host ->
+                Text(Strings.hostControls(host), color = p.muted, fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 6.dp))
+            }
             Spacer(Modifier.height(12.dp))
             VolumeRow(p, state.volume, controller::setVolume)
             state.error?.let {

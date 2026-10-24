@@ -70,6 +70,65 @@ object Strings {
     val playlists = t("Плейлисты", "Playlists")
     val playlistEmpty = t("В плейлисте пусто", "The playlist is empty")
     val back = t("Назад", "Back")
+
+    val together = t("Вместе", "Together")
+    val togetherIntro = t(
+        "Слушайте одну музыку одновременно — с телефонов и компьютеров. Один ведёт, остальные слышат то же, что у него, секунда в секунду.",
+        "Listen to the same music at the same time, on phones and computers. One person leads; everyone hears what they play, to the second.",
+    )
+    val yourName = t("Твоё имя в комнате", "Your name in the room")
+    val createRoom = t("Создать комнату", "Create a room")
+    val joinRoom = t("Войти по коду", "Join with a code")
+    val roomCodeHint = t("Код комнаты или приглашение целиком", "Room code or the whole invite")
+    val create = t("Создать", "Create")
+    val join = t("Войти", "Join")
+    val cancel = t("Отмена", "Cancel")
+    val connecting = t("Подключаюсь…", "Connecting…")
+    val waking = t(
+        "Сервер просыпается — если комнатами давно не пользовались, это до минуты",
+        "The server is waking up: up to a minute if nobody used rooms for a while",
+    )
+    val waitingApproval = t("Ждём, пока хозяин комнаты пустит", "Waiting for the host to let you in")
+    val roomCode = t("Код комнаты", "Room code")
+    val copyInvite = t("Скопировать приглашение", "Copy the invite")
+    val inviteCopied = t("Скопировано — отправь другу", "Copied: send it to a friend")
+    fun inviteText(code: String) = t(
+        "Заходи слушать вместе в Pulse 🎧\nОткрой Together → Войти, код комнаты: $code\n\nСкопируй это сообщение — Pulse сам подставит код.",
+        "Join me in Pulse and let's listen together 🎧\nOpen Together → Join, room code: $code\n\nCopy this message: Pulse fills the code in by itself.",
+    )
+    val youLead = t("Ты ведёшь: все слышат то, что играет у тебя", "You lead: everyone hears what you play")
+    fun hostLeads(host: String) = t("Ведёт $host — твой плеер играет то же самое", "$host leads: your player plays the same")
+    fun hostControls(host: String) = t("Музыкой управляет $host", "$host controls the music")
+    val suggestHint = t(
+        "Чтобы предложить песню, нажми на неё в поиске или в «Моей музыке» — хозяин решит, ставить ли её следующей.",
+        "To suggest a song, click it in Search or My music: the host decides whether it plays next.",
+    )
+    val inRoom = t("В комнате", "In the room")
+    val you = t("ты", "you")
+    val leads = t("ведёт", "leads")
+    val offline = t("не в сети", "offline")
+    val wantToJoin = t("Хотят войти", "Want to join")
+    val letIn = t("Пустить", "Let in")
+    val decline = t("Отказать", "Decline")
+    val suggested = t("Предлагают", "Suggested")
+    val addNext = t("Следующей", "Play next")
+    val removeFromRoom = t("Убрать из комнаты", "Remove from the room")
+    val handOver = t("Передать управление", "Hand over")
+    val leaveRoom = t("Выйти из комнаты", "Leave the room")
+    val reconnecting = t("Связь пропала — восстанавливаю…", "Connection lost: restoring…")
+    val suggest = t("Предложить хозяину", "Suggest to the host")
+    val suggestionSent = t("Предложение отправлено хозяину", "Suggestion sent to the host")
+    val suggestionAdded = t("Хозяин поставил твою песню следующей", "The host put your song next")
+    val suggestionDeclined = t("Хозяин не стал ставить песню", "The host passed on your song")
+    fun suggestedBy(name: String) = t("Предложение: $name", "Suggested by $name")
+    val togetherUnreachable = t("Не получилось связаться с сервером — проверь интернет и попробуй ещё раз", "Could not reach the server: check the internet and try again")
+    val togetherNoRoom = t("Комнаты с таким кодом нет — проверь код", "There is no room with this code: check it")
+    val togetherRejected = t("Хозяин не пустил в комнату", "The host did not let you in")
+    val togetherKicked = t("Тебя убрали из комнаты", "You were removed from the room")
+    val togetherLost = t("Комната закрылась — создай новую", "The room closed: create a new one")
+    val togetherFull = t("Комната заполнена", "The room is full")
+    val togetherNotAllowed = t("Сервер не пускает это приложение", "The server does not let this app in")
+    fun togetherOther(detail: String?) = t("Сервер ответил: ${detail.orEmpty()}", "The server said: ${detail.orEmpty()}")
     fun songsCount(n: Int) = if (ru) "$n ${plural(n, "песня", "песни", "песен")}" else "$n song${if (n == 1) "" else "s"}"
     private fun plural(n: Int, one: String, few: String, many: String): String {
         val m10 = n % 10

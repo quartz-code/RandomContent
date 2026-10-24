@@ -27,9 +27,11 @@ class AudioEngine {
     val durationMs: Long get() = session?.durationMs ?: 0L
     val isPlaying: Boolean get() = session?.let { !it.paused && !it.finished } ?: false
 
-    fun play(file: File, startMs: Long, onEnded: () -> Unit, onError: (Throwable) -> Unit) {
+    /** [startPaused]: open the song and stop at [startMs], as a guest of a room waits for the host. */
+    fun play(file: File, startMs: Long, onEnded: () -> Unit, onError: (Throwable) -> Unit, startPaused: Boolean = false) {
         stop()
         val s = Session(file, startMs, onEnded, onError)
+        s.paused = startPaused
         session = s
         s.start()
     }
@@ -117,7 +119,21 @@ class AudioEngine {
                         if (!paused) out.start()
                         continue
                     }
-                    val frame = grabber.grabSamples() ?: break
+                    val frame = grabber.grabSamples()
+                    if (frame == null) {
+                        // The end: let the sound play out and report it once, then wait. A seek starts
+                        // the song again, as when the host of a room plays it once more.
+                        out.drain()
+                        if (!finished) {
+                            finished = true
+                            onEnded()
+                        }
+                        synchronized(lock) {
+                            while (!stopped && seekRequest.get() < 0) lock.wait()
+                        }
+                        finished = false
+                        continue
+                    }
                     val buffer = frame.samples?.firstOrNull() as? ShortBuffer ?: continue
                     val n = buffer.remaining()
                     if (shorts.size < n) shorts = ShortArray(n)
@@ -131,11 +147,6 @@ class AudioEngine {
                     }
                     onSamples?.invoke(shorts, n)
                     out.write(bytes, 0, n * 2)
-                }
-                if (!stopped) {
-                    out.drain()
-                    finished = true
-                    onEnded()
                 }
             } finally {
                 line = null

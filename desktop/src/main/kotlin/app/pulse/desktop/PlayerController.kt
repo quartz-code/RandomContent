@@ -5,7 +5,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -19,6 +21,8 @@ data class Track(
     val artists: String,
     val thumbnail: String?,
     val durationSec: Int?,
+    /** Who suggested it, in a Listen Together room. */
+    val suggestedBy: String? = null,
 ) {
     /** YouTube Music thumbnails carry their size in the URL; the player wants a big one. */
     val artwork: String? get() = thumbnail?.let(::largeThumbnail)
@@ -52,6 +56,8 @@ data class PlayerState(
     val shuffle: Boolean = false,
     val repeat: RepeatMode = RepeatMode.OFF,
     val error: String? = null,
+    /** In a Listen Together room as a guest: the host's name. The host drives; local controls are off. */
+    val followingHost: String? = null,
 ) {
     val current: Track? get() = queue.getOrNull(index)
 }
@@ -61,11 +67,18 @@ data class PlayerState(
  * download it, hand it to [AudioEngine], move on when it ends. The next song is downloaded in
  * the background, so changing songs is instant.
  */
-class PlayerController(private val scope: CoroutineScope) {
+class PlayerController(private val scope: CoroutineScope) : RoomPlayer {
     private val engine = AudioEngine()
     private val _state = MutableStateFlow(PlayerState())
-    val state: StateFlow<PlayerState> = _state.asStateFlow()
+    override val state: StateFlow<PlayerState> = _state.asStateFlow()
     val levels = AudioLevels()
+    private val _seeks = MutableSharedFlow<Long>(extraBufferCapacity = 8)
+    override val seeks: SharedFlow<Long> = _seeks
+    override val livePositionMs: Long get() = if (_state.value.loading == null) engine.positionMs else 0L
+    override val livePlaying: Boolean get() = engine.isPlaying
+
+    /** A guest of a room listens to the host's choices; buttons and media keys do nothing. */
+    private val following: Boolean get() = _state.value.followingHost != null
 
     private var loadJob: Job? = null
     private var prefetchJob: Job? = null
@@ -84,36 +97,42 @@ class PlayerController(private val scope: CoroutineScope) {
     }
 
     fun playQueue(tracks: List<Track>, start: Int) {
-        if (tracks.isEmpty()) return
+        if (tracks.isEmpty() || following) return
         _state.update { it.copy(queue = tracks, index = start.coerceIn(tracks.indices), error = null) }
         rebuildShuffle()
         startCurrent()
     }
 
     fun enqueue(track: Track) {
+        if (following) return
         val wasEmpty = _state.value.queue.isEmpty()
         _state.update { it.copy(queue = it.queue + track) }
         rebuildShuffle()
         if (wasEmpty) playAt(0)
     }
 
-    fun playNext(track: Track) {
+    override fun playNext(track: Track) {
+        if (following) return
         val s = _state.value
         if (s.queue.isEmpty()) return enqueue(track)
         val insertAt = s.index + 1
         _state.update { it.copy(queue = it.queue.toMutableList().apply { add(insertAt, track) }) }
-        rebuildShuffle()
+        // With shuffle on, "next" still means next: the order moves up past the new song, which goes
+        // right after the current one, instead of being shuffled in somewhere.
+        val shifted = shuffleOrder.map { if (it >= insertAt) it + 1 else it }.toMutableList()
+        shifted.add(shifted.indexOf(s.index) + 1, insertAt)
+        shuffleOrder = shifted
     }
 
     fun removeAt(position: Int) {
         val s = _state.value
-        if (position !in s.queue.indices || position == s.index) return
+        if (following || position !in s.queue.indices || position == s.index) return
         _state.update { it.copy(queue = it.queue.filterIndexed { i, _ -> i != position }, index = if (position < it.index) it.index - 1 else it.index) }
         rebuildShuffle()
     }
 
     fun playAt(position: Int) {
-        if (position !in _state.value.queue.indices) return
+        if (following || position !in _state.value.queue.indices) return
         _state.update { it.copy(index = position, error = null) }
         startCurrent()
     }
@@ -121,7 +140,7 @@ class PlayerController(private val scope: CoroutineScope) {
     fun togglePlay() {
         val s = _state.value
         when {
-            s.current == null -> Unit
+            following || s.current == null -> Unit
             s.loading != null -> Unit
             engine.isPlaying -> engine.pause()
             engine.durationMs > 0 && s.positionMs < s.durationMs - 500 -> engine.resume()
@@ -130,15 +149,20 @@ class PlayerController(private val scope: CoroutineScope) {
         _state.update { it.copy(isPlaying = engine.isPlaying) }
     }
 
-    fun next() = step(+1, userAction = true)
+    fun next() {
+        if (!following) step(+1, userAction = true)
+    }
 
     fun previous() {
+        if (following) return
         if (engine.positionMs > 3_000) seekTo(0) else step(-1, userAction = true)
     }
 
     fun seekTo(ms: Long) {
+        if (following) return
         engine.seek(ms)
         _state.update { it.copy(positionMs = ms) }
+        _seeks.tryEmit(ms)
     }
 
     fun setVolume(value: Float) {
@@ -147,11 +171,13 @@ class PlayerController(private val scope: CoroutineScope) {
     }
 
     fun toggleShuffle() {
+        if (following) return
         _state.update { it.copy(shuffle = !it.shuffle) }
         rebuildShuffle()
     }
 
     fun cycleRepeat() = _state.update {
+        if (following) return@update it
         it.copy(repeat = when (it.repeat) {
             RepeatMode.OFF -> RepeatMode.ALL
             RepeatMode.ALL -> RepeatMode.ONE
@@ -160,6 +186,48 @@ class PlayerController(private val scope: CoroutineScope) {
     }
 
     fun close() = engine.stop()
+
+    override fun upcoming(): List<Track> {
+        val s = _state.value
+        if (s.index !in s.queue.indices) return emptyList()
+        if (!s.shuffle) return s.queue.drop(s.index + 1)
+        val at = shuffleOrder.indexOf(s.index)
+        return shuffleOrder.drop(at + 1).mapNotNull { s.queue.getOrNull(it) }
+    }
+
+    // ---- a guest in a Listen Together room: the room decides, these do as told ----
+
+    override fun follow(hostName: String?) {
+        _state.update { it.copy(followingHost = hostName, shuffle = if (hostName != null) false else it.shuffle) }
+        if (hostName != null) rebuildShuffle()
+    }
+
+    override fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit) {
+        _state.update { it.copy(queue = listOf(track) + upcoming, index = 0, error = null) }
+        rebuildShuffle()
+        startCurrent(autoPlay = false, onReady = onReady)
+    }
+
+    override fun roomQueue(upcoming: List<Track>) {
+        val current = _state.value.current ?: return
+        _state.update { it.copy(queue = listOf(current) + upcoming, index = 0) }
+        rebuildShuffle()
+    }
+
+    override fun roomSeek(positionMs: Long) {
+        engine.seek(positionMs)
+        _state.update { it.copy(positionMs = positionMs) }
+    }
+
+    override fun roomResume() {
+        engine.resume()
+        _state.update { it.copy(isPlaying = engine.isPlaying) }
+    }
+
+    override fun roomPause() {
+        engine.pause()
+        _state.update { it.copy(isPlaying = false) }
+    }
 
     /** For drawing the window in tests without the network. */
     internal fun showForPreview(preview: PlayerState) = _state.update { preview }
@@ -204,7 +272,7 @@ class PlayerController(private val scope: CoroutineScope) {
         startCurrent()
     }
 
-    private fun startCurrent() {
+    private fun startCurrent(autoPlay: Boolean = true, onReady: (() -> Unit)? = null) {
         val track = _state.value.current ?: return
         loadJob?.cancel()
         engine.stop()
@@ -214,9 +282,9 @@ class PlayerController(private val scope: CoroutineScope) {
             val file = runCatching { fetch(track) { p -> _state.update { it.copy(loading = p) } } }
                 .getOrElse { error ->
                     _state.update { it.copy(loading = null, error = describe(error)) }
-                    // A song that cannot be fetched should not stop the queue.
+                    // A song that cannot be fetched should not stop the queue; in a room, the host moves on.
                     delay(1_500)
-                    if (_state.value.current == track) step(+1, userAction = false)
+                    if (_state.value.current == track && !following) step(+1, userAction = false)
                     return@launch
                 }
             if (_state.value.current != track) return@launch
@@ -224,9 +292,11 @@ class PlayerController(private val scope: CoroutineScope) {
             engine.play(
                 file,
                 startMs = 0,
-                onEnded = { scope.launch { if (_state.value.current == track) step(+1, userAction = false) } },
+                onEnded = { scope.launch { if (_state.value.current == track && !following) step(+1, userAction = false) } },
                 onError = { error -> _state.update { it.copy(error = describe(error), isPlaying = false) } },
+                startPaused = !autoPlay,
             )
+            onReady?.invoke()
             prefetchNext()
         }
     }

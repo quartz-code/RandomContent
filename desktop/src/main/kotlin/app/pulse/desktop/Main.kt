@@ -72,6 +72,8 @@ import coil3.compose.AsyncImage
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.SongItem
 import com.metrolist.music.ui.player.PlayerTheme
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.Font
 import org.jetbrains.compose.resources.painterResource
@@ -99,6 +101,15 @@ private fun selfTestAndExit(args: Array<String>): Nothing {
                 check(YouTube.visitorData != null) { "no visitor data" }
                 val stream = StreamResolver.resolve("Ra0ozaE-oy0")
                 println("Pulse self-test: stream from ${stream.clientName}, ${stream.mimeType}")
+                // Listen Together: a room on Pulse's server, over the same socket and wire format.
+                val scope = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Default)
+                val room = TogetherSession(scope, PlayerController(scope))
+                room.create("Pulse self-test")
+                val result = kotlinx.coroutines.withTimeout(120_000) { room.state.first { it.roomCode != null || it.problem != null } }
+                room.shutdown()
+                scope.cancel()
+                check(result.roomCode != null) { "Together: ${result.problem}" }
+                println("Pulse self-test: Together room ${result.roomCode}")
             }
         }
         0
@@ -113,6 +124,7 @@ private fun runWindow() = application {
     val scope = rememberCoroutineScope()
     val controller = remember { PlayerController(scope).also { it.setVolume(Settings.volume) } }
     val library = remember { LibraryModel(scope) }
+    val together = remember { TogetherSession(scope, controller) }
     LaunchedEffect(Unit) {
         runCatching { YouTubeSetup.init() }
         runCatching { Account.restore() }
@@ -120,6 +132,7 @@ private fun runWindow() = application {
     }
     Window(
         onCloseRequest = {
+            together.shutdown()
             controller.close()
             exitApplication()
         },
@@ -136,13 +149,22 @@ private fun runWindow() = application {
             }
         },
     ) {
-        PulseApp(controller, library)
+        PulseApp(controller, library, together)
+    }
+}
+
+/** What a click on a song does: play it, or, for a guest of a Listen Together room, suggest it to the host. */
+class Songs(val controller: PlayerController, val together: TogetherSession) {
+    fun play(list: List<Track>, index: Int) {
+        val room = together.state.value
+        if (room.inRoom && !room.isHost) together.suggest(list[index]) else controller.playQueue(list, index)
     }
 }
 
 @Composable
-fun PulseApp(controller: PlayerController, library: LibraryModel, initialTheme: PlayerTheme = Settings.loadTheme()) {
+fun PulseApp(controller: PlayerController, library: LibraryModel, together: TogetherSession, initialTheme: PlayerTheme = Settings.loadTheme()) {
     val state by controller.state.collectAsState()
+    val songs = remember(controller, together) { Songs(controller, together) }
     val likedIds by library.likedIds.collectAsState()
     val account by Account.info.collectAsState()
     var theme by remember { mutableStateOf(initialTheme) }
@@ -154,7 +176,7 @@ fun PulseApp(controller: PlayerController, library: LibraryModel, initialTheme: 
     MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB8C4FF), surface = Color(0xFF15161A), background = Color(0xFF101114))) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxSize()) {
-                Library(controller, library, state, onTheme = { showTheme = true }, onAccount = { showAccount = true }, modifier = Modifier.weight(1f).fillMaxHeight())
+                Library(songs, library, state, onTheme = { showTheme = true }, onAccount = { showAccount = true }, modifier = Modifier.weight(1f).fillMaxHeight())
                 PlayerPanel(
                     theme, state, controller, fonts,
                     liked = state.current?.let { it.videoId in likedIds }.takeIf { account != null },
@@ -180,8 +202,9 @@ fun PulseApp(controller: PlayerController, library: LibraryModel, initialTheme: 
 }
 
 @Composable
-private fun Library(controller: PlayerController, library: LibraryModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, modifier: Modifier) {
+private fun Library(songs: Songs, library: LibraryModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, modifier: Modifier) {
     val account by Account.info.collectAsState()
+    val room by songs.together.state.collectAsState()
     val scope = rememberCoroutineScope()
     var query by remember { mutableStateOf("") }
     var results by remember { mutableStateOf<List<Track>?>(null) }
@@ -229,12 +252,14 @@ private fun Library(controller: PlayerController, library: LibraryModel, state: 
             Tab(tab == 0, onClick = { tab = 0 }, text = { Text(Strings.searchTab) })
             Tab(tab == 1, onClick = { tab = 1 }, text = { Text(Strings.myMusic) })
             Tab(tab == 2, onClick = { tab = 2 }, text = { Text("${Strings.queue} · ${state.queue.size}") })
+            Tab(tab == 3, onClick = { tab = 3 }, text = { Text(if (room.inRoom) "${Strings.together} · ${room.members.size}" else Strings.together) })
         }
         Spacer(Modifier.height(8.dp))
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                tab == 1 -> LibraryTab(library, controller, state, onSignIn = onAccount)
-                tab == 2 -> QueueList(state, controller)
+                tab == 1 -> LibraryTab(library, songs, state, onSignIn = onAccount)
+                tab == 2 -> QueueList(state, songs.controller)
+                tab == 3 -> TogetherTab(songs.together)
                 searching -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 results == null -> Hint(Strings.searchEmpty)
                 results!!.isEmpty() -> Hint(if (failed) Strings.searchFailed else Strings.searchNothing)
@@ -243,8 +268,8 @@ private fun Library(controller: PlayerController, library: LibraryModel, state: 
                         SongRow(
                             track = track,
                             playing = state.current?.videoId == track.videoId,
-                            onClick = { controller.playQueue(results!!, i) },
-                            actions = { TrackActions(controller, track) },
+                            onClick = { songs.play(results!!, i) },
+                            actions = { TrackActions(songs, track) },
                         )
                     }
                 }
@@ -263,7 +288,7 @@ private fun QueueList(state: PlayerState, controller: PlayerController) {
                 playing = i == state.index,
                 onClick = { controller.playAt(i) },
                 actions = {
-                    if (i != state.index) {
+                    if (i != state.index && state.followingHost == null) {
                         IconButton(onClick = { controller.removeAt(i) }) { Icon(painterResource(Res.drawable.close), Strings.remove, modifier = Modifier.size(18.dp)) }
                     }
                 },
@@ -273,9 +298,14 @@ private fun QueueList(state: PlayerState, controller: PlayerController) {
 }
 
 @Composable
-internal fun TrackActions(controller: PlayerController, track: Track) {
-    IconButton(onClick = { controller.playNext(track) }) { Icon(painterResource(Res.drawable.playlist_play), Strings.playNext, modifier = Modifier.size(20.dp)) }
-    IconButton(onClick = { controller.enqueue(track) }) { Icon(painterResource(Res.drawable.playlist_add), Strings.addToQueue, modifier = Modifier.size(20.dp)) }
+internal fun TrackActions(songs: Songs, track: Track) {
+    val room by songs.together.state.collectAsState()
+    if (room.inRoom && !room.isHost) {
+        IconButton(onClick = { songs.together.suggest(track) }) { Icon(painterResource(Res.drawable.playlist_add), Strings.suggest, modifier = Modifier.size(20.dp)) }
+        return
+    }
+    IconButton(onClick = { songs.controller.playNext(track) }) { Icon(painterResource(Res.drawable.playlist_play), Strings.playNext, modifier = Modifier.size(20.dp)) }
+    IconButton(onClick = { songs.controller.enqueue(track) }) { Icon(painterResource(Res.drawable.playlist_add), Strings.addToQueue, modifier = Modifier.size(20.dp)) }
 }
 
 @Composable
@@ -296,7 +326,10 @@ internal fun SongRow(track: Track, playing: Boolean, onClick: () -> Unit, action
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f)) {
             Text(track.title, maxLines = 1, overflow = TextOverflow.Ellipsis, color = if (playing) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-            Text(track.artists, maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
+            Text(
+                listOfNotNull(track.artists, track.suggestedBy?.let(Strings::suggestedBy)).joinToString(" · "),
+                maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
         }
         if (hovered) actions()
         track.durationSec?.let {
