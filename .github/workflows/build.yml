@@ -51,4 +51,95 @@ jobs:
           body: |
             Сборка из ветки `${{ github.ref_name }}` (${{ github.sha }}).
             Скачай **Pulse.apk** и установи.
+
+            Pulse для ПК (файлы появятся через несколько минут после APK):
+            - Windows: **Pulse-windows-x64.msi** (установщик) или **Pulse-windows-x64-portable.zip** (без установки).
+            - Linux: **pulse-linux-x64.deb** (Ubuntu, Debian, Mint), **pulse-linux-x64.rpm** (Fedora, openSUSE) или **pulse-linux-x64.tar.gz** (любой дистрибутив).
           files: dist/Pulse.apk
+
+  # Pulse for Windows and Linux: its own Gradle build in desktop/. It runs after the APK is
+  # published and only adds files to the same release, so it can never hold the APK back.
+  desktop:
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+          - os: windows-latest
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Packaging tools
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y rpm fakeroot
+
+      - name: Tests
+        run: ./gradlew -p desktop test --no-daemon --console=plain
+
+      - name: App image
+        run: ./gradlew -p desktop createDistributable --no-daemon --console=plain -Ppulse.version=1.0.${{ github.run_number }}
+
+      # The packaged app decodes a built-in sample with its own trimmed Java and FFmpeg: an installer
+      # that could not play sound fails here.
+      - name: Self-test (Linux)
+        if: runner.os == 'Linux'
+        run: desktop/build/compose/binaries/main/app/Pulse/bin/Pulse --self-test
+
+      - name: Self-test (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $p = Start-Process -FilePath "desktop\build\compose\binaries\main\app\Pulse\Pulse.exe" -ArgumentList "--self-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "self-test exit code $($p.ExitCode)" }
+
+      # Reaching YouTube from a data-centre runner depends on YouTube's mood, so this one only reports.
+      - name: Network self-test (Linux)
+        if: runner.os == 'Linux'
+        continue-on-error: true
+        run: desktop/build/compose/binaries/main/app/Pulse/bin/Pulse --self-test --net
+
+      - name: Portable archive
+        run: |
+          mkdir -p dist
+          cd desktop/build/compose/binaries/main/app
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            7z a -tzip "$GITHUB_WORKSPACE/dist/Pulse-windows-x64-portable.zip" Pulse > /dev/null
+          else
+            tar -czf "$GITHUB_WORKSPACE/dist/pulse-linux-x64.tar.gz" Pulse
+          fi
+
+      - name: Installers
+        continue-on-error: true
+        run: |
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            ./gradlew -p desktop packageMsi --no-daemon --console=plain -Ppulse.version=1.0.${{ github.run_number }}
+            cp desktop/build/compose/binaries/main/msi/*.msi dist/Pulse-windows-x64.msi
+          else
+            ./gradlew -p desktop packageDeb packageRpm --no-daemon --console=plain -Ppulse.version=1.0.${{ github.run_number }}
+            cp desktop/build/compose/binaries/main/deb/*.deb dist/pulse-linux-x64.deb
+            cp desktop/build/compose/binaries/main/rpm/*.rpm dist/pulse-linux-x64.rpm
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pulse-desktop-${{ runner.os }}
+          path: dist/*
+
+      - name: Add to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: build-${{ github.run_number }}
+          files: dist/*
