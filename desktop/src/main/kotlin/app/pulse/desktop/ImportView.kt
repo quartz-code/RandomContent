@@ -205,6 +205,7 @@ private fun Review(model: ImportModel, songs: Songs, library: LibraryModel) {
     val account by Account.info.collectAsState()
     val likedIds by library.likedIds.collectAsState()
     val player by songs.controller.state.collectAsState()
+    val saveFailed by model.saveFailed.collectAsState()
     var filter by remember { mutableStateOf(Filter.ALL) }
     var playlistName by remember(list) { mutableStateOf(list?.title.orEmpty()) }
     var fixing by remember { mutableStateOf<ImportModel.Row?>(null) }
@@ -258,6 +259,7 @@ private fun Review(model: ImportModel, songs: Songs, library: LibraryModel) {
                 )
                 Button(enabled = chosen > 0 && account != null, onClick = { model.save(ImportModel.Destination.NewPlaylist(playlistName.trim())) }) { Text(Strings.saveAsPlaylist) }
             }
+            if (saveFailed) Text(Strings.importSaveFailed, fontSize = 13.sp, color = MaterialTheme.colorScheme.error)
             if (account == null) Text(Strings.saveNeedsSignIn, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f))
         }
     }

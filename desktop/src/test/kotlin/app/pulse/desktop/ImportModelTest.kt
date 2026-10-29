@@ -95,6 +95,48 @@ class ImportModelTest {
     }
 
     @Test
+    fun aFailedSaveKeepsTheReview() {
+        val refusing = object : ImportModel.AccountWriter {
+            override suspend fun createPlaylist(title: String): String = throw java.io.IOException("refused")
+            override suspend fun addToPlaylist(playlistId: String, videoId: String) = false
+            override suspend fun like(videoId: String) = false
+        }
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        try {
+            runBlocking {
+                val model = ImportModel(scope, matcher, refusing)
+                model.start(list)
+                until { model.phase.value == ImportModel.Phase.Review }
+                model.choose(2, song("yt_by_hand"))
+                model.save(ImportModel.Destination.NewPlaylist("X"))
+                until { model.saveFailed.value }
+                assertEquals<ImportModel.Phase>(ImportModel.Phase.Review, model.phase.value)
+                // The fix by hand is still there to save again.
+                assertEquals("yt_by_hand", model.rows.value[2].chosen?.id)
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun aStoppedSearchWritesNothing() {
+        val slow: suspend (ImportedTrack) -> TrackMatcher.Match = { track ->
+            // Like the YouTube client, which turns cancellation into a failed result and returns.
+            runCatching { delay(300) }
+            matcher(track)
+        }
+        withModel(slow) { model, _ ->
+            model.start(list)
+            delay(50)
+            model.stopMatching()
+            delay(600)
+            assertEquals<ImportModel.Phase>(ImportModel.Phase.Review, model.phase.value)
+            assertTrue(model.rows.value.all { it.status == TrackMatcher.Status.NOT_FOUND && it.chosen == null })
+        }
+    }
+
+    @Test
     fun failuresAreNamed() = withModel { model, _ ->
         model.load { throw YandexMusicImport.Failure.Region() }
         until { model.phase.value is ImportModel.Phase.Failed }

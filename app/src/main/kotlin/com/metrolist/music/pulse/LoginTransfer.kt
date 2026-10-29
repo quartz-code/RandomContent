@@ -44,6 +44,8 @@ object LoginTransfer {
     private const val IV_BYTES = 12
     /** A message older than this is refused, so an old chat copy cannot be replayed later. */
     const val MAX_AGE_MS = 30 * 60 * 1000L
+    /** The phone's and the computer's clocks need not agree: a message "from the future" by this much is fine. */
+    const val CLOCK_SKEW_MS = 10 * 60 * 1000L
 
     private val json = Json { ignoreUnknownKeys = true }
     private val random = SecureRandom()
@@ -94,7 +96,7 @@ object LoginTransfer {
             cipher.init(Cipher.DECRYPT_MODE, key(code, salt), GCMParameterSpec(128, iv))
             json.decodeFromString(Session.serializer(), String(cipher.doFinal(sealed.copyOfRange(SALT_BYTES + IV_BYTES, sealed.size))))
         }.getOrNull() ?: return Opened.WrongCode
-        if (nowMs - session.createdAtMs !in 0..MAX_AGE_MS) return Opened.Expired
+        if (nowMs - session.createdAtMs !in -CLOCK_SKEW_MS..MAX_AGE_MS) return Opened.Expired
         return Opened.Ok(session)
     }
 

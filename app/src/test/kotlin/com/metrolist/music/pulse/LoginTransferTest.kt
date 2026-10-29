@@ -25,6 +25,10 @@ class LoginTransferTest {
         val sealed = LoginTransfer.seal(session, "K7QP-9XMB", nowMs = 0)
         assertEquals(LoginTransfer.Opened.WrongCode, LoginTransfer.open(sealed, "K7QP-9XMC", nowMs = 0))
         assertEquals(LoginTransfer.Opened.Expired, LoginTransfer.open(sealed, "K7QP-9XMB", nowMs = LoginTransfer.MAX_AGE_MS + 1))
+        // A computer whose clock is a few minutes behind the phone still opens a fresh message.
+        val ahead = LoginTransfer.seal(session, "K7QP-9XMB", nowMs = 3 * 60_000)
+        assertTrue(LoginTransfer.open(ahead, "K7QP-9XMB", nowMs = 0) is LoginTransfer.Opened.Ok)
+        assertEquals(LoginTransfer.Opened.Expired, LoginTransfer.open(ahead, "K7QP-9XMB", nowMs = -LoginTransfer.CLOCK_SKEW_MS))
         assertEquals(LoginTransfer.Opened.NotFound, LoginTransfer.open("просто текст", "K7QP-9XMB"))
         assertEquals(LoginTransfer.Opened.WrongCode, LoginTransfer.open(sealed.dropLast(4), "K7QP-9XMB", nowMs = 0))
     }

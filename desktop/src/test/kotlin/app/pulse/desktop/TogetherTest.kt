@@ -114,6 +114,33 @@ class TogetherTest {
         }
     }
 
+    /** A guest that could not fetch the song tries again on the host's next heartbeat. */
+    @Test
+    fun aGuestRetriesASongItCouldNotFetch() {
+        val server = System.getenv("PULSE_TOGETHER_SERVER") ?: return
+        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        val hostPlayer = FakePlayer(scope)
+        val guestPlayer = FakePlayer(scope, failLoads = 1)
+        val host = TogetherSession(scope, hostPlayer, server)
+        val guest = TogetherSession(scope, guestPlayer, server)
+        try {
+            runBlocking {
+                host.create("Host")
+                val code = until("room created") { host.state.value.roomCode }
+                hostPlayer.playLocally(listOf(Track("aaaaaaaaaaa", "Song A", "Artist", null, 240)), 0, atMs = 10_000)
+                guest.join(code, "Guest")
+                val ask = until("join request") { host.state.value.requests.firstOrNull() }
+                host.approve(ask.userId)
+                until("guest plays after a retry") { guestPlayer.takeIf { it.livePlaying } }
+                assertClose(hostPlayer.livePositionMs, guestPlayer.livePositionMs, "after the retry")
+                host.leave()
+                guest.leave()
+            }
+        } finally {
+            scope.cancel()
+        }
+    }
+
     @Test
     fun aMissingRoomIsSaidSo() {
         val server = System.getenv("PULSE_TOGETHER_SERVER") ?: return
@@ -148,7 +175,7 @@ class TogetherTest {
 }
 
 /** A player without sound: a clock that runs while "playing", and loading that takes a moment. */
-private class FakePlayer(private val scope: CoroutineScope) : RoomPlayer {
+private class FakePlayer(private val scope: CoroutineScope, private var failLoads: Int = 0) : RoomPlayer {
     override val state = MutableStateFlow(PlayerState())
     override val seeks = MutableSharedFlow<Long>(extraBufferCapacity = 8)
     private var baseMs = 0L
@@ -164,13 +191,14 @@ private class FakePlayer(private val scope: CoroutineScope) : RoomPlayer {
 
     override fun follow(hostName: String?) = state.update { it.copy(followingHost = hostName) }
 
-    override fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit) {
+    override fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit, onFailed: () -> Unit) {
         synchronized(this) { baseMs = 0; startedAt = null }
         state.update { it.copy(queue = listOf(track) + upcoming, index = 0, loading = 0f, isPlaying = false) }
         scope.launch {
             delay(400)
             state.update { it.copy(loading = null) }
-            onReady()
+            // A song YouTube refused, the first [failLoads] times.
+            if (failLoads-- > 0) onFailed() else onReady()
         }
     }
 

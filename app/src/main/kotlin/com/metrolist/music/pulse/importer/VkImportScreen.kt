@@ -121,7 +121,8 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
     var loaded by remember { mutableStateOf<ImportedList?>(null) }
     var link by remember { mutableStateOf("") }
     // The mobile site's login hop, walked in the WebView; then the interrupted load runs again.
-    var handshake by remember { mutableStateOf<Pair<String, () -> Unit>?>(null) }
+    // Third: what closing the login view without signing in leaves behind.
+    var handshake by remember { mutableStateOf<Triple<String, () -> Unit, () -> Unit>?>(null) }
     var playlistsVersion by remember { mutableIntStateOf(0) }
 
     fun load(block: suspend (cookies: String) -> ImportedList, afterHandshake: Boolean = false) {
@@ -138,7 +139,7 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
                     error = R.string.vk_error_session
                     onUserIdChange(0L)
                 } else {
-                    handshake = e.url to { load(block, afterHandshake = true) }
+                    handshake = Triple(e.url, { load(block, afterHandshake = true) }, { loading = false })
                 }
             } catch (e: Exception) {
                 error = failureText(e)
@@ -156,7 +157,11 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
                 .onSuccess { playlists = it; playlistsError = null }
                 .onFailure {
                     if (it is VkMusicImport.Failure.NeedsHandshake && playlistsVersion == 0) {
-                        handshake = it.url to { playlistsVersion++ }
+                        handshake = Triple(it.url, { playlistsVersion++ }) {
+                            // Closed without signing in: say so instead of a spinner that never stops.
+                            playlistsError = R.string.vk_error_session
+                            playlists = emptyList()
+                        }
                     } else {
                         playlistsError = failureText(it)
                         playlists = emptyList()
@@ -165,14 +170,14 @@ fun VkImportScreen(navController: NavController, viewModel: ImportViewModel = hi
         }
     }
 
-    handshake?.let { (url, retry) ->
+    handshake?.let { (url, retry, cancel) ->
         VkLoginView(
             startUrl = url,
             knownUserId = userId,
             onDone = { id ->
                 handshake = null
                 cookieVersion++
-                if (id != null) retry() else loading = false
+                if (id != null) retry() else cancel()
             },
         )
         return

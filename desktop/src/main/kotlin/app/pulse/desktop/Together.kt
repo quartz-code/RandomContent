@@ -50,6 +50,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -153,6 +154,8 @@ class TogetherSession(
     private var roomPlaying = false
     private var loadingTrackId: String? = null
     private var loadedTrackId: String? = null
+    /** Songs this guest could not fetch, and how often: tried again on the host's next message, a few times. */
+    private val failedLoads = mutableMapOf<String, Int>()
 
     /** A free server sleeps after a quarter of an hour alone; a plain request wakes it. */
     fun wake() {
@@ -214,6 +217,10 @@ class TogetherSession(
                 val open = socket ?: return@withContext null
                 if (_state.value.roomCode != null) send(MessageTypes.LEAVE_ROOM, null)
                 closedSignal = CompletableDeferred()
+                // Leaving for good: the close must not look like a dropped connection to reconnect.
+                sessionToken = null
+                socketId++
+                pingJob?.cancel()
                 open.close(1000, null)
                 closedSignal
             }
@@ -327,6 +334,7 @@ class TogetherSession(
         roomTrack = null
         loadingTrackId = null
         loadedTrackId = null
+        failedLoads.clear()
         player.follow(null)
         _state.value = State(problem = problem, problemDetail = detail)
     }
@@ -510,7 +518,7 @@ class TogetherSession(
                 }
             }
             launch {
-                player.state.map { player.upcoming().map(Track::videoId) }.distinctUntilChanged().drop(1).collect {
+                player.state.map { player.upcoming().map(Track::videoId) }.distinctUntilChanged().drop(1).collectLatest {
                     // Several quick edits to the queue go out as one.
                     delay(QUEUE_DEBOUNCE_MS)
                     if (sentTrackId != null) send(MessageTypes.PLAYBACK_ACTION, PlaybackActionPayload(PlaybackActions.SYNC_QUEUE, queue = upcomingInfo()))
@@ -612,7 +620,7 @@ class TogetherSession(
                 if (trackId != loadedTrackId) {
                     // Still loading: the server sends the position again once this player says it is ready.
                     val track = roomTrack?.takeIf { it.id == trackId }
-                    if (track != null && trackId != loadingTrackId) load(track, emptyList())
+                    if (track != null && trackId != loadingTrackId && (failedLoads[trackId] ?: 0) < MAX_LOAD_TRIES) load(track, player.upcoming().map { it.toTrackInfo() })
                     if (track == null && trackId != loadingTrackId) send(MessageTypes.REQUEST_SYNC, null)
                     return
                 }
@@ -627,14 +635,27 @@ class TogetherSession(
     private fun load(track: TrackInfo, queue: List<TrackInfo>) {
         loadingTrackId = track.id
         loadedTrackId = null
-        player.roomLoad(track.toTrack(), queue.map { it.toTrack() }) {
-            scope.launch(serial) {
-                if (loadingTrackId != track.id) return@launch
-                loadingTrackId = null
-                loadedTrackId = track.id
-                send(MessageTypes.BUFFER_READY, BufferReadyPayload(track.id))
-            }
-        }
+        player.roomLoad(
+            track.toTrack(),
+            queue.map { it.toTrack() },
+            onReady = {
+                scope.launch(serial) {
+                    if (loadingTrackId != track.id) return@launch
+                    loadingTrackId = null
+                    loadedTrackId = track.id
+                    failedLoads.remove(track.id)
+                    send(MessageTypes.BUFFER_READY, BufferReadyPayload(track.id))
+                }
+            },
+            onFailed = {
+                // YouTube refused or the network dropped: the host's next heartbeat tries again.
+                scope.launch(serial) {
+                    if (loadingTrackId != track.id) return@launch
+                    loadingTrackId = null
+                    failedLoads[track.id] = (failedLoads[track.id] ?: 0) + 1
+                }
+            },
+        )
     }
 
     /**
@@ -666,6 +687,7 @@ class TogetherSession(
         private const val SOFT_SYNC_MS = 150L
         private const val PLAYING_TOLERANCE_MS = 2_000L
         private const val MAX_QUEUE = 200
+        private const val MAX_LOAD_TRIES = 3
         private const val MAX_RECONNECTS = 8
         private val RECONNECT_DELAYS_MS = longArrayOf(1_000, 2_000, 4_000, 8_000, 15_000, 30_000)
 

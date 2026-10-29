@@ -92,6 +92,7 @@ fun PcLoginScreen(navController: NavController) {
                 code = it.take(12)
                 message = null
             },
+            enabled = !working,
             label = { Text(stringResource(R.string.pc_login_code)) },
             placeholder = { Text("K7QP-9XMB") },
             singleLine = true,
@@ -110,6 +111,8 @@ fun PcLoginScreen(navController: NavController) {
         Button(
             enabled = validCode && !working && (signedIn || withVk),
             onClick = {
+                // The code as it is now: the field stays editable while the slow sealing runs.
+                val sealCode = LoginTransfer.normalizeCode(code) ?: return@Button
                 working = true
                 scope.launch {
                     // The key derivation is slow on purpose; keep it off the main thread.
@@ -123,7 +126,7 @@ fun PcLoginScreen(navController: NavController) {
                         vkUserId = if (vk) vkUserId else 0,
                         vkCookies = if (vk) vkCookies else "",
                     )
-                    val sealed = withContext(Dispatchers.Default) { LoginTransfer.seal(session, code) }
+                    val sealed = withContext(Dispatchers.Default) { LoginTransfer.seal(session, sealCode) }
                     val text = context.getString(R.string.pc_login_message, sealed)
                     message = text
                     copy(context, text)

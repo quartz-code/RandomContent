@@ -14,6 +14,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,6 +85,10 @@ class ImportModel(
     private val _phase = MutableStateFlow<Phase>(Phase.Idle)
     val phase: StateFlow<Phase> = _phase.asStateFlow()
 
+    /** Saving failed: the review stays, with this said above the buttons, so nothing is lost. */
+    private val _saveFailed = MutableStateFlow(false)
+    val saveFailed: StateFlow<Boolean> = _saveFailed.asStateFlow()
+
     fun loadYandex(link: String) = load { YandexMusicImport.load(link) }
 
     fun loadVkMusic(vk: VkAccount.Saved) = load { VkMusicImport.loadMyMusic(vk.userId, vk.cookies) }
@@ -144,6 +149,9 @@ class ImportModel(
                         } catch (e: Exception) {
                             TrackMatcher.Match(TrackMatcher.Status.NOT_FOUND, emptyList())
                         }
+                        // The YouTube client swallows cancellation into its result: a search still
+                        // running when the user stopped or loaded another list must not write.
+                        ensureActive()
                         val best = match.best?.takeIf { match.status != TrackMatcher.Status.NOT_FOUND }
                         updateRow(row.index) { it.copy(match = match, chosen = best?.song, included = best != null) }
                         _phase.value = Phase.Matching(done.incrementAndGet(), total)
@@ -165,6 +173,7 @@ class ImportModel(
 
     fun reset() {
         job?.cancel()
+        _saveFailed.value = false
         _list.value = null
         _rows.value = emptyList()
         _phase.value = Phase.Idle
@@ -201,6 +210,7 @@ class ImportModel(
             return
         }
         job?.cancel()
+        _saveFailed.value = false
         _phase.value = Phase.Saving(0, chosen.size)
         job = scope.launch(Dispatchers.IO) {
             var added = 0
@@ -209,7 +219,7 @@ class ImportModel(
                     val name = destination.name.ifBlank { _list.value?.title ?: "Импорт" }
                     val playlistId = runCatching { account.createPlaylist(name) }.getOrNull()
                     if (playlistId == null) {
-                        _phase.value = Phase.Failed(Problem.SAVE_FAILED)
+                        backToReview()
                         return@launch
                     }
                     chosen.forEachIndexed { i, song ->
@@ -233,8 +243,13 @@ class ImportModel(
                 }
                 Destination.Queue -> Unit
             }
-            _phase.value = if (added == 0) Phase.Failed(Problem.SAVE_FAILED) else Phase.Done(added, destination)
+            if (added == 0) backToReview() else _phase.value = Phase.Done(added, destination)
         }
+    }
+
+    private fun backToReview() {
+        _saveFailed.value = true
+        _phase.value = Phase.Review
     }
 
     private fun failure(e: Exception): Phase.Failed = when (e) {

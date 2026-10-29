@@ -53,10 +53,12 @@ object Account {
         val withVk = session.vkUserId > 0 && VkMusicImport.hasSession(session.vkCookies)
         if (withVk) VkAccount.save(session.vkUserId, session.vkCookies)
         if (session.cookie.isBlank()) return if (withVk) Result.Ok else Result.Rejected
+        // Tried on the side: if YouTube refuses it, the account signed in before keeps working.
+        val before = current()
         apply(session)
         val account = YouTube.accountInfo().getOrNull()
         if (account == null) {
-            clear()
+            if (before != null) apply(before) else clear()
             return Result.Rejected
         }
         save(session.copy(accountName = account.name, vkUserId = 0, vkCookies = ""))
@@ -75,6 +77,10 @@ object Account {
         YouTube.visitorData = session.visitorData
         YouTube.dataSyncId = session.dataSyncId.ifBlank { null }
         YouTube.authUser = session.authUser
+    }
+
+    private fun current(): LoginTransfer.Session? = YouTube.cookie?.takeIf { signedIn }?.let { cookie ->
+        LoginTransfer.Session(cookie, YouTube.visitorData.orEmpty(), YouTube.dataSyncId.orEmpty(), YouTube.authUser)
     }
 
     private fun clear() {

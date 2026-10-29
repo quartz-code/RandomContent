@@ -89,6 +89,8 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
         var heardMs = 0L
     }
     @Volatile private var listening: Listening? = null
+    /** Songs in a row that could not be fetched; the queue stops instead of cycling through them for ever. */
+    @Volatile private var failuresInRow = 0
 
     init {
         engine.volume = _state.value.volume
@@ -223,10 +225,10 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
         if (hostName != null) rebuildShuffle()
     }
 
-    override fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit) {
+    override fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit, onFailed: () -> Unit) {
         _state.update { it.copy(queue = listOf(track) + upcoming, index = 0, error = null) }
         rebuildShuffle()
-        startCurrent(autoPlay = false, onReady = onReady)
+        startCurrent(autoPlay = false, onReady = onReady, onFailed = onFailed)
     }
 
     override fun roomQueue(upcoming: List<Track>) {
@@ -293,7 +295,7 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
         startCurrent()
     }
 
-    private fun startCurrent(autoPlay: Boolean = true, onReady: (() -> Unit)? = null) {
+    private fun startCurrent(autoPlay: Boolean = true, onReady: (() -> Unit)? = null, onFailed: (() -> Unit)? = null) {
         val track = _state.value.current ?: return
         loadJob?.cancel()
         engine.stop()
@@ -305,12 +307,17 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
         loadJob = scope.launch(Dispatchers.IO) {
             val file = runCatching { fetch(track) { p -> _state.update { it.copy(loading = p) } } }
                 .getOrElse { error ->
+                    if (error is kotlinx.coroutines.CancellationException) throw error
                     _state.update { it.copy(loading = null, error = describe(error)) }
-                    // A song that cannot be fetched should not stop the queue; in a room, the host moves on.
+                    onFailed?.invoke()
+                    // A song that cannot be fetched should not stop the queue (in a room, the host moves
+                    // on). Skipping, not "repeat one", and not round and round a queue that all fails.
+                    failuresInRow++
                     delay(1_500)
-                    if (_state.value.current == track && !following) step(+1, userAction = false)
+                    if (_state.value.current == track && !following && failuresInRow < maxOf(3, _state.value.queue.size)) step(+1, userAction = true)
                     return@launch
                 }
+            failuresInRow = 0
             if (_state.value.current != track) return@launch
             _state.update { it.copy(loading = null) }
             engine.play(

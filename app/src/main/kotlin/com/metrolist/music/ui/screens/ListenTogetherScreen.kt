@@ -220,6 +220,12 @@ fun ListenTogetherScreen(
     var serverWaking by remember { mutableStateOf(false) }
     LaunchedEffect(connectionState) {
         serverWaking = false
+        // The connection gave up while creating or joining: no answer will come, so free the buttons.
+        if ((connectionState == ConnectionState.DISCONNECTED || connectionState == ConnectionState.ERROR) && (isCreatingRoom || isJoiningRoom)) {
+            isCreatingRoom = false
+            isJoiningRoom = false
+            joinErrorMessage = noAnswerText
+        }
         if (connectionState == ConnectionState.CONNECTING || connectionState == ConnectionState.RECONNECTING) {
             delay(4_000)
             serverWaking = true

@@ -27,8 +27,8 @@ interface RoomPlayer {
     /** Guest: lock the controls to the room's host ([hostName]), or give them back with null. */
     fun follow(hostName: String?)
 
-    /** Guest: open the room's song paused at the start; [onReady] once it can play at once. */
-    fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit)
+    /** Guest: open the room's song paused at the start; [onReady] once it can play at once, [onFailed] if it cannot be fetched. */
+    fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit, onFailed: () -> Unit = {})
     fun roomQueue(upcoming: List<Track>)
     fun roomSeek(positionMs: Long)
     fun roomResume()
