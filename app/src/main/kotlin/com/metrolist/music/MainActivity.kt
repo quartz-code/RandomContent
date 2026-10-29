@@ -799,7 +799,6 @@ class MainActivity : FragmentActivity() {
                     remember {
                         listOf(
                             Screens.Home.route,
-                            Screens.MyPulse.route,
                             Screens.Library.route,
                             Screens.ListenTogether.route,
                             "settings",
