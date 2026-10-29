@@ -141,7 +141,7 @@ const val ActiveBoxAlpha = 0.6f
 
 @Composable
 fun currentGridThumbnailHeight(): Dp {
-    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
+    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.SMALL)
     return if (gridItemSize == GridItemSize.BIG) GridThumbnailHeight else SmallGridThumbnailHeight
 }
 

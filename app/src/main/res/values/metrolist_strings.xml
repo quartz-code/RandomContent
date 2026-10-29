@@ -1287,8 +1287,9 @@
     <string name="listen_together_no_answer">The server did not answer. Check the internet (and VPN) and try again.</string>
     <string name="listen_together_server_waking">The server is waking up, this can take up to a minute. Keep this screen open.</string>
     <string name="listen_together_reconnect">Reconnect</string>
-    <string name="listen_together_mode_create">Create a room</string>
+    <string name="listen_together_mode_create">Create</string>
     <string name="listen_together_mode_join">Join by code</string>
+    <string name="listen_together_your_name">Your name</string>
     <string name="listen_together_mode_create_hint">You play the music, friends join with the room code.</string>
     <string name="listen_together_mode_join_hint">Ask your friend for the room code: 8 letters and digits.</string>
     <string name="pc_login">Sign in on a computer</string>

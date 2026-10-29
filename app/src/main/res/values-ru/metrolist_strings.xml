@@ -1197,8 +1197,9 @@
     <string name="listen_together_no_answer">Сервер не ответил. Проверь интернет (и VPN) и попробуй ещё раз.</string>
     <string name="listen_together_server_waking">Сервер просыпается — это может занять до минуты. Не закрывай этот экран.</string>
     <string name="listen_together_reconnect">Заново</string>
-    <string name="listen_together_mode_create">Создать комнату</string>
+    <string name="listen_together_mode_create">Создать</string>
     <string name="listen_together_mode_join">Войти по коду</string>
+    <string name="listen_together_your_name">Твоё имя</string>
     <string name="listen_together_mode_create_hint">Ты включаешь музыку, друзья заходят по коду комнаты.</string>
     <string name="listen_together_mode_join_hint">Попроси у друга код комнаты — 8 букв и цифр.</string>
     <string name="pc_login">Войти на компьютере</string>

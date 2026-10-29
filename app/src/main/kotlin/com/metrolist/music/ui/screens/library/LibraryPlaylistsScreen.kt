@@ -126,7 +126,7 @@ fun LibraryPlaylistsScreen(
         PlaylistSortDescendingKey,
         true
     )
-    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
+    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.SMALL)
 
     val playlists by viewModel.allPlaylists.collectAsStateWithLifecycle()
 
