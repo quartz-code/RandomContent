@@ -36,8 +36,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
-import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -48,7 +47,10 @@ import kotlin.math.cos
 import kotlin.math.sin
 
 /*
- * Pulse: how "My pulse" looks. A dark page lit from inside: soft lights drift behind everything,
+ * Pulse: how "My pulse" looks, on the phone and on the computer alike: plain Compose, nothing of
+ * Android here, so the desktop build compiles this very file.
+ *
+ * How it looks: A dark page lit from inside: soft lights drift behind everything,
  * in the chosen palette until a song plays and then, if the listener likes, in the colours of its
  * artwork; in the middle a living "heart" that breathes when idle and beats with the music while
  * the pulse plays. Everything that moves reads time and loudness in the draw phase, so the page
@@ -91,12 +93,20 @@ internal fun rememberPulseClock(fast: Boolean, speed: Float = 1f): () -> Float {
 }
 
 /** Artwork colours are often muddy; the lights need them bright enough to glow. */
-private fun glowing(color: Color): Color {
-    val hsv = FloatArray(3)
-    android.graphics.Color.colorToHSV(color.toArgb(), hsv)
-    hsv[1] = hsv[1].coerceIn(0.45f, 0.9f)
-    hsv[2] = hsv[2].coerceAtLeast(0.8f)
-    return Color(android.graphics.Color.HSVToColor(hsv))
+internal fun glowing(color: Color): Color {
+    val r = color.red
+    val g = color.green
+    val b = color.blue
+    val max = maxOf(r, g, b)
+    val delta = max - minOf(r, g, b)
+    val hue = when {
+        delta == 0f -> 0f
+        max == r -> 60f * (((g - b) / delta).mod(6f))
+        max == g -> 60f * ((b - r) / delta + 2f)
+        else -> 60f * ((r - g) / delta + 4f)
+    }
+    val saturation = (if (max == 0f) 0f else delta / max).coerceIn(0.45f, 0.9f)
+    return Color.hsv(hue, saturation, max.coerceAtLeast(0.8f), color.alpha)
 }
 
 /**
@@ -111,6 +121,8 @@ internal fun PulseAura(
     energy: () -> Float,
     modifier: Modifier = Modifier,
     artwork: (@Composable () -> Unit)? = null,
+    /** How dark the artwork is kept; more where it cannot be blurred (Android before 12). */
+    artworkShade: Float = 0.55f,
 ) {
     val tint = LocalPulseTint.current
     val source = if (look.artworkLights && artworkColors.size >= 2) artworkColors.map(::glowing) else tint.lights
@@ -120,9 +132,7 @@ internal fun PulseAura(
     Box(modifier) {
         if (look.background == PulseLook.Background.ARTWORK && artwork != null) {
             artwork()
-            // Blur exists from Android 12; before it the sharp artwork needs more shade to stay a background.
-            val shade = if (android.os.Build.VERSION.SDK_INT >= 31) 0.55f else 0.78f
-            Canvas(Modifier.fillMaxSize()) { drawRect(PulseInk.copy(alpha = shade)) }
+            Canvas(Modifier.fillMaxSize()) { drawRect(PulseInk.copy(alpha = artworkShade)) }
         } else {
             Canvas(Modifier.fillMaxSize()) {
                 drawRect(PulseInk)
@@ -275,7 +285,7 @@ internal fun HeartPreview(shape: PulseLook.Shape, modifier: Modifier = Modifier)
 
 /** A round frosted button with a caption under it, for like, "not for me" and next. */
 @Composable
-internal fun PulseAction(icon: Int, label: String, onClick: () -> Unit, highlighted: Boolean = false) {
+internal fun PulseAction(icon: Painter, label: String, onClick: () -> Unit, highlighted: Boolean = false) {
     val tint = LocalPulseTint.current
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
@@ -286,7 +296,7 @@ internal fun PulseAction(icon: Int, label: String, onClick: () -> Unit, highligh
                 .clickable(role = Role.Button, onClick = onClick),
             contentAlignment = Alignment.Center,
         ) {
-            Icon(painterResource(icon), label, tint = if (highlighted) PulseInk else Color.White, modifier = Modifier.size(26.dp))
+            Icon(icon, label, tint = if (highlighted) PulseInk else Color.White, modifier = Modifier.size(26.dp))
         }
         Spacer(Modifier.height(6.dp))
         Text(label, color = Color.White.copy(alpha = 0.72f), fontSize = 12.sp, fontWeight = FontWeight.Medium)

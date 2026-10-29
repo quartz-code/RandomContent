@@ -68,6 +68,17 @@ data class PlayerState(
  * the background, so changing songs is instant.
  */
 class PlayerController(private val scope: CoroutineScope, private val history: History? = null) : RoomPlayer {
+    /** A queue that never ends ("My pulse"): asked for more songs as the queue runs low. */
+    fun interface Stream {
+        suspend fun more(): List<Track>
+    }
+
+    private val _stream = MutableStateFlow<Stream?>(null)
+    /** The endless queue playing now, or null for an ordinary one. */
+    val stream: StateFlow<Stream?> = _stream.asStateFlow()
+    private var moreJob: Job? = null
+    @Volatile private var afterMore: (() -> Unit)? = null
+
     private val engine = AudioEngine()
     private val _state = MutableStateFlow(PlayerState())
     override val state: StateFlow<PlayerState> = _state.asStateFlow()
@@ -108,8 +119,11 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
         }
     }
 
-    fun playQueue(tracks: List<Track>, start: Int) {
+    fun playQueue(tracks: List<Track>, start: Int, stream: Stream? = null) {
         if (tracks.isEmpty() || following) return
+        moreJob?.cancel()
+        afterMore = null
+        _stream.value = stream
         _state.update { it.copy(queue = tracks, index = start.coerceIn(tracks.indices), error = null) }
         rebuildShuffle()
         startCurrent()
@@ -226,6 +240,7 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
     }
 
     override fun roomLoad(track: Track, upcoming: List<Track>, onReady: () -> Unit, onFailed: () -> Unit) {
+        _stream.value = null
         _state.update { it.copy(queue = listOf(track) + upcoming, index = 0, error = null) }
         rebuildShuffle()
         startCurrent(autoPlay = false, onReady = onReady, onFailed = onFailed)
@@ -286,6 +301,11 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
             return
         }
         val target = neighbour(direction)
+        // The end of an endless queue: wait for its next songs instead of stopping.
+        if (target == null && direction > 0 && _stream.value != null) {
+            loadMore { step(direction, userAction) }
+            return
+        }
         if (target == null) {
             engine.stop()
             _state.update { it.copy(isPlaying = false, positionMs = 0) }
@@ -295,8 +315,38 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
         startCurrent()
     }
 
+    /**
+     * Asks the endless queue for more and adds it at the end; [then] runs once they are in. One
+     * request at a time: a slow answer is not asked for twice.
+     */
+    private fun loadMore(then: (() -> Unit)? = null) {
+        val source = _stream.value ?: return
+        // The queue ran out while a request was already on its way: go on when that one answers.
+        if (then != null) afterMore = then
+        if (moreJob?.isActive == true) return
+        moreJob = scope.launch(Dispatchers.IO) {
+            val more = runCatching { source.more() }.getOrDefault(emptyList())
+            if (_stream.value !== source) return@launch
+            val waiting = afterMore.also { afterMore = null }
+            if (more.isEmpty()) {
+                // Nothing came (no internet): the end, as for any queue.
+                if (waiting != null) {
+                    engine.stop()
+                    _state.update { it.copy(isPlaying = false, positionMs = 0) }
+                }
+                return@launch
+            }
+            _state.update { it.copy(queue = it.queue + more) }
+            // Shuffled or not, the new songs come after everything already queued.
+            shuffleOrder = shuffleOrder + (shuffleOrder.size until _state.value.queue.size)
+            waiting?.invoke()
+        }
+    }
+
     private fun startCurrent(autoPlay: Boolean = true, onReady: (() -> Unit)? = null, onFailed: (() -> Unit)? = null) {
         val track = _state.value.current ?: return
+        // An endless queue tops itself up while a few songs are still ahead, as the phone does.
+        if (_stream.value != null && _state.value.queue.size - _state.value.index <= STREAM_AHEAD) loadMore()
         loadJob?.cancel()
         engine.stop()
         levels.reset()
@@ -345,6 +395,11 @@ class PlayerController(private val scope: CoroutineScope, private val history: H
         return AudioDownloader.download(track.videoId, stream) { done, total ->
             if (total != null && total > 0) progress((done.toFloat() / total).coerceIn(0f, 1f))
         }
+    }
+
+    private companion object {
+        /** Songs left in an endless queue when it asks for more. */
+        const val STREAM_AHEAD = 4
     }
 
     private fun describe(error: Throwable): String = when {

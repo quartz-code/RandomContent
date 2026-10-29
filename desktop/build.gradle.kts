@@ -42,6 +42,12 @@ val sharedSources by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/importer/VkMusicImport.kt")
         include("com/metrolist/music/pulse/recap/RecapStats.kt")
         include("com/metrolist/music/pulse/feed/PulseFeed.kt")
+        include("com/metrolist/music/pulse/feed/YouTubePulseSource.kt")
+        // "My pulse": its look and how it is drawn, plain Compose on both.
+        include("com/metrolist/music/ui/screens/pulse/PulseLook.kt")
+        include("com/metrolist/music/ui/screens/pulse/PulseVisuals.kt")
+        include("com/metrolist/music/ui/screens/pulse/PulsePage.kt")
+        include("com/metrolist/music/ui/screens/pulse/PulseTuneSheet.kt")
     }
     into(layout.buildDirectory.dir("shared-src"))
 }
@@ -55,6 +61,7 @@ val sharedTests by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/importer/VkMusicImportTest.kt")
         include("com/metrolist/music/pulse/recap/RecapCalculatorTest.kt")
         include("com/metrolist/music/pulse/feed/PulseFeedTest.kt")
+        include("com/metrolist/music/ui/screens/pulse/PulseLookTest.kt")
     }
     into(layout.buildDirectory.dir("shared-test"))
 }
@@ -89,14 +96,18 @@ val sharedIcons = listOf(
     "repeat", "repeat_on", "repeat_one_on", "queue_music", "search", "close", "volume_up", "volume_off",
     "palette", "music_note", "delete", "playlist_add", "playlist_play", "person", "favorite",
     "favorite_border", "arrow_back", "library_music", "group", "logout", "login", "stats", "download",
-    "navigate_next",
+    "navigate_next", "thumb_down", "tune", "explore_outlined", "trending_up", "content_copy", "content_paste",
 )
 val composeRes by tasks.registering(Sync::class) {
     // Gradle does not see changes inside filter {}; this makes an edit to it rerun the copy.
-    inputs.property("iconFilters", "white,dip-1")
+    inputs.property("iconFilters", "white,dip-1,attr-tint")
     from("../app/src/main/res/drawable") {
         include(sharedIcons.map { "$it.xml" })
-        filter { it.replace("@android:color/white", "#FFFFFFFF").replace(Regex("""(\d)dip""""), "$1dp\"") }
+        filter {
+            it.replace("@android:color/white", "#FFFFFFFF").replace(Regex("""(\d)dip""""), "$1dp\"")
+                // A theme attribute means nothing outside Android; the icon is tinted where it is drawn.
+                .replace("""android:tint="?attr/colorControlNormal"""", "")
+        }
         into("drawable")
     }
     from("../app/src/main/res/font") {
