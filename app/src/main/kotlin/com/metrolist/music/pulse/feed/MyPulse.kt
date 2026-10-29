@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,6 +50,8 @@ class MyPulse @Inject constructor(
 
     val settings: Flow<PulseSettings> = context.dataStore.data.map { PulseSettings.fromJson(it[PulseFeedSettingsKey]) }
 
+    private suspend fun storedSettings(): PulseSettings = PulseSettings.fromJson(context.dataStore.data.first()[PulseFeedSettingsKey])
+
     suspend fun saveSettings(settings: PulseSettings) {
         context.safeDataStoreEdit { it[PulseFeedSettingsKey] = settings.toJson() }
     }
@@ -65,7 +68,7 @@ class MyPulse @Inject constructor(
     suspend fun newFeed(): PulseFeed {
         _empty.value = false
         _starting.value = true
-        val current = PulseSettings.fromJson(context.dataStore.data.first()[PulseFeedSettingsKey])
+        val current = storedSettings().at(LocalTime.now().hour)
         return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current).also { pending = it }
     }
 
@@ -108,6 +111,8 @@ class MyPulse @Inject constructor(
                 runCatching { database.pulseRecentLikes(RECENT_LIKES) }.getOrDefault(emptyList())
                     .filter { it in feed.played && steeredBy.add(it) }
                     .forEach(feed::liked)
+                // The schedule: the morning gives way to the day while the pulse plays on.
+                feed.retune(storedSettings().at(LocalTime.now().hour))
                 feed.next(limit)
             }
         }

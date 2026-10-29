@@ -160,4 +160,41 @@ class PulseFeedTest {
         assertEquals(settings, PulseSettings.fromJson(settings.toJson()))
         assertEquals(PulseSettings(), PulseSettings.fromJson("не json"))
     }
+
+    @Test
+    fun theScheduleChangesTheCharacterAndMoodByTheHour() {
+        val calm = PulseSettings.Mood("Спокойное", "FEmusic_moods_and_genres_category", "calm")
+        val settings = PulseSettings(
+            language = PulseSettings.Language.RUSSIAN,
+            schedule = PulseSettings.Schedule(
+                enabled = true,
+                slots = mapOf(
+                    PulseSettings.DayPart.MORNING to PulseSettings.Slot(mood = calm),
+                    PulseSettings.DayPart.EVENING to PulseSettings.Slot(character = PulseSettings.Character.POPULAR),
+                ),
+            ),
+        )
+        assertEquals(calm, settings.at(8).mood)
+        assertEquals(PulseSettings.Character.MIX, settings.at(8).character)
+        assertEquals(PulseSettings.Character.POPULAR, settings.at(20).character)
+        // The day has no changes of its own; the night runs past midnight.
+        assertEquals(PulseSettings.Character.MIX, settings.at(13).character)
+        assertEquals(PulseSettings.DayPart.NIGHT, PulseSettings.DayPart.at(2))
+        assertEquals(PulseSettings.DayPart.NIGHT, PulseSettings.DayPart.at(23))
+        assertEquals(PulseSettings.DayPart.MORNING, PulseSettings.DayPart.at(6))
+        // Turned off, the schedule changes nothing; and it survives its JSON.
+        assertEquals(PulseSettings.Character.MIX, settings.copy(schedule = settings.schedule.copy(enabled = false)).at(20).character)
+        assertEquals(settings, PulseSettings.fromJson(settings.toJson()))
+    }
+
+    @Test
+    fun retuningSwitchesTheSourceButKeepsWhatWasPlayed() = runBlocking {
+        val feed = PulseFeed(FakeSource(), FakeLibrary(listOf("seedA")), FakeMemory(), PulseSettings(), Random(4))
+        val before = (1..3).flatMap { feed.next() }
+        assertFalse(before.any { it.id.startsWith("mood") })
+        feed.retune(PulseSettings(mood = PulseSettings.Mood("Вечеринка", "FEmusic_moods_and_genres_category", "party")))
+        val after = feed.next()
+        assertTrue(after.any { it.id.startsWith("mood") })
+        assertTrue(after.none { song -> before.any { it.id == song.id } })
+    }
 }

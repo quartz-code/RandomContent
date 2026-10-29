@@ -12,6 +12,8 @@ data class PulseSettings(
     val language: Language = Language.ANY,
     /** A mood or genre from YouTube Music's own list, or none. */
     val mood: Mood? = null,
+    /** Another character and mood for some parts of the day, if the listener wants that. */
+    val schedule: Schedule = Schedule(),
 ) {
     enum class Character {
         /** Mostly new to you, now and then something you know. */
@@ -28,6 +30,32 @@ data class PulseSettings(
 
     @Serializable
     data class Mood(val title: String, val browseId: String, val params: String? = null)
+
+    /** The four parts of the day, by the hour each starts; night runs past midnight. */
+    enum class DayPart(val fromHour: Int) {
+        MORNING(6), DAY(11), EVENING(17), NIGHT(23);
+
+        companion object {
+            fun at(hour: Int): DayPart = entries.lastOrNull { hour >= it.fromHour } ?: NIGHT
+        }
+    }
+
+    /** What a part of the day changes; null keeps the main choice. */
+    @Serializable
+    data class Slot(val character: Character? = null, val mood: Mood? = null)
+
+    @Serializable
+    data class Schedule(val enabled: Boolean = false, val slots: Map<DayPart, Slot> = emptyMap())
+
+    /** What the pulse plays at [hour]: the main choice, with this part of the day's changes on top. */
+    fun at(hour: Int): PulseSettings {
+        if (!schedule.enabled) return this
+        val slot = schedule.slots[DayPart.at(hour)] ?: return this
+        return copy(character = slot.character ?: character, mood = slot.mood ?: mood)
+    }
+
+    /** The choice that matters to the mixer; the schedule itself does not change what fits. */
+    internal fun picking(): PulseSettings = copy(schedule = Schedule())
 
     fun toJson(): String = json.encodeToString(serializer(), this)
 
@@ -168,9 +196,13 @@ class PulseFeed(
     private val source: Source,
     private val library: Library,
     private val memoryStore: MemoryStore,
-    val settings: PulseSettings,
+    settings: PulseSettings,
     private val random: Random = Random.Default,
 ) {
+    /** What this pulse plays now; [retune] changes it on the way, say when the evening comes. */
+    var settings: PulseSettings = settings.picking()
+        private set
+
     data class Page(val items: List<SongItem>, val continuation: String?)
 
     interface Source {
@@ -242,6 +274,20 @@ class PulseFeed(
         // instead of circling the same few radios.
         if (settings.character != PulseSettings.Character.FAVORITE) out.filter { it.id !in known }.randomOrNull(random)?.let { seeds.addLast(it.id) }
         return out
+    }
+
+    /**
+     * Plays to [next] from now on, without starting over: what was played stays played and what
+     * was turned down stays turned down, but the seeds come anew, from the new mood or character.
+     */
+    fun retune(next: PulseSettings) {
+        val wanted = next.picking()
+        if (wanted == settings) return
+        settings = wanted
+        started = false
+        seeds.clear()
+        pool.clear()
+        popularTried = false
     }
 
     /** A like steers the pulse: the next songs come from around this one. */
