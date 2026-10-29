@@ -67,6 +67,7 @@ import app.pulse.desktop.res.person
 import app.pulse.desktop.res.playlist_add
 import app.pulse.desktop.res.playlist_play
 import app.pulse.desktop.res.pt_mono
+import app.pulse.desktop.res.pulse
 import app.pulse.desktop.res.search
 import app.pulse.desktop.res.stats
 import coil3.compose.AsyncImage
@@ -140,6 +141,7 @@ private fun runWindow() = application {
             exitApplication()
         },
         title = Strings.appName,
+        icon = painterResource(Res.drawable.pulse),
         state = rememberWindowState(size = DpSize(1180.dp, 760.dp)),
         onPreviewKeyEvent = { event ->
             // Media keys work while the window has focus.

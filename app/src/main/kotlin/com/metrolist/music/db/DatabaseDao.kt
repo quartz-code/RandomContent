@@ -602,6 +602,17 @@ interface DatabaseDao {
         toTimeStamp: LocalDateTime? = LocalDateTime.now(),
     ): Flow<List<Album>>
 
+    // Pulse: "My pulse". Reads only.
+    /** Songs that are familiar: liked, in the library, or listened to for half a minute or more. */
+    @Query("SELECT id FROM song WHERE liked OR inLibrary IS NOT NULL OR totalPlayTime >= 30000")
+    suspend fun pulseKnownSongIds(): List<String>
+
+    @Query("SELECT id FROM song WHERE liked AND NOT isLocal ORDER BY likedDate DESC LIMIT :limit")
+    suspend fun pulseRecentLikes(limit: Int): List<String>
+
+    @Query("SELECT event.songId FROM event JOIN song ON song.id = event.songId WHERE timestamp >= :from AND NOT song.isLocal GROUP BY event.songId ORDER BY SUM(playTime) DESC LIMIT :limit")
+    suspend fun pulseMostPlayed(from: LocalDateTime, limit: Int): List<String>
+
     // Pulse: recaps. Reads only; the event table is unchanged.
     @Query("SELECT timestamp, playTime FROM event WHERE timestamp >= :from AND timestamp < :to")
     suspend fun recapPlays(from: LocalDateTime, to: LocalDateTime): List<com.metrolist.music.pulse.recap.RecapPlayRow>

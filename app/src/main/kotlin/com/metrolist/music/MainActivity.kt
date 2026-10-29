@@ -799,6 +799,7 @@ class MainActivity : FragmentActivity() {
                     remember {
                         listOf(
                             Screens.Home.route,
+                            Screens.MyPulse.route,
                             Screens.Library.route,
                             Screens.ListenTogether.route,
                             "settings",
@@ -1382,6 +1383,7 @@ class MainActivity : FragmentActivity() {
                                     startDestination =
                                         when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                             NavigationTab.HOME -> Screens.Home
+                                            NavigationTab.PULSE -> Screens.MyPulse
                                             NavigationTab.SEARCH -> Screens.Search
                                             NavigationTab.LIBRARY -> Screens.Library
                                         }.route,

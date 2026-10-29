@@ -24,6 +24,14 @@ sealed class Screens(
         route = "home"
     )
 
+    /** Pulse: "My pulse", endless music picked for the listener. */
+    object MyPulse : Screens(
+        titleId = R.string.my_pulse_tab,
+        iconIdInactive = R.drawable.pulse_tab_outlined,
+        iconIdActive = R.drawable.pulse_tab_filled,
+        route = "my_pulse"
+    )
+
     object Search : Screens(
         titleId = R.string.search,
         iconIdInactive = R.drawable.search,
@@ -46,6 +54,6 @@ sealed class Screens(
     )
 
     companion object {
-        val MainScreens = listOf(Home, Search, ListenTogether, Library)
+        val MainScreens = listOf(Home, MyPulse, Search, ListenTogether, Library)
     }
 }

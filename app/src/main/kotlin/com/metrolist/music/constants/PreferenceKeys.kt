@@ -446,6 +446,10 @@ val TelegramInboxPlaylistKey = stringPreferencesKey("telegramInboxPlaylist")
 val PulseSeenChangelogKey = intPreferencesKey("pulseSeenChangelog")
 val VkUserIdKey = longPreferencesKey("vkUserId")
 
+// Pulse: "My pulse" — its settings and what was turned down, both as JSON.
+val PulseFeedSettingsKey = stringPreferencesKey("pulseFeedSettings")
+val PulseFeedMemoryKey = stringPreferencesKey("pulseFeedMemory")
+
 /** Pulse: whole-app look — palette, fonts and corner shapes. */
 enum class AppStyle {
     RADIO,

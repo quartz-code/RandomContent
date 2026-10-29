@@ -2212,6 +2212,9 @@ object YouTube {
         }
     }
 
+    /** "Not for me": tells the account's recommendations, as the thumbs-down on YouTube does. */
+    suspend fun dislikeVideo(videoId: String) = runCatching { innerTube.dislikeVideo(WEB_REMIX, videoId) }
+
     suspend fun likePlaylist(
         playlistId: String,
         like: Boolean,

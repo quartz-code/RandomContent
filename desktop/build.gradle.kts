@@ -41,6 +41,7 @@ val sharedSources by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/importer/YandexMusicImport.kt")
         include("com/metrolist/music/pulse/importer/VkMusicImport.kt")
         include("com/metrolist/music/pulse/recap/RecapStats.kt")
+        include("com/metrolist/music/pulse/feed/PulseFeed.kt")
     }
     into(layout.buildDirectory.dir("shared-src"))
 }
@@ -53,6 +54,7 @@ val sharedTests by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/importer/YandexMusicImportTest.kt")
         include("com/metrolist/music/pulse/importer/VkMusicImportTest.kt")
         include("com/metrolist/music/pulse/recap/RecapCalculatorTest.kt")
+        include("com/metrolist/music/pulse/feed/PulseFeedTest.kt")
     }
     into(layout.buildDirectory.dir("shared-test"))
 }
@@ -101,6 +103,11 @@ val composeRes by tasks.registering(Sync::class) {
         include("oswald.ttf", "pt_mono.ttf")
         into("font")
     }
+    // The app's logo (assets/logo/build_icons.py), for the window and the taskbar.
+    from("icons") {
+        include("pulse.png")
+        into("drawable")
+    }
     into(layout.buildDirectory.dir("compose-res"))
 }
 
@@ -147,12 +154,14 @@ compose.desktop {
             // From ./gradlew -p desktop suggestRuntimeModules, plus what ktor and Java Sound need.
             modules("java.instrument", "java.management", "java.naming", "java.net.http", "jdk.crypto.ec", "jdk.unsupported")
             linux {
+                iconFile.set(project.file("icons/pulse.png"))
                 packageName = "pulse-music"
                 debMaintainer = "pulse@localhost"
                 menuGroup = "AudioVideo"
                 appCategory = "Audio"
             }
             windows {
+                iconFile.set(project.file("icons/pulse.ico"))
                 menuGroup = "Pulse"
                 shortcut = true
                 dirChooser = true

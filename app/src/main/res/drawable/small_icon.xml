@@ -1,17 +1,10 @@
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:height="200dp"
-    android:width="200dp"
-    android:viewportWidth="35.0"
-    android:viewportHeight="35.0">
-    <group
-        android:scaleX="0.7"
-        android:scaleY="0.7"
-        android:translateX="5.2"
-        android:translateY="5.3">
-        <path
-            android:fillColor="#00000000"
-            android:pathData="M11.7,17.037L5.907,22.83C5.517,23.22 5.517,23.853 5.907,24.244L11.493,29.83C11.883,30.22 12.517,30.22 12.907,29.83L18.907,23.83C19.095,23.642 19.2,23.388 19.2,23.122V6.004C19.2,5.115 20.274,4.668 20.905,5.295L30.2,14.536"
-            android:strokeColor="#FFFFFFFF"
-            android:strokeWidth="5.0" />
-    </group>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Pulse logo: a beat spreading in rings. Made by assets/logo/build_icons.py; edit that, not this. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="24dp" android:height="24dp" android:viewportWidth="108" android:viewportHeight="108">
+    <path android:strokeWidth="2.95" android:strokeAlpha="0.35" android:pathData="M16.45,54.00a37.55,37.55 0 1,1 75.09,0a37.55,37.55 0 1,1 -75.09,0" android:strokeColor="#FFFFFFFF">
+    </path>
+    <path android:strokeWidth="4.22" android:strokeAlpha="0.65" android:pathData="M27.00,54.00a27.00,27.00 0 1,1 54.00,0a27.00,27.00 0 1,1 -54.00,0" android:strokeColor="#FFFFFFFF">
+    </path>
+    <path android:strokeColor="#FFFFFFFF" android:strokeWidth="4.39" android:strokeLineCap="round" android:strokeLineJoin="round" android:pathData="M43.45,54.00 L48.09,54.00 L51.05,47.67 L55.27,61.17 L58.64,50.62 L60.75,54.00 L64.55,54.00" />
 </vector>

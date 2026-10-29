@@ -79,6 +79,10 @@ fun NavGraphBuilder.navigationBuilder(
         HomeScreen(snackbarHostState = snackbarHostState)
     }
 
+    composable(Screens.MyPulse.route) {
+        com.metrolist.music.ui.screens.pulse.MyPulseScreen()
+    }
+
     composable(Screens.Search.route) { backStackEntry ->
         val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
         val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
