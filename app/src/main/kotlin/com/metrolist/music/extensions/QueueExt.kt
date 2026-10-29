@@ -11,6 +11,7 @@ import com.metrolist.music.models.QueueData
 import com.metrolist.music.models.QueueType
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.LocalAlbumRadio
+import com.metrolist.music.playback.queues.PulseQueue
 import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeAlbumRadio
 import com.metrolist.music.playback.queues.YouTubeQueue
@@ -68,6 +69,13 @@ fun Queue.toPersistQueue(
                 )
             )
         }
+        is PulseQueue -> PersistQueue(
+            title = title,
+            items = items,
+            mediaItemIndex = mediaItemIndex,
+            position = position,
+            queueType = QueueType.PULSE
+        )
         else -> PersistQueue(
             title = title,
             items = items,
@@ -80,12 +88,6 @@ fun Queue.toPersistQueue(
 
 fun PersistQueue.toQueue(): Queue {
     return when (queueType) {
-        is QueueType.LIST -> ListQueue(
-            title = title,
-            items = items.map { it.toMediaItem() },
-            startIndex = mediaItemIndex,
-            position = position
-        )
         is QueueType.YOUTUBE -> {
             // For now, fallback to ListQueue since we can't reconstruct YouTubeQueue properly
             ListQueue(
@@ -104,6 +106,13 @@ fun PersistQueue.toQueue(): Queue {
                 position = position
             )
         }
+        // The service turns a pulse back into a PulseQueue itself; this is the plain fallback.
+        is QueueType.LIST, is QueueType.PULSE -> ListQueue(
+            title = title,
+            items = items.map { it.toMediaItem() },
+            startIndex = mediaItemIndex,
+            position = position
+        )
         is QueueType.LOCAL_ALBUM_RADIO -> {
             // For now, fallback to ListQueue since we can't reconstruct LocalAlbumRadio properly
             ListQueue(

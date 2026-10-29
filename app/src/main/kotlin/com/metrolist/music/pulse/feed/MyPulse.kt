@@ -24,6 +24,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.LocalDateTime
+import java.time.LocalTime
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -49,37 +50,84 @@ class MyPulse @Inject constructor(
 
     val settings: Flow<PulseSettings> = context.dataStore.data.map { PulseSettings.fromJson(it[PulseFeedSettingsKey]) }
 
+    private suspend fun storedSettings(): PulseSettings = PulseSettings.fromJson(context.dataStore.data.first()[PulseFeedSettingsKey])
+
     suspend fun saveSettings(settings: PulseSettings) {
         context.safeDataStoreEdit { it[PulseFeedSettingsKey] = settings.toJson() }
     }
 
-    /** A new pulse with the stored settings; it becomes "the one playing" once the player takes it. */
+    /** A start is under way: the first songs are being picked (with a slow VPN, for a while). */
+    private val _starting = MutableStateFlow(false)
+    val starting: StateFlow<Boolean> = _starting.asStateFlow()
+
+    /** The pulse being started; another queue played meanwhile cancels it. */
+    @Volatile
+    private var pending: PulseFeed? = null
+
+    /** A new pulse with the stored settings; it becomes "the one playing" once its first songs arrive. */
     suspend fun newFeed(): PulseFeed {
         _empty.value = false
-        val current = PulseSettings.fromJson(context.dataStore.data.first()[PulseFeedSettingsKey])
-        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current)
+        _starting.value = true
+        val current = storedSettings().at(LocalTime.now().hour)
+        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current).also { pending = it }
     }
 
-    fun playing(feed: PulseFeed) {
-        _feed.value = feed
+    /**
+     * The first songs of [feed]. Only with songs in hand is the pulse "the one playing": before,
+     * the player still plays what it played, and the page must not take that song for the pulse's.
+     * Empty when nothing came (no internet, VPN) or another queue started meanwhile.
+     */
+    suspend fun begin(feed: PulseFeed): List<SongItem> {
+        val batch = runCatching { next(feed) }.getOrDefault(emptyList())
+        val stillWanted = pending === feed
+        if (stillWanted) {
+            pending = null
+            _starting.value = false
+            if (batch.isEmpty()) _empty.value = true else _feed.value = feed
+        }
+        return if (stillWanted) batch else emptyList()
     }
+
+    /**
+     * The pulse that played when the app was closed, back with the same songs in the player: it
+     * goes on from where it was instead of becoming a plain list the page does not know.
+     */
+    suspend fun restored(songIds: List<String>): PulseFeed {
+        val current = storedSettings().at(LocalTime.now().hour)
+        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current).also { it.alreadyPlayed(songIds) }
+    }
+
+    /** The restored pulse is in the player again: it is the one playing, unless a start came first. */
+    fun resumed(feed: PulseFeed) {
+        if (pending == null) _feed.value = feed
+    }
+
+    /** More songs, only while [feed] is still the one playing. */
+    suspend fun more(feed: PulseFeed): List<SongItem> =
+        if (_feed.value === feed) runCatching { next(feed) }.getOrDefault(emptyList()) else emptyList()
 
     /** The player moved on to an album, a playlist, a search result: the pulse is not playing. */
     fun stopped() {
         _feed.value = null
+        if (pending != null) {
+            pending = null
+            _starting.value = false
+        }
     }
 
     /** Likes already passed on to the feed, so each steers it once. */
     private val steeredBy = HashSet<String>()
 
-    suspend fun next(feed: PulseFeed, limit: Int = PulseFeed.BATCH): List<SongItem> =
+    private suspend fun next(feed: PulseFeed, limit: Int = PulseFeed.BATCH): List<SongItem> =
         withContext(Dispatchers.IO) {
             lock.withLock {
                 // A heart pressed anywhere (player, notification) on one of the pulse's songs steers it.
                 runCatching { database.pulseRecentLikes(RECENT_LIKES) }.getOrDefault(emptyList())
                     .filter { it in feed.played && steeredBy.add(it) }
                     .forEach(feed::liked)
-                feed.next(limit).also { if (feed.played.isEmpty()) _empty.value = it.isEmpty() }
+                // The schedule: the morning gives way to the day while the pulse plays on.
+                feed.retune(storedSettings().at(LocalTime.now().hour))
+                feed.next(limit)
             }
         }
 

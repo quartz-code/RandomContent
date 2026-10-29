@@ -21,6 +21,9 @@ sealed class QueueType : Serializable {
     object YOUTUBE : QueueType()
     object YOUTUBE_ALBUM_RADIO : QueueType()
     object LOCAL_ALBUM_RADIO : QueueType()
+
+    /** Pulse: "My pulse", restored as the pulse so it goes on after the app was closed. */
+    object PULSE : QueueType()
 }
 
 sealed class QueueData : Serializable {

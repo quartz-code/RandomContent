@@ -200,6 +200,7 @@ import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
 import com.metrolist.music.playback.queues.PulseQueue
+import com.metrolist.music.models.QueueType
 import com.metrolist.music.pulse.feed.MyPulse
 import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeQueue
@@ -1200,9 +1201,23 @@ class MusicService :
                     }
                 }.onSuccess { queue ->
                     runCatching {
-                        val restoredQueue = queue.toQueue()
+                        val plainQueue = queue.toQueue()
                         scope.launch {
                             playerInitialized.first { it }
+                            // Pulse: "My pulse" comes back as the pulse, endless and known to its page.
+                            val restoredQueue =
+                                if (queue.queueType is QueueType.PULSE) {
+                                    runCatching {
+                                        PulseQueue(
+                                            pulse = myPulse,
+                                            feed = myPulse.restored(queue.items.map { it.id }),
+                                            title = queue.title,
+                                            restored = Queue.Status(queue.title, queue.items.map { it.toMediaItem() }, queue.mediaItemIndex, queue.position),
+                                        )
+                                    }.getOrDefault(plainQueue)
+                                } else {
+                                    plainQueue
+                                }
                             if (isActive) {
                                 playQueue(
                                     queue = restoredQueue,
