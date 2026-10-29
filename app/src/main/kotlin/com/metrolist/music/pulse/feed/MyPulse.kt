@@ -53,33 +53,62 @@ class MyPulse @Inject constructor(
         context.safeDataStoreEdit { it[PulseFeedSettingsKey] = settings.toJson() }
     }
 
-    /** A new pulse with the stored settings; it becomes "the one playing" once the player takes it. */
+    /** A start is under way: the first songs are being picked (with a slow VPN, for a while). */
+    private val _starting = MutableStateFlow(false)
+    val starting: StateFlow<Boolean> = _starting.asStateFlow()
+
+    /** The pulse being started; another queue played meanwhile cancels it. */
+    @Volatile
+    private var pending: PulseFeed? = null
+
+    /** A new pulse with the stored settings; it becomes "the one playing" once its first songs arrive. */
     suspend fun newFeed(): PulseFeed {
         _empty.value = false
+        _starting.value = true
         val current = PulseSettings.fromJson(context.dataStore.data.first()[PulseFeedSettingsKey])
-        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current)
+        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current).also { pending = it }
     }
 
-    fun playing(feed: PulseFeed) {
-        _feed.value = feed
+    /**
+     * The first songs of [feed]. Only with songs in hand is the pulse "the one playing": before,
+     * the player still plays what it played, and the page must not take that song for the pulse's.
+     * Empty when nothing came (no internet, VPN) or another queue started meanwhile.
+     */
+    suspend fun begin(feed: PulseFeed): List<SongItem> {
+        val batch = runCatching { next(feed) }.getOrDefault(emptyList())
+        val stillWanted = pending === feed
+        if (stillWanted) {
+            pending = null
+            _starting.value = false
+            if (batch.isEmpty()) _empty.value = true else _feed.value = feed
+        }
+        return if (stillWanted) batch else emptyList()
     }
+
+    /** More songs, only while [feed] is still the one playing. */
+    suspend fun more(feed: PulseFeed): List<SongItem> =
+        if (_feed.value === feed) runCatching { next(feed) }.getOrDefault(emptyList()) else emptyList()
 
     /** The player moved on to an album, a playlist, a search result: the pulse is not playing. */
     fun stopped() {
         _feed.value = null
+        if (pending != null) {
+            pending = null
+            _starting.value = false
+        }
     }
 
     /** Likes already passed on to the feed, so each steers it once. */
     private val steeredBy = HashSet<String>()
 
-    suspend fun next(feed: PulseFeed, limit: Int = PulseFeed.BATCH): List<SongItem> =
+    private suspend fun next(feed: PulseFeed, limit: Int = PulseFeed.BATCH): List<SongItem> =
         withContext(Dispatchers.IO) {
             lock.withLock {
                 // A heart pressed anywhere (player, notification) on one of the pulse's songs steers it.
                 runCatching { database.pulseRecentLikes(RECENT_LIKES) }.getOrDefault(emptyList())
                     .filter { it in feed.played && steeredBy.add(it) }
                     .forEach(feed::liked)
-                feed.next(limit).also { if (feed.played.isEmpty()) _empty.value = it.isEmpty() }
+                feed.next(limit)
             }
         }
 

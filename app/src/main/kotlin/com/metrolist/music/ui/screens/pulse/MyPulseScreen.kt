@@ -120,20 +120,16 @@ fun MyPulseScreen(viewModel: MyPulseViewModel = hiltViewModel()) {
     val song by playerConnection.currentSong.collectAsStateWithLifecycle(null)
     val cookie by rememberPreference(InnerTubeCookieKey, "")
     val signedIn = "SAPISID" in cookie
-    var starting by remember { mutableStateOf(false) }
+    val starting by viewModel.pulse.starting.collectAsState()
     var tuning by remember { mutableStateOf(false) }
     val title = stringResource(R.string.my_pulse)
     val pulsePlaying = feed != null
-    val current = metadata?.takeIf { pulsePlaying && feed?.played?.contains(it.id) == true }
+    // Everything the pulse's queue plays counts: its own songs, and a song added with "Play next".
+    val current = metadata?.takeIf { pulsePlaying }
 
     fun start() {
         if (starting) return
-        starting = true
-        scope.launch {
-            val newFeed = viewModel.pulse.newFeed()
-            playerConnection.playQueue(PulseQueue(viewModel.pulse, newFeed, title))
-            starting = false
-        }
+        scope.launch { playerConnection.playQueue(PulseQueue(viewModel.pulse, viewModel.pulse.newFeed(), title)) }
     }
 
     fun apply(chosen: PulseSettings) {
@@ -149,13 +145,8 @@ fun MyPulseScreen(viewModel: MyPulseViewModel = hiltViewModel()) {
     }
 
     val empty by viewModel.pulse.empty.collectAsState()
-    LaunchedEffect(feed, metadata, empty) {
-        // The first songs arrived, or none could be found: the spinner can go.
-        if (current != null) starting = false
-        if (empty && starting) {
-            starting = false
-            Toast.makeText(context, R.string.my_pulse_nothing, Toast.LENGTH_LONG).show()
-        }
+    LaunchedEffect(empty) {
+        if (empty) Toast.makeText(context, R.string.my_pulse_nothing, Toast.LENGTH_LONG).show()
     }
 
     val beating = pulsePlaying && isPlaying

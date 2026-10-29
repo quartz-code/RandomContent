@@ -17,12 +17,10 @@ class PulseQueue(
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 
-    override suspend fun getInitialStatus(): Queue.Status {
-        pulse.playing(feed)
-        return Queue.Status(title = title, items = pulse.next(feed).map { it.toMediaItem() }, mediaItemIndex = 0)
-    }
+    override suspend fun getInitialStatus(): Queue.Status =
+        Queue.Status(title = title, items = pulse.begin(feed).map { it.toMediaItem() }, mediaItemIndex = 0)
 
     override fun hasNextPage(): Boolean = true
 
-    override suspend fun nextPage(): List<MediaItem> = pulse.next(feed).map { it.toMediaItem() }
+    override suspend fun nextPage(): List<MediaItem> = pulse.more(feed).map { it.toMediaItem() }
 }
