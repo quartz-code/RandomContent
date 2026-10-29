@@ -290,6 +290,11 @@ class PulseFeed(
         popularTried = false
     }
 
+    /** Songs this pulse already gave out before the app was closed: not again, and known as its own. */
+    fun alreadyPlayed(ids: Collection<String>) {
+        emitted += ids
+    }
+
     /** A like steers the pulse: the next songs come from around this one. */
     fun liked(songId: String) {
         seeds.remove(songId)

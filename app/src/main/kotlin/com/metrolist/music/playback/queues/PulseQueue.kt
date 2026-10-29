@@ -13,12 +13,19 @@ import com.metrolist.music.pulse.feed.PulseFeed
 class PulseQueue(
     private val pulse: MyPulse,
     val feed: PulseFeed,
-    private val title: String,
+    private val title: String?,
+    /** The songs that were in the player when the app was closed; null for a fresh start. */
+    private val restored: Queue.Status? = null,
 ) : Queue {
     override val preloadItem: MediaMetadata? = null
 
-    override suspend fun getInitialStatus(): Queue.Status =
-        Queue.Status(title = title, items = pulse.begin(feed).map { it.toMediaItem() }, mediaItemIndex = 0)
+    override suspend fun getInitialStatus(): Queue.Status {
+        if (restored != null) {
+            pulse.resumed(feed)
+            return restored
+        }
+        return Queue.Status(title = title, items = pulse.begin(feed).map { it.toMediaItem() }, mediaItemIndex = 0)
+    }
 
     override fun hasNextPage(): Boolean = true
 

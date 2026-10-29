@@ -197,4 +197,17 @@ class PulseFeedTest {
         assertTrue(after.any { it.id.startsWith("mood") })
         assertTrue(after.none { song -> before.any { it.id == song.id } })
     }
+
+    @Test
+    fun aRestoredPulseDoesNotRepeatWhatWasAlreadyInThePlayer() = runBlocking {
+        val first = PulseFeed(FakeSource(), FakeLibrary(listOf("seedA", "seedB")), FakeMemory(), PulseSettings(), Random(9))
+        val before = (1..2).flatMap { first.next() }.map { it.id }
+        // The app was closed; the same pulse comes back with those songs still in the player.
+        val restored = PulseFeed(FakeSource(), FakeLibrary(listOf("seedA", "seedB")), FakeMemory(), PulseSettings(), Random(9))
+        restored.alreadyPlayed(before)
+        assertTrue(restored.played.containsAll(before))
+        val after = (1..3).flatMap { restored.next() }
+        assertTrue(after.isNotEmpty())
+        assertTrue(after.none { it.id in before })
+    }
 }

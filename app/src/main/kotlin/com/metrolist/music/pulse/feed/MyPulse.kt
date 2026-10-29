@@ -88,6 +88,20 @@ class MyPulse @Inject constructor(
         return if (stillWanted) batch else emptyList()
     }
 
+    /**
+     * The pulse that played when the app was closed, back with the same songs in the player: it
+     * goes on from where it was instead of becoming a plain list the page does not know.
+     */
+    suspend fun restored(songIds: List<String>): PulseFeed {
+        val current = storedSettings().at(LocalTime.now().hour)
+        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current).also { it.alreadyPlayed(songIds) }
+    }
+
+    /** The restored pulse is in the player again: it is the one playing, unless a start came first. */
+    fun resumed(feed: PulseFeed) {
+        if (pending == null) _feed.value = feed
+    }
+
     /** More songs, only while [feed] is still the one playing. */
     suspend fun more(feed: PulseFeed): List<SongItem> =
         if (_feed.value === feed) runCatching { next(feed) }.getOrDefault(emptyList()) else emptyList()
