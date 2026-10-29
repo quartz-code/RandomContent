@@ -3,9 +3,7 @@ package com.metrolist.music.pulse.feed
 import android.content.Context
 import com.metrolist.innertube.YouTube
 import com.metrolist.innertube.models.Artist
-import com.metrolist.innertube.models.PlaylistItem
 import com.metrolist.innertube.models.SongItem
-import com.metrolist.innertube.models.WatchEndpoint
 import com.metrolist.music.constants.PulseFeedMemoryKey
 import com.metrolist.music.constants.PulseFeedSettingsKey
 import com.metrolist.music.db.MusicDatabase
@@ -69,7 +67,7 @@ class MyPulse @Inject constructor(
         _empty.value = false
         _starting.value = true
         val current = storedSettings().at(LocalTime.now().hour)
-        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current).also { pending = it }
+        return PulseFeed(YouTubePulseSource(), DatabaseLibrary(), DataStoreMemory(), current).also { pending = it }
     }
 
     /**
@@ -94,7 +92,7 @@ class MyPulse @Inject constructor(
      */
     suspend fun restored(songIds: List<String>): PulseFeed {
         val current = storedSettings().at(LocalTime.now().hour)
-        return PulseFeed(YouTubeSource(), DatabaseLibrary(), DataStoreMemory(), current).also { it.alreadyPlayed(songIds) }
+        return PulseFeed(YouTubePulseSource(), DatabaseLibrary(), DataStoreMemory(), current).also { it.alreadyPlayed(songIds) }
     }
 
     /** The restored pulse is in the player again: it is the one playing, unless a start came first. */
@@ -147,45 +145,7 @@ class MyPulse @Inject constructor(
     }
 
     /** YouTube Music's own moods and genres, in the app's language; empty when it does not answer. */
-    suspend fun moods(): List<PulseSettings.Mood> = withContext(Dispatchers.IO) {
-        YouTube.moodAndGenres().getOrNull().orEmpty().flatMap { section ->
-            section.items.map { PulseSettings.Mood(it.title, it.endpoint.browseId, it.endpoint.params) }
-        }
-    }
-
-    private class YouTubeSource : PulseFeed.Source {
-        private val endpoints = HashMap<String, WatchEndpoint>()
-
-        override suspend fun radio(seedId: String, continuation: String?): PulseFeed.Page {
-            val endpoint = endpoints[seedId] ?: WatchEndpoint(videoId = seedId, playlistId = "RDAMVM$seedId")
-            val result = YouTube.next(endpoint, continuation).getOrThrow()
-            endpoints[seedId] = result.endpoint
-            return PulseFeed.Page(result.items, result.continuation)
-        }
-
-        override suspend fun personalMix(continuation: String?): PulseFeed.Page {
-            val endpoint = endpoints[MIX] ?: WatchEndpoint(playlistId = MIX)
-            val result = YouTube.next(endpoint, continuation).getOrThrow()
-            endpoints[MIX] = result.endpoint
-            return PulseFeed.Page(result.items, result.continuation)
-        }
-
-        override suspend fun moodSongs(mood: PulseSettings.Mood): List<SongItem> {
-            val page = YouTube.browse(mood.browseId, mood.params).getOrThrow()
-            val items = page.items.flatMap { it.items }
-            val direct = items.filterIsInstance<SongItem>()
-            // A mood page lists playlists: a few of them give the songs to start from.
-            val fromPlaylists = items.filterIsInstance<PlaylistItem>().take(MOOD_PLAYLISTS).flatMap { playlist ->
-                YouTube.playlist(playlist.id).getOrNull()?.songs.orEmpty().take(MOOD_SONGS_EACH)
-            }
-            return (direct + fromPlaylists).distinctBy { it.id }
-        }
-
-        override suspend fun popularSongs(): List<SongItem> {
-            val charts = YouTube.getChartsPage().getOrNull()?.sections.orEmpty().flatMap { it.items }.filterIsInstance<SongItem>()
-            return charts.ifEmpty { personalMix(null).items }
-        }
-    }
+    suspend fun moods(): List<PulseSettings.Mood> = withContext(Dispatchers.IO) { YouTubePulseSource.moods() }
 
     private inner class DatabaseLibrary : PulseFeed.Library {
         override suspend fun knownIds(): Set<String> = database.pulseKnownSongIds().toSet()
@@ -207,11 +167,7 @@ class MyPulse @Inject constructor(
     }
 
     private companion object {
-        /** YouTube Music's own endless mix of the account ("My Supermix"). */
-        const val MIX = "RDTMAK5uy_kset8DisdE7LSD4TNjEVvrKRTmG7a56sY"
         const val SEEDS = 25
         const val RECENT_LIKES = 5
-        const val MOOD_PLAYLISTS = 3
-        const val MOOD_SONGS_EACH = 15
     }
 }

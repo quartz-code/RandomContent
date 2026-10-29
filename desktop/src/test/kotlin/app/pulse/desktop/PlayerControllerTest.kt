@@ -37,6 +37,31 @@ class PlayerControllerTest {
         assertEquals("pick", c.upcoming().first().videoId)
     }
 
+    @Test
+    fun anEndlessQueueTopsItselfUpAndEndsWithTheNextQueue() = withController { c ->
+        var asked = 0
+        val endless = PlayerController.Stream {
+            asked++
+            (1..3).map { Track("more$asked-$it", "More", "Pulse", null, 200) }
+        }
+        c.playQueue(songs.take(2), 0, endless)
+        // Two songs left of an endless queue: it asks for more at once and adds them at the end.
+        waitFor { c.state.value.queue.size >= 5 }
+        assertEquals(listOf("id1", "id2", "more1-1", "more1-2", "more1-3"), c.state.value.queue.take(5).map { it.videoId })
+        assertEquals(endless, c.stream.value)
+        // Any other queue is an ordinary one: the endless one stops being asked.
+        c.playQueue(songs, 0)
+        assertEquals(null, c.stream.value)
+    }
+
+    private fun waitFor(condition: () -> Boolean) {
+        val until = System.currentTimeMillis() + 5_000
+        while (!condition()) {
+            check(System.currentTimeMillis() < until) { "timed out" }
+            Thread.sleep(20)
+        }
+    }
+
     private fun withController(block: (PlayerController) -> Unit) {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         try {

@@ -173,11 +173,13 @@ fun PulseApp(
     together: TogetherSession,
     initialTheme: PlayerTheme = Settings.loadTheme(),
     importer: ImportModel? = null,
+    pulse: DesktopPulse? = null,
 ) {
     val state by controller.state.collectAsState()
     val songs = remember(controller, together) { Songs(controller, together) }
     val appScope = rememberCoroutineScope()
     val importer = remember { importer ?: ImportModel(appScope) }
+    val pulse = remember { pulse ?: DesktopPulse(appScope, controller, library) }
     val likedIds by library.likedIds.collectAsState()
     val account by Account.info.collectAsState()
     var theme by remember { mutableStateOf(initialTheme) }
@@ -201,7 +203,7 @@ fun PulseApp(
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Row(Modifier.fillMaxSize()) {
                 Library(
-                    songs, library, importer, state,
+                    songs, library, importer, pulse, state,
                     onTheme = { showTheme = true },
                     onAccount = { showAccount = true },
                     onRecaps = { appScope.launch { recapList = withContext(Dispatchers.IO) { Recaps.list(History.default.all()) } } },
@@ -250,7 +252,7 @@ fun PulseApp(
 }
 
 @Composable
-private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, onRecaps: () -> Unit, modifier: Modifier) {
+private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, pulse: DesktopPulse, state: PlayerState, onTheme: () -> Unit, onAccount: () -> Unit, onRecaps: () -> Unit, modifier: Modifier) {
     val account by Account.info.collectAsState()
     val room by songs.together.state.collectAsState()
     val scope = rememberCoroutineScope()
@@ -258,12 +260,13 @@ private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, 
     var results by remember { mutableStateOf<List<Track>?>(null) }
     var searching by remember { mutableStateOf(false) }
     var failed by remember { mutableStateOf(false) }
-    var tab by remember { mutableStateOf(0) }
+    // "My pulse" first: the computer opens on it, as on a fresh start nothing else is there yet.
+    var tab by remember { mutableStateOf(TAB_PULSE) }
 
     fun search() {
         val q = query.trim()
         if (q.isEmpty()) return
-        tab = 0
+        tab = TAB_SEARCH
         searching = true
         failed = false
         scope.launch {
@@ -298,21 +301,23 @@ private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, 
         }
         Spacer(Modifier.height(8.dp))
         TabRow(selectedTabIndex = tab, containerColor = Color.Transparent) {
-            Tab(tab == 0, onClick = { tab = 0 }, text = { Text(Strings.searchTab) })
-            Tab(tab == 1, onClick = { tab = 1 }, text = { Text(Strings.myMusic) })
-            Tab(tab == 2, onClick = { tab = 2 }, text = { Text("${Strings.queue} · ${state.queue.size}") })
-            Tab(tab == 3, onClick = { tab = 3 }, text = { Text(if (room.inRoom) "${Strings.together} · ${room.members.size}" else Strings.together) })
-            Tab(tab == 4, onClick = { tab = 4 }, text = { Text(Strings.importTab) })
+            Tab(tab == TAB_PULSE, onClick = { tab = TAB_PULSE }, text = { Text(Strings.pulseTab) })
+            Tab(tab == TAB_SEARCH, onClick = { tab = TAB_SEARCH }, text = { Text(Strings.searchTab) })
+            Tab(tab == TAB_MY_MUSIC, onClick = { tab = TAB_MY_MUSIC }, text = { Text(Strings.myMusic) })
+            Tab(tab == TAB_QUEUE, onClick = { tab = TAB_QUEUE }, text = { Text("${Strings.queue} · ${state.queue.size}") })
+            Tab(tab == TAB_TOGETHER, onClick = { tab = TAB_TOGETHER }, text = { Text(if (room.inRoom) "${Strings.together} · ${room.members.size}" else Strings.together) })
+            Tab(tab == TAB_IMPORT, onClick = { tab = TAB_IMPORT }, text = { Text(Strings.importTab) })
         }
         Spacer(Modifier.height(8.dp))
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        Box(Modifier.weight(1f).fillMaxWidth().padding(bottom = if (tab == TAB_PULSE) 16.dp else 0.dp)) {
             when {
-                tab == 1 -> LibraryTab(library, songs, state, onSignIn = onAccount)
-                tab == 2 -> QueueList(state, songs.controller)
-                tab == 3 -> TogetherTab(songs.together)
-                tab == 4 -> ImportTab(importer, songs, library, onOpenLibrary = {
+                tab == TAB_PULSE -> PulseTab(pulse, songs.controller, library, signedIn = account != null)
+                tab == TAB_MY_MUSIC -> LibraryTab(library, songs, state, onSignIn = onAccount)
+                tab == TAB_QUEUE -> QueueList(state, songs.controller)
+                tab == TAB_TOGETHER -> TogetherTab(songs.together)
+                tab == TAB_IMPORT -> ImportTab(importer, songs, library, onOpenLibrary = {
                     library.refresh()
-                    tab = 1
+                    tab = TAB_MY_MUSIC
                 })
                 searching -> CircularProgressIndicator(Modifier.align(Alignment.Center))
                 results == null -> Hint(Strings.searchEmpty)
@@ -331,6 +336,13 @@ private fun Library(songs: Songs, library: LibraryModel, importer: ImportModel, 
         }
     }
 }
+
+private const val TAB_PULSE = 0
+private const val TAB_SEARCH = 1
+private const val TAB_MY_MUSIC = 2
+private const val TAB_QUEUE = 3
+private const val TAB_TOGETHER = 4
+private const val TAB_IMPORT = 5
 
 @Composable
 private fun QueueList(state: PlayerState, controller: PlayerController) {
