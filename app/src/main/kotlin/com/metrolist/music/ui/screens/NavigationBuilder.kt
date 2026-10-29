@@ -79,6 +79,10 @@ fun NavGraphBuilder.navigationBuilder(
         HomeScreen(snackbarHostState = snackbarHostState)
     }
 
+    composable(Screens.MyPulse.route) {
+        com.metrolist.music.ui.screens.pulse.MyPulseScreen()
+    }
+
     composable(Screens.Search.route) { backStackEntry ->
         val pureBlackEnabled by rememberPreference(PureBlackKey, defaultValue = false)
         val darkTheme by rememberEnumPreference(DarkModeKey, defaultValue = DarkMode.AUTO)
@@ -391,6 +395,9 @@ fun NavGraphBuilder.navigationBuilder(
     }
     composable("settings/player_builder") {
         com.metrolist.music.ui.screens.settings.PlayerBuilderScreen(navController)
+    }
+    composable("settings/pc_login") {
+        com.metrolist.music.ui.screens.settings.PcLoginScreen(navController)
     }
     composable("pulse/recaps") {
         com.metrolist.music.ui.screens.recap.RecapListScreen(navController)

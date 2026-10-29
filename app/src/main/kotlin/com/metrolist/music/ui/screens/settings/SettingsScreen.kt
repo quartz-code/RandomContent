@@ -91,6 +91,12 @@ fun SettingsScreen(
                     onClick = { navController.navigate("pulse/recaps") }
                 ),
                 Material3SettingsItem(
+                    icon = painterResource(R.drawable.computer),
+                    title = { Text(stringResource(R.string.pc_login)) },
+                    description = { Text(stringResource(R.string.pc_login_desc)) },
+                    onClick = { navController.navigate("settings/pc_login") }
+                ),
+                Material3SettingsItem(
                     icon = painterResource(R.drawable.backup),
                     title = { Text(stringResource(R.string.telegram_cloud)) },
                     description = { Text(stringResource(R.string.telegram_connect_desc)) },

@@ -78,4 +78,41 @@ class VkMusicImportTest {
         assertTrue(VkMusicImport.parseRedirect("https://oauth.vk.com/blank.html#error=access_denied&error_description=user+denied") is VkMusicImport.Redirect.Error)
         assertNull(VkMusicImport.parseRedirect("https://id.vk.ru/auth"))
     }
+
+    @Test
+    fun audioCookiesAreAddedOnce() {
+        val cookies = VkMusicImport.withAudioCookies("remixsid=abc; remixlang=0;")
+        assertTrue(cookies.contains("remixsid=abc"))
+        assertTrue(cookies.contains("remixaudio_show_alert_today=0"))
+        assertTrue(cookies.contains("remixmdevice=1920/1080/2/!!-!!!!"))
+        assertEquals(cookies, VkMusicImport.withAudioCookies(cookies))
+        assertEquals("remixaudio_show_alert_today=1; remixmdevice=1920/1080/2/!!-!!!!", VkMusicImport.withAudioCookies("remixaudio_show_alert_today=1"))
+    }
+
+    @Test
+    fun cookiesFromTheSiteAreMerged() {
+        val merged = VkMusicImport.mergeCookies(
+            "remixsid=abc; remixlang=0",
+            listOf("remixlang=3; expires=Fri, 01 Jan 2027 00:00:00 GMT; path=/; domain=.vk.ru", "remixstid=77; path=/", "remixsid=DELETED; path=/"),
+        )
+        assertEquals("remixlang=3; remixstid=77", merged)
+    }
+
+    @Test
+    fun answerExcerptIsShortPlainText() {
+        val html = "<html><head><script>var a = 1;</script><style>b{}</style></head><body><div class=\"x\">Музыка&nbsp;недоступна</div></body></html>"
+        assertEquals("Музыка недоступна", VkMusicImport.answerExcerpt(html))
+        assertEquals(300, VkMusicImport.answerExcerpt("я".repeat(1000)).length)
+    }
+
+    @Test
+    fun loginHopIsRecognised() {
+        // What VK sent to a signed-in user in October 2026, with the hashes shortened.
+        val answer = """{"location":"https:\/\/login.vk.ru\/?role=pda_frame&_origin=https%3A%2F%2Fm.vk.ru&ip_h=401ece&to=aHR0cHM6Ly9tLnZrLnJ1L2F1ZGlv&lrt=P1uV&_phash=c018ce","version":"dc3975"}"""
+        val url = VkMusicImport.handshakeUrl(answer)
+        assertTrue(url!!.startsWith("https://login.vk.ru/?role=pda_frame"))
+        assertNull(VkMusicImport.handshakeUrl("""{"location":"https://evil.example/login"}"""))
+        assertNull(VkMusicImport.handshakeUrl("""{"data":[{"list":[]}]}"""))
+        assertNull(VkMusicImport.handshakeUrl("<html>login</html>"))
+    }
 }

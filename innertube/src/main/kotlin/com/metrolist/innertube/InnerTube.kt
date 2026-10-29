@@ -269,6 +269,11 @@ class InnerTube(
         videoId: String,
     ) = innerTubeX.unlikeVideo(client, videoId).requireSuccess("unlikeVideo")
 
+    suspend fun dislikeVideo(
+        client: YouTubeClient,
+        videoId: String,
+    ) = innerTubeX.dislikeVideo(client, videoId).requireSuccess("dislikeVideo")
+
     suspend fun subscribeChannel(
         client: YouTubeClient,
         channelId: String,

@@ -1,0 +1,16 @@
+<!-- Pulse: the logo's rings with a solid middle, for the selected "Pulse" tab. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <path
+        android:strokeColor="@android:color/white"
+        android:strokeWidth="1.6"
+        android:strokeAlpha="0.55"
+        android:pathData="M2.2,12a9.8,9.8 0 1,1 19.6,0a9.8,9.8 0 1,1 -19.6,0" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M5.4,12a6.6,6.6 0 1,1 13.2,0a6.6,6.6 0 1,1 -13.2,0" />
+</vector>

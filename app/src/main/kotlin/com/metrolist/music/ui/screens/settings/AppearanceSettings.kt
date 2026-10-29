@@ -507,6 +507,7 @@ fun AppearanceSettings(
             valueText = {
                 when (it) {
                     NavigationTab.HOME -> stringResource(R.string.home)
+                    NavigationTab.PULSE -> stringResource(R.string.my_pulse)
                     NavigationTab.SEARCH -> stringResource(R.string.search)
                     NavigationTab.LIBRARY -> stringResource(R.string.filter_library)
                 }
@@ -1180,6 +1181,7 @@ fun AppearanceSettings(
                             Text(
                                 when (defaultOpenTab) {
                                     NavigationTab.HOME -> stringResource(R.string.home)
+                                    NavigationTab.PULSE -> stringResource(R.string.my_pulse)
                                     NavigationTab.SEARCH -> stringResource(R.string.search)
                                     NavigationTab.LIBRARY -> stringResource(R.string.filter_library)
                                 },
@@ -1494,6 +1496,7 @@ enum class DarkMode {
 
 enum class NavigationTab {
     HOME,
+    PULSE,
     SEARCH,
     LIBRARY,
 }

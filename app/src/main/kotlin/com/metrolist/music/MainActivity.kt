@@ -1382,6 +1382,7 @@ class MainActivity : FragmentActivity() {
                                     startDestination =
                                         when (tabOpenedFromShortcut ?: defaultOpenTab) {
                                             NavigationTab.HOME -> Screens.Home
+                                            NavigationTab.PULSE -> Screens.MyPulse
                                             NavigationTab.SEARCH -> Screens.Search
                                             NavigationTab.LIBRARY -> Screens.Library
                                         }.route,

@@ -199,6 +199,8 @@ import com.metrolist.music.playback.alarm.MusicAlarmStore
 import com.metrolist.music.playback.audio.SilenceDetectorAudioProcessor
 import com.metrolist.music.playback.queues.EmptyQueue
 import com.metrolist.music.playback.queues.ListQueue
+import com.metrolist.music.playback.queues.PulseQueue
+import com.metrolist.music.pulse.feed.MyPulse
 import com.metrolist.music.playback.queues.Queue
 import com.metrolist.music.playback.queues.YouTubeQueue
 import com.metrolist.music.playback.queues.YouTubePlaylistQueue
@@ -269,6 +271,9 @@ class MusicService :
     PlaybackStatsListener.Callback {
     @Inject
     lateinit var database: MusicDatabase
+
+    @Inject
+    lateinit var myPulse: MyPulse
 
     @Inject
     lateinit var lyricsHelper: LyricsHelper
@@ -1777,6 +1782,8 @@ class MusicService :
         }
 
         currentQueue = queue
+        // Pulse: something else plays now, so "My pulse" is no longer the one playing.
+        if (queue !is PulseQueue) myPulse.stopped()
         queueTitle = null
         val persistShuffleAcrossQueues = dataStore.get(PersistentShuffleAcrossQueuesKey, false)
         if (!persistShuffleAcrossQueues && !restoringQueue) {
@@ -2578,7 +2585,8 @@ class MusicService :
             }
         }
 
-        if (cachedAutoLoadMore &&
+        // Pulse: "My pulse" always loads more, it is an endless stream by design.
+        if ((cachedAutoLoadMore || currentQueue is PulseQueue) &&
             reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT &&
             player.mediaItemCount - player.currentMediaItemIndex <= 5 &&
             currentQueue.hasNextPage() &&
