@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -47,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.metrolist.music.pulse.feed.PulseSettings
+import kotlin.math.roundToInt
 
 /** The three pages of "Tune": what plays, how the page looks, and when what plays. */
 enum class TunePage { MUSIC, LOOK, SCHEDULE }
@@ -126,49 +129,74 @@ private fun ColumnScope.MusicPage(words: PulseWords, icons: PulseIcons, chosen: 
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ColumnScope.LookPage(words: PulseWords, icons: PulseIcons, look: PulseLook, onLook: (PulseLook) -> Unit, onShare: (PulseLook) -> Unit, onPaste: () -> Unit) {
     Section(words.colors)
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        PulseLook.Palette.entries.forEach { palette ->
-            val selected = look.palette == palette
-            Column(
-                Modifier.clip(RoundedCornerShape(14.dp)).clickable(role = Role.RadioButton) { onLook(look.copy(palette = palette)) }.padding(4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(
-                    Modifier
-                        .size(52.dp)
-                        .then(if (selected) Modifier.border(2.dp, Color.White, CircleShape) else Modifier)
-                        .padding(5.dp)
-                        .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Color(palette.first), Color(palette.second), Color(palette.fourth)))),
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(words.palettes.getValue(palette), color = Color.White.copy(alpha = if (selected) 1f else 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
+    // Four to a row, all in sight: in one scrolling row the last ones hid behind the edge.
+    PulseLook.Palette.shown.chunked(4).forEach { row ->
+        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+            row.forEach { palette ->
+                val selected = look.palette == palette
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).clickable(role = Role.RadioButton) { onLook(look.copy(palette = palette)) }.padding(4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier
+                            .size(52.dp)
+                            .then(if (selected) Modifier.border(2.dp, Color.White, CircleShape) else Modifier)
+                            .padding(5.dp)
+                            .clip(CircleShape)
+                            .background(
+                                when (palette) {
+                                    // "From the artwork" shows every colour, since it may become any of them.
+                                    PulseLook.Palette.ARTWORK -> Brush.sweepGradient(listOf(Color(0xFFFF4F7B), Color(0xFFFFC857), Color(0xFF47E08E), Color(0xFF35D0D6), Color(0xFF5B3FD9), Color(0xFFFF4F7B)))
+                                    PulseLook.Palette.CUSTOM -> Brush.linearGradient(listOf(Color(look.customFirst), Color(look.customSecond)))
+                                    else -> Brush.linearGradient(listOf(Color(palette.first), Color(palette.second), Color(palette.fourth)))
+                                },
+                            ),
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        words.palettes.getValue(palette),
+                        color = Color.White.copy(alpha = if (selected) 1f else 0.6f),
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium,
+                        lineHeight = 14.sp,
+                        maxLines = 2,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
         }
+    }
+    if (look.palette == PulseLook.Palette.CUSTOM) {
+        SwatchRow(words.customStart, look.customFirst) { onLook(look.copy(customFirst = it)) }
+        SwatchRow(words.customEnd, look.customSecond) { onLook(look.copy(customSecond = it)) }
     }
     Spacer(Modifier.height(10.dp))
     Toggle(words.artworkLights, words.artworkLightsHint, look.artworkLights) { onLook(look.copy(artworkLights = it)) }
 
     Section(words.shape)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        PulseLook.Shape.entries.forEach { shape ->
-            val selected = look.shape == shape
-            val corners = RoundedCornerShape(18.dp)
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clip(corners)
-                    .then(if (selected) Modifier.background(Color.White.copy(alpha = 0.1f), corners).border(1.5.dp, LocalPulseTint.current.gradient, corners) else Modifier.glass(corners))
-                    .clickable(role = Role.RadioButton) { onLook(look.copy(shape = shape)) }
-                    .padding(vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                HeartPreview(shape, Modifier.size(44.dp))
-                Spacer(Modifier.height(8.dp))
-                Text(words.shapes.getValue(shape), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+    PulseLook.Shape.entries.chunked(3).forEach { row ->
+        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            row.forEach { shape ->
+                val selected = look.shape == shape
+                val corners = RoundedCornerShape(18.dp)
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(corners)
+                        .then(if (selected) Modifier.background(Color.White.copy(alpha = 0.1f), corners).border(1.5.dp, LocalPulseTint.current.gradient, corners) else Modifier.glass(corners))
+                        .clickable(role = Role.RadioButton) { onLook(look.copy(shape = shape)) }
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    HeartPreview(shape, Modifier.size(44.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(words.shapes.getValue(shape), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
             }
         }
     }
@@ -176,7 +204,35 @@ private fun ColumnScope.LookPage(words: PulseWords, icons: PulseIcons, look: Pul
     Toggle(words.echoes, null, look.echoes) { onLook(look.copy(echoes = it)) }
 
     Section(words.background)
-    Segmented(PulseLook.Background.entries, look.background, { words.backgrounds.getValue(it) }) { onLook(look.copy(background = it)) }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PulseLook.Background.entries.forEach { background ->
+            Pill(null, words.backgrounds.getValue(background), look.background == background) { onLook(look.copy(background = background, reaction = background.reaction)) }
+        }
+    }
+
+    Section(words.reaction)
+    val tint = LocalPulseTint.current
+    Slider(
+        value = look.reaction.coerceIn(0f, 2f),
+        onValueChange = { value -> ((value * 10).roundToInt() / 10f).let { if (it != look.reaction) onLook(look.copy(reaction = it)) } },
+        valueRange = 0f..2f,
+        colors = SliderDefaults.colors(thumbColor = tint.second, activeTrackColor = tint.first, inactiveTrackColor = Color.White.copy(alpha = 0.12f)),
+    )
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Text(words.reactionLess, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
+            if (look.reaction != look.background.reaction) {
+                Text(
+                    words.reactionDefault,
+                    color = tint.second,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clip(RoundedCornerShape(50)).clickable(role = Role.Button) { onLook(look.copy(reaction = look.background.reaction)) }.padding(horizontal = 10.dp, vertical = 6.dp),
+                )
+            }
+        }
+        Text(words.reactionMore, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+    }
 
     Section(words.motion)
     Segmented(PulseLook.Motion.entries, look.motion, { words.motions.getValue(it) }) { onLook(look.copy(motion = it)) }
@@ -240,6 +296,26 @@ private fun ColumnScope.SchedulePage(words: PulseWords, icons: PulseIcons, chose
 }
 
 private fun PulseSettings.Mood?.sameAs(other: PulseSettings.Mood) = this?.browseId == other.browseId && this.params == other.params
+
+/** One end of the listener's own gradient: a label and the colours to pick it from. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SwatchRow(label: String, chosen: Long, onPick: (Long) -> Unit) {
+    Text(label, color = Color.White.copy(alpha = 0.6f), fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp, bottom = 8.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PulseLook.swatches.forEach { swatch ->
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .then(if (swatch == chosen) Modifier.border(2.dp, Color.White, CircleShape) else Modifier)
+                    .padding(4.dp)
+                    .clip(CircleShape)
+                    .background(Color(swatch))
+                    .clickable(role = Role.RadioButton) { onPick(swatch) },
+            )
+        }
+    }
+}
 
 @Composable
 private fun CharacterCard(icon: Painter, name: String, hint: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {

@@ -5,6 +5,14 @@
 
 package com.metrolist.music.ui.player
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.platform.LocalDensity
+import com.metrolist.music.constants.DoubleTapArt
+import com.metrolist.music.constants.DoubleTapArtKey
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.ui.draw.shadow
 import androidx.compose.animation.core.tween
@@ -548,6 +556,9 @@ private fun ThumbnailItem(
     val incrementalSeekSkipEnabled by rememberPreference(SeekExtraSeconds, defaultValue = false)
     var skipMultiplier by remember { mutableIntStateOf(1) }
     var lastTapTime by remember { mutableLongStateOf(0L) }
+    val doubleTap by rememberEnumPreference(DoubleTapArtKey, DoubleTapArt.BOTH)
+    // Pulse: where the last double-tap like landed; each new one starts the burst again.
+    var burst by remember { mutableStateOf<Pair<Int, Offset>?>(null) }
 
     Box(
         modifier = modifier
@@ -565,9 +576,16 @@ private fun ThumbnailItem(
                 // Render entire thumbnail item on separate hardware layer for smooth animations
                 compositingStrategy = CompositingStrategy.Offscreen
             }
-            .pointerInput(Unit) {
+            .pointerInput(doubleTap) {
                 detectTapGestures(
                     onDoubleTap = { offset ->
+                        // Pulse: a like, like in photo apps — only ever "like", a second double tap does not undo it.
+                        val middle = offset.x in size.width / 3f..size.width * 2f / 3f
+                        if (doubleTap == DoubleTapArt.LIKE || (doubleTap == DoubleTapArt.BOTH && middle)) {
+                            if (playerConnection.currentSong.value?.song?.liked != true) playerConnection.toggleLike()
+                            burst = ((burst?.first ?: 0) + 1) to offset
+                            return@detectTapGestures
+                        }
                         if (isListenTogetherGuest) return@detectTapGestures
 
                         val currentPosition = playerConnection.player.currentPosition
@@ -629,6 +647,40 @@ private fun ThumbnailItem(
                     .padding(8.dp),
                 tintColor = textBackgroundColor
             )
+        }
+        // Over the artwork, not in it: neither clipped by its shape nor turned with a spinning record.
+        burst?.let { (key, at) -> HeartBurst(key, at) }
+    }
+}
+
+/**
+ * Pulse: the heart that bursts where a double tap liked the song — it pops up, a few small ones
+ * float away, and all fade in under a second. [key] restarts it for every new tap.
+ */
+@Composable
+private fun HeartBurst(key: Int, at: Offset) {
+    val progress = remember(key) { Animatable(0f) }
+    LaunchedEffect(key) { progress.animateTo(1f, tween(durationMillis = 850, easing = LinearEasing)) }
+    val heart = painterResource(R.drawable.favorite)
+    val density = LocalDensity.current
+    Canvas(Modifier.fillMaxSize()) {
+        val p = progress.value
+        if (p >= 1f) return@Canvas
+        val pop = if (p < 0.25f) 1.25f * (p / 0.25f) else 1.25f - 0.25f * ((p - 0.25f) / 0.75f)
+        val fade = if (p < 0.6f) 1f else 1f - (p - 0.6f) / 0.4f
+        val big = with(density) { 96.dp.toPx() } * pop
+        // The small ones fly up and out, each at its own angle.
+        for (i in 0 until 5) {
+            val angle = -90f + (i - 2) * 28f
+            val distance = with(density) { 70.dp.toPx() } * p
+            val center = Offset(at.x + distance * kotlin.math.cos(Math.toRadians(angle.toDouble())).toFloat(), at.y + distance * kotlin.math.sin(Math.toRadians(angle.toDouble())).toFloat())
+            val small = with(density) { 22.dp.toPx() } * (1f - p * 0.4f)
+            translate(center.x - small / 2, center.y - small / 2) {
+                with(heart) { draw(Size(small, small), alpha = fade * 0.85f, colorFilter = ColorFilter.tint(Color(0xFFFF4F7B))) }
+            }
+        }
+        translate(at.x - big / 2, at.y - big / 2) {
+            with(heart) { draw(Size(big, big), alpha = fade, colorFilter = ColorFilter.tint(Color.White)) }
         }
     }
 }

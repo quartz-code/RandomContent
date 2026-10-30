@@ -458,6 +458,37 @@ enum class AppStyle {
     TERMINAL,
 }
 
+/** Pulse: how vivid the app's colours are when made from a chosen colour or the artwork. */
+val AppColorStyleKey = stringPreferencesKey("pulseAppColorStyle")
+
+enum class AppColorStyle {
+    CALM,
+    VIBRANT,
+    EXPRESSIVE,
+    MONO,
+}
+
+/** Pulse: the corners of cards, buttons and sheets across the app, over what the style says. */
+val AppCornersKey = stringPreferencesKey("pulseAppCorners")
+
+enum class AppCorners {
+    STYLE,
+    ROUND,
+    SHARP,
+}
+
+/** Pulse: what a double tap on the player's artwork does. */
+val DoubleTapArtKey = stringPreferencesKey("pulseDoubleTapArt")
+
+enum class DoubleTapArt {
+    /** Metrolist's own: back or forward 5 seconds, by the side tapped. */
+    SEEK,
+    /** A like, with a heart bursting where the finger was. */
+    LIKE,
+    /** The edges seek, the middle likes. */
+    BOTH,
+}
+
 /** Pulse: how the full-screen player looks; the three designs from the Figma board. */
 val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
 /** Pulse: the player builder's theme as JSON; when empty the preset of [PlayerDesignKey] is used. */

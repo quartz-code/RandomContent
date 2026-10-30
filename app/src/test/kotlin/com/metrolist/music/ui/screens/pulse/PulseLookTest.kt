@@ -9,7 +9,7 @@ import org.junit.Test
 class PulseLookTest {
     @Test
     fun aLookTravelsAsACodeInsideAMessage() {
-        val look = PulseLook(PulseLook.Palette.OCEAN, artworkLights = false, shape = PulseLook.Shape.STAR, background = PulseLook.Background.ARTWORK, echoes = false, motion = PulseLook.Motion.LIVELY)
+        val look = PulseLook(PulseLook.Palette.ARTWORK, artworkLights = false, shape = PulseLook.Shape.HEART, background = PulseLook.Background.AURORA, echoes = false, motion = PulseLook.Motion.LIVELY, reaction = 1.6f)
         val code = look.toCode()
         assertTrue(code.startsWith("PULSEWAVE1-"))
         assertEquals(look, PulseLook.fromCode("Смотри, какой у меня пульс: $code — вставь в Pulse"))
@@ -23,5 +23,14 @@ class PulseLookTest {
         assertEquals(PulseLook(), PulseLook.fromJson("не json"))
         // A newer build's option is ignored, an unknown value falls back to the default.
         assertEquals(PulseLook(shape = PulseLook.Shape.FLOWER), PulseLook.fromJson("""{"shape":"FLOWER","sparkles":true,"palette":"RAINBOW"}"""))
+    }
+
+    @Test
+    fun aFriendGetsTheOwnGradientAndEveryPaletteIsOffered() {
+        val look = PulseLook(PulseLook.Palette.CUSTOM, customFirst = PulseLook.swatches[3], customSecond = PulseLook.swatches[8])
+        assertEquals(look, PulseLook.fromCode(look.toCode()))
+        assertEquals(PulseLook.Palette.entries.toSet(), PulseLook.Palette.shown.toSet())
+        // The default look starts at its background's best reaction.
+        assertEquals(PulseLook().background.reaction, PulseLook().reaction)
     }
 }

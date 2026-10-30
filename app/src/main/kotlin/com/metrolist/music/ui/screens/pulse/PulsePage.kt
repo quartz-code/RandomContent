@@ -35,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -75,6 +76,9 @@ class PulseWords(
     val pages: Map<TunePage, String>,
     val colors: String,
     val palettes: Map<PulseLook.Palette, String>,
+    /** The two rows of colours for [PulseLook.Palette.CUSTOM]: where the gradient starts and ends. */
+    val customStart: String,
+    val customEnd: String,
     val artworkLights: String,
     val artworkLightsHint: String,
     val shape: String,
@@ -86,6 +90,12 @@ class PulseWords(
     val motions: Map<PulseLook.Motion, String>,
     val share: String,
     val paste: String,
+    /** The slider for how strongly the page answers the music, with its two ends. */
+    val reaction: String,
+    val reactionLess: String,
+    val reactionMore: String,
+    /** Puts the slider back where the chosen background looks best. */
+    val reactionDefault: String,
     val scheduleSwitch: String,
     val scheduleHint: String,
     val partHours: (from: Int, to: Int) -> String,
@@ -166,7 +176,7 @@ fun MyPulseContent(
         }
     }
     val playingNow = settings.at(hour)
-    CompositionLocalProvider(LocalPulseTint provides PulseTint.of(look.palette)) {
+    CompositionLocalProvider(LocalPulseTint provides rememberPulseTint(look, artworkColors)) {
         Box(Modifier.fillMaxSize().background(PulseInk)) {
             PulseAura(look, artworkColors, time, energy, Modifier.fillMaxSize(), artwork = backgroundArtwork.takeIf { now != null }, artworkShade = artworkShade)
             Column(Modifier.fillMaxSize().padding(contentPadding), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -174,8 +184,8 @@ fun MyPulseContent(
                 BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
                     val heart = min(maxWidth * 0.84f, maxHeight * 0.64f)
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        PulseHeart(look.shape, look.echoes, time, levels, onListen, Modifier.size(heart)) {
-                            HeartFace(starting, pulsePlaying, isPlaying, now != null, words.listen, icons, artwork)
+                        PulseHeart(look.shape, look.echoes, look.reaction, time, levels, onListen, Modifier.size(heart)) {
+                            HeartFace(starting, pulsePlaying, isPlaying, now != null, words.listen, icons, artwork, if (look.shape == PulseLook.Shape.HEART) HeartOutline else CircleShape)
                         }
                         Spacer(Modifier.height(4.dp))
                         AnimatedContent(now, transitionSpec = { fadeIn() togetherWith fadeOut() }, label = "now") { playing ->
@@ -242,13 +252,13 @@ private fun Header(title: String, tune: String, icons: PulseIcons, onTune: () ->
 
 /** Inside the heart: the play sign before the start, then the artwork of what plays. */
 @Composable
-private fun HeartFace(starting: Boolean, pulsePlaying: Boolean, isPlaying: Boolean, hasSong: Boolean, listen: String, icons: PulseIcons, artwork: @Composable (Modifier) -> Unit) {
+private fun HeartFace(starting: Boolean, pulsePlaying: Boolean, isPlaying: Boolean, hasSong: Boolean, listen: String, icons: PulseIcons, artwork: @Composable (Modifier) -> Unit, frame: Shape) {
     when {
         starting -> CircularProgressIndicator(color = PulseInk, strokeWidth = 3.dp, modifier = Modifier.size(44.dp))
         pulsePlaying && hasSong -> Box(contentAlignment = Alignment.Center) {
-            artwork(Modifier.fillMaxSize(0.84f).clip(CircleShape).border(3.dp, PulseInk.copy(alpha = 0.35f), CircleShape))
+            artwork(Modifier.fillMaxSize(0.84f).clip(frame).border(3.dp, PulseInk.copy(alpha = 0.35f), frame))
             if (!isPlaying) {
-                Box(Modifier.fillMaxSize(0.84f).clip(CircleShape).background(PulseInk.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
+                Box(Modifier.fillMaxSize(0.84f).clip(frame).background(PulseInk.copy(alpha = 0.45f)), contentAlignment = Alignment.Center) {
                     Icon(icons.play, null, tint = Color.White, modifier = Modifier.size(56.dp))
                 }
             }

@@ -134,7 +134,7 @@ fun LibraryMixScreen(
             MixSortType.CREATE_DATE,
         )
     val (sortDescending, onSortDescendingChange) = rememberPreference(MixSortDescendingKey, true)
-    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.BIG)
+    val gridItemSize by rememberEnumPreference(GridItemsSizeKey, GridItemSize.SMALL)
 
     val (ytmSync) = rememberPreference(YtmSyncKey, true)
 

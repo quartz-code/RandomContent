@@ -9,7 +9,9 @@ import android.graphics.Bitmap
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.ColorScheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
@@ -19,7 +21,10 @@ import androidx.compose.runtime.saveable.SaverScope
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
 import androidx.palette.graphics.Palette
+import com.metrolist.music.constants.AppColorStyle
+import com.metrolist.music.constants.AppCorners
 import com.metrolist.music.constants.AppStyle
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
@@ -34,6 +39,8 @@ fun MetrolistTheme(
     pureBlack: Boolean = false,
     themeColor: Color = DefaultThemeColor,
     style: AppStyle = AppStyle.RADIO,
+    colorStyle: AppColorStyle = AppColorStyle.CALM,
+    corners: AppCorners = AppCorners.STYLE,
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -49,7 +56,12 @@ fun MetrolistTheme(
             seedColor = themeColor,
             isDark = darkTheme,
             specVersion = ColorSpec.SpecVersion.SPEC_2025,
-            style = PaletteStyle.TonalSpot,
+            style = when (colorStyle) {
+                AppColorStyle.CALM -> PaletteStyle.TonalSpot
+                AppColorStyle.VIBRANT -> PaletteStyle.Vibrant
+                AppColorStyle.EXPRESSIVE -> PaletteStyle.Expressive
+                AppColorStyle.MONO -> PaletteStyle.Monochrome
+            },
         )
     }
 
@@ -64,10 +76,31 @@ fun MetrolistTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = style.typography,
-        shapes = style.shapes,
+        shapes = when (corners) {
+            AppCorners.STYLE -> style.shapes
+            AppCorners.ROUND -> RoundShapes
+            AppCorners.SHARP -> SharpShapes
+        },
         content = content,
     )
 }
+
+// Pulse: the corner choices, for every style alike.
+private val RoundShapes = Shapes(
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(32.dp),
+)
+
+private val SharpShapes = Shapes(
+    extraSmall = RoundedCornerShape(0.dp),
+    small = RoundedCornerShape(2.dp),
+    medium = RoundedCornerShape(3.dp),
+    large = RoundedCornerShape(4.dp),
+    extraLarge = RoundedCornerShape(6.dp),
+)
 
 fun Bitmap.extractThemeColor(): Color = Color(
     Palette.from(this)

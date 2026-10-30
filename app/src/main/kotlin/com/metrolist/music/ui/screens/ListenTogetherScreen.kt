@@ -1170,11 +1170,14 @@ private fun JoinCreateRoomSection(
         ) {
             SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                 listOf(false to R.string.listen_together_mode_create, true to R.string.listen_together_mode_join).forEachIndexed { index, (join, label) ->
+                    // No check mark (it pushed the words off centre) and one line: on a big font the
+                    // two-line label used to break the selected segment's outline.
                     SegmentedButton(
                         selected = joinMode == join,
                         onClick = { onJoinModeChange(join) },
                         shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
-                    ) { Text(stringResource(label)) }
+                        icon = {},
+                    ) { Text(stringResource(label), maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center) }
                 }
             }
             Text(
@@ -1189,8 +1192,8 @@ private fun JoinCreateRoomSection(
             OutlinedTextField(
                 value = usernameInput,
                 onValueChange = onUsernameChange,
-                label = { Text(stringResource(R.string.username)) },
-                placeholder = { Text(stringResource(R.string.enter_username)) },
+                label = { Text(stringResource(R.string.listen_together_your_name), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                placeholder = { Text(stringResource(R.string.enter_username), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = {
                     Icon(
                         painterResource(R.drawable.person),
@@ -1224,8 +1227,8 @@ private fun JoinCreateRoomSection(
             if (joinMode) OutlinedTextField(
                 value = roomCodeInput,
                 onValueChange = { if (it.length <= 8) onRoomCodeChange(it.uppercase()) },
-                label = { Text(stringResource(R.string.room_code)) },
-                placeholder = { Text(stringResource(R.string.enter_room_code)) },
+                label = { Text(stringResource(R.string.room_code), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                placeholder = { Text(stringResource(R.string.enter_room_code), maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 leadingIcon = {
                     Icon(
                         painterResource(R.drawable.group),

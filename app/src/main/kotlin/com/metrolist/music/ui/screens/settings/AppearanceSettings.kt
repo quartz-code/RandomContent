@@ -5,6 +5,7 @@
 
 package com.metrolist.music.ui.screens.settings
 
+import androidx.compose.material3.RadioButton
 import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -85,6 +86,8 @@ import com.metrolist.music.constants.ShowTopPlaylistKey
 import com.metrolist.music.constants.ShowUploadedPlaylistKey
 import com.metrolist.music.constants.SlimNavBarKey
 import com.metrolist.music.constants.SwipeSensitivityKey
+import com.metrolist.music.constants.DoubleTapArt
+import com.metrolist.music.constants.DoubleTapArtKey
 import com.metrolist.music.constants.SwipeThumbnailKey
 import com.metrolist.music.constants.SwipeToRemoveSongKey
 import com.metrolist.music.constants.SwipeToSongKey
@@ -773,6 +776,9 @@ fun AppearanceSettings(
         Spacer(modifier = Modifier.height(27.dp))
 
         var showSensitivityDialog by rememberSaveable { mutableStateOf(false) }
+        // Pulse: what a double tap on the artwork does.
+        val (doubleTapArt, onDoubleTapArtChange) = rememberEnumPreference(DoubleTapArtKey, DoubleTapArt.BOTH)
+        var showDoubleTapDialog by rememberSaveable { mutableStateOf(false) }
 
         Card(
             onClick = { navController.navigate("settings/player_builder") },
@@ -860,6 +866,12 @@ fun AppearanceSettings(
                         },
                         onClick = { onSwipeThumbnailChange(!swipeThumbnail) },
                     ),
+                    Material3SettingsItem(
+                        icon = painterResource(R.drawable.favorite_border),
+                        title = { Text(stringResource(R.string.double_tap_art)) },
+                        description = { Text(stringResource(doubleTapArtName(doubleTapArt))) },
+                        onClick = { showDoubleTapDialog = true },
+                    ),
                 ) +
                     if (swipeThumbnail) {
                         listOf(
@@ -881,6 +893,31 @@ fun AppearanceSettings(
                         emptyList()
                     },
         )
+
+        if (showDoubleTapDialog) {
+            DefaultDialog(
+                onDismiss = { showDoubleTapDialog = false },
+                title = { Text(stringResource(R.string.double_tap_art)) },
+                horizontalAlignment = Alignment.Start,
+            ) {
+                DoubleTapArt.entries.forEach { option ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                onDoubleTapArtChange(option)
+                                showDoubleTapDialog = false
+                            }
+                            .padding(vertical = 10.dp),
+                    ) {
+                        RadioButton(selected = doubleTapArt == option, onClick = null)
+                        Spacer(Modifier.width(12.dp))
+                        Text(stringResource(doubleTapArtName(option)))
+                    }
+                }
+            }
+        }
 
         if (showSensitivityDialog) {
             var tempSensitivity by remember { mutableFloatStateOf(swipeSensitivity) }
@@ -1492,6 +1529,12 @@ enum class DarkMode {
     ON,
     OFF,
     AUTO,
+}
+
+private fun doubleTapArtName(option: DoubleTapArt) = when (option) {
+    DoubleTapArt.SEEK -> R.string.double_tap_art_seek
+    DoubleTapArt.LIKE -> R.string.double_tap_art_like
+    DoubleTapArt.BOTH -> R.string.double_tap_art_both
 }
 
 enum class NavigationTab {
