@@ -1473,6 +1473,12 @@
     <string name="my_pulse_reaction">Reaction to the music</string>
     <string name="my_pulse_reaction_less">Calmer</string>
     <string name="my_pulse_reaction_more">Stronger</string>
+    <string name="my_pulse_widget_listen">Tap to listen</string>
+    <string name="my_pulse_widget_description">Endless music for you, started and paused right from the home screen.</string>
+    <string name="double_tap_art">Double tap on the artwork</string>
+    <string name="double_tap_art_seek">Back or forward 5 seconds</string>
+    <string name="double_tap_art_like">Like, with a heart</string>
+    <string name="double_tap_art_both">Edges seek, the middle likes</string>
     <string name="app_color_style">Colour intensity</string>
     <string name="app_color_style_hint">For a chosen colour and for colours from the artwork.</string>
     <string name="app_color_style_calm">Calm</string>

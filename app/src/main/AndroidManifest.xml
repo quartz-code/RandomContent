@@ -316,6 +316,21 @@
         </receiver>
 
 
+        <!-- Pulse: "My pulse" widget -->
+        <receiver
+            android:name=".widget.PulseWidgetReceiver"
+            android:exported="true"
+            android:label="@string/my_pulse">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="com.metrolist.music.widget.PULSE_TAP" />
+            </intent-filter>
+
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/pulse_widget_info" />
+        </receiver>
+
         <!-- Playlist Widget -->
         <receiver
             android:name=".widget.PlaylistWidgetReceiver"

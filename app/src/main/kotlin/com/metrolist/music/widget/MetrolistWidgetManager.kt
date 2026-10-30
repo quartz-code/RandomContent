@@ -56,7 +56,8 @@ class MetrolistWidgetManager @Inject constructor(
         isPlaying: Boolean,
         isLiked: Boolean,
         duration: Long = 0,
-        currentPosition: Long = 0
+        currentPosition: Long = 0,
+        pulsePlaying: Boolean = false,
     ) {
         val appWidgetManager = AppWidgetManager.getInstance(context)
 
@@ -109,6 +110,9 @@ class MetrolistWidgetManager @Inject constructor(
                 appWidgetManager.updateAppWidget(widgetId, turntableViews)
             }
         }
+
+        // Pulse: the "My pulse" widget shows the song only while the pulse plays it.
+        PulseWidget.update(context, title, artist, albumArt, pulsePlaying, isPlaying)
 
         playlistWidgetManager.updateWidgets(
             title = title,

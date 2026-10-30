@@ -222,6 +222,7 @@ import com.metrolist.music.utils.reportException
 import com.metrolist.music.widget.MetrolistWidgetManager
 import com.metrolist.music.widget.MusicWidgetReceiver
 import com.metrolist.music.widget.PlaylistWidgetReceiver
+import com.metrolist.music.widget.PulseWidget
 import com.metrolist.music.ui.utils.resize
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CancellationException
@@ -4480,6 +4481,16 @@ class MusicService :
             PlaylistWidgetReceiver.ACTION_PLAY_TARGET -> {
                 handlePlaylistWidgetPlay(intent)
             }
+
+            // Pulse: the "My pulse" widget — pause and resume the pulse, or start one.
+            PulseWidget.ACTION_TAP -> {
+                if (currentQueue is PulseQueue && myPulse.feed.value != null) {
+                    if (player.isPlaying) player.pause() else player.play()
+                    updateWidgetUI(player.isPlaying)
+                } else {
+                    scope.launch { playQueue(PulseQueue(myPulse, myPulse.newFeed(), getString(R.string.my_pulse))) }
+                }
+            }
         }
 
         return super.onStartCommand(intent, flags, startId)
@@ -4748,6 +4759,7 @@ class MusicService :
                         isLiked = resolvedIsLiked,
                         duration = if (player.duration != C.TIME_UNSET) player.duration else 0,
                         currentPosition = player.currentPosition,
+                        pulsePlaying = currentQueue is PulseQueue && myPulse.feed.value != null,
                     )
                 }
             } catch (e: Exception) {

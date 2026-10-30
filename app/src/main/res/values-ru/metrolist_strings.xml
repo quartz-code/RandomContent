@@ -1383,6 +1383,12 @@
     <string name="my_pulse_reaction">Реакция на музыку</string>
     <string name="my_pulse_reaction_less">Спокойнее</string>
     <string name="my_pulse_reaction_more">Сильнее</string>
+    <string name="my_pulse_widget_listen">Нажми, чтобы слушать</string>
+    <string name="my_pulse_widget_description">Бесконечная музыка под тебя: запускается и ставится на паузу прямо с рабочего стола.</string>
+    <string name="double_tap_art">Двойной тап по обложке</string>
+    <string name="double_tap_art_seek">Перемотка на 5 секунд</string>
+    <string name="double_tap_art_like">Лайк с сердечком</string>
+    <string name="double_tap_art_both">По краям — перемотка, в центре — лайк</string>
     <string name="app_color_style">Насыщенность цветов</string>
     <string name="app_color_style_hint">Для выбранного цвета и для цвета из обложки.</string>
     <string name="app_color_style_calm">Спокойные</string>

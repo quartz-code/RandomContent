@@ -477,6 +477,18 @@ enum class AppCorners {
     SHARP,
 }
 
+/** Pulse: what a double tap on the player's artwork does. */
+val DoubleTapArtKey = stringPreferencesKey("pulseDoubleTapArt")
+
+enum class DoubleTapArt {
+    /** Metrolist's own: back or forward 5 seconds, by the side tapped. */
+    SEEK,
+    /** A like, with a heart bursting where the finger was. */
+    LIKE,
+    /** The edges seek, the middle likes. */
+    BOTH,
+}
+
 /** Pulse: how the full-screen player looks; the three designs from the Figma board. */
 val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
 /** Pulse: the player builder's theme as JSON; when empty the preset of [PlayerDesignKey] is used. */

@@ -78,6 +78,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
@@ -915,7 +918,7 @@ fun PlaylistListItem(
 ) = ListItem(
     title = playlist.playlist.name,
     subtitle = if (autoPlaylist) {
-        ""
+        autoPlaylistCount(playlist.playlist.name)
     } else {
         if (playlist.songCount == 0 && playlist.playlist.remoteSongCount != null) {
             pluralStringResource(
@@ -936,22 +939,7 @@ fun PlaylistListItem(
         PlaylistThumbnail(
             thumbnails = playlist.thumbnails,
             size = ListThumbnailSize,
-            placeHolder = {
-                val painter = when (playlist.playlist.name) {
-                    stringResource(R.string.liked) -> R.drawable.favorite_border
-                    stringResource(R.string.offline) -> R.drawable.offline
-                    stringResource(R.string.cached_playlist) -> R.drawable.cached
-                    // R.drawable.backup as placeholder
-                    stringResource(R.string.uploaded_playlist) -> R.drawable.backup
-                    else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
-                }
-                Icon(
-                    painter = painterResource(painter),
-                    contentDescription = null,
-                    tint = LocalContentColor.current.copy(alpha = 0.8f),
-                    modifier = Modifier.size(ListThumbnailSize / 2)
-                )
-            },
+            placeHolder = { PlaylistCover(playlist.playlist.name, autoPlaylist, ListThumbnailSize) },
             shape = RoundedCornerShape(ThumbnailCornerRadius)
         )
     },
@@ -1006,7 +994,7 @@ fun PlaylistGridItem(
     },
     subtitle = {
         val subtitle = if (autoPlaylist) {
-            ""
+            autoPlaylistCount(playlist.playlist.name)
         } else {
             if (playlist.songCount == 0 && playlist.playlist.remoteSongCount != null) {
                 pluralStringResource(
@@ -1036,33 +1024,69 @@ fun PlaylistGridItem(
         PlaylistThumbnail(
             thumbnails = playlist.thumbnails,
             size = width,
-            placeHolder = {
-                val painter = when (playlist.playlist.name) {
-                    stringResource(R.string.liked) -> R.drawable.favorite_border
-                    stringResource(R.string.offline) -> R.drawable.offline
-                    stringResource(R.string.cached_playlist) -> R.drawable.cached
-                    // R.drawable.backup as placeholder
-                    stringResource(R.string.uploaded_playlist) -> R.drawable.backup
-                    else -> if (autoPlaylist) R.drawable.trending_up else R.drawable.queue_music
-                }
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    Icon(
-                        painter = painterResource(painter),
-                        contentDescription = null,
-                        tint = LocalContentColor.current.copy(alpha = 0.8f),
-                        modifier = Modifier.size(width / 2)
-                    )
-                }
-            },
+            placeHolder = { PlaylistCover(playlist.playlist.name, autoPlaylist, width) },
             shape = RoundedCornerShape(ThumbnailCornerRadius)
         )
     },
     fillMaxWidth = fillMaxWidth,
     modifier = modifier
 )
+
+/**
+ * Pulse: a cover for a playlist without artwork. The app's own playlists (liked, downloaded,
+ * cached, top, uploaded) each get their colour and sign, as streaming apps do for "Liked songs";
+ * the listener's empty playlists a gradient from their name and its first letter, so no two
+ * look the same grey square.
+ */
+@Composable
+fun PlaylistCover(name: String, autoPlaylist: Boolean, size: Dp) {
+    val own = when (name) {
+        stringResource(R.string.liked) -> R.drawable.favorite to listOf(Color(0xFFFF4F7B), Color(0xFF8E2DE2))
+        stringResource(R.string.offline) -> R.drawable.offline to listOf(Color(0xFF35D0D6), Color(0xFF3F51B5))
+        stringResource(R.string.cached_playlist) -> R.drawable.cached to listOf(Color(0xFFB46BFF), Color(0xFF3A1C71))
+        stringResource(R.string.uploaded_playlist) -> R.drawable.backup to listOf(Color(0xFF47E08E), Color(0xFF0F6E6E))
+        else -> if (autoPlaylist) R.drawable.trending_up to listOf(Color(0xFFFFC857), Color(0xFFE0306A)) else null
+    }
+    val colors = own?.second ?: run {
+        // The same name always gives the same colours.
+        val hue = ((name.hashCode() % 360) + 360) % 360f
+        listOf(Color.hsv(hue, 0.55f, 0.85f), Color.hsv((hue + 40f) % 360f, 0.7f, 0.45f))
+    }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.linearGradient(colors))
+            .background(Brush.radialGradient(listOf(Color.White.copy(alpha = 0.22f), Color.Transparent), center = Offset.Zero, radius = size.value * 2.2f)),
+    ) {
+        if (own != null) {
+            Icon(painterResource(own.first), contentDescription = null, tint = Color.White, modifier = Modifier.size(size * 0.42f))
+        } else {
+            Text(
+                text = name.trim().take(1).uppercase().ifEmpty { "♪" },
+                color = Color.White,
+                fontWeight = FontWeight.Bold,
+                fontSize = (size.value * 0.42f).sp,
+            )
+        }
+    }
+}
+
+/** Pulse: how many songs the app's own playlist holds, where the app knows it at once. */
+@Composable
+private fun autoPlaylistCount(name: String): String {
+    val database = LocalDatabase.current
+    val downloadUtil = LocalDownloadUtil.current
+    val count = when (name) {
+        stringResource(R.string.liked) -> database.likedSongsCount().collectAsStateWithLifecycle(null).value
+        stringResource(R.string.offline) -> {
+            val downloads by downloadUtil.downloads.collectAsStateWithLifecycle()
+            remember(downloads) { downloads.count { it.value.state == STATE_COMPLETED } }
+        }
+        else -> null
+    } ?: return ""
+    return pluralStringResource(R.plurals.n_song, count, count)
+}
 
 @Composable
 fun MediaMetadataListItem(
