@@ -1493,4 +1493,26 @@
     <string name="app_corners_style">As the style</string>
     <string name="app_corners_round">Round</string>
     <string name="app_corners_sharp">Sharp</string>
+    <string name="pulse_updates">Updates</string>
+    <string name="pulse_updates_desc">New builds install right from the app</string>
+    <string name="pulse_updates_intro">Pulse looks for a new build by itself, downloads it and opens the installer: no need to hunt for the APK. Everything stays, since every build is signed with the same key.</string>
+    <string name="pulse_update_installed">Installed: build %1$d</string>
+    <string name="pulse_update_local">This build was made by hand, so it does not look for updates</string>
+    <string name="pulse_update_auto">Check when Pulse starts</string>
+    <string name="pulse_update_test">Test builds</string>
+    <string name="pulse_update_test_desc">What is new from branches, before it reaches the main build. May be rough.</string>
+    <string name="pulse_update_check">Check now</string>
+    <string name="pulse_update_checking">Checking…</string>
+    <string name="pulse_update_latest">You have the latest build</string>
+    <string name="pulse_update_failed">Could not reach GitHub. Check the internet or VPN and try again.</string>
+    <string name="pulse_update_title">A new Pulse is out</string>
+    <string name="pulse_update_build">Build %1$d</string>
+    <string name="pulse_update_whats_new">What\'s new</string>
+    <string name="pulse_update_install">Update</string>
+    <string name="pulse_update_install_now">Install</string>
+    <string name="pulse_update_retry">Try again</string>
+    <string name="pulse_update_later">Later</string>
+    <string name="pulse_update_downloading">Downloading… %1$d%%</string>
+    <string name="pulse_update_ready">Downloaded. If the installer did not open, allow Pulse to install apps and tap Install.</string>
+    <string name="pulse_update_download_failed">The download failed. Try again.</string>
 </resources>

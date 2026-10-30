@@ -451,6 +451,10 @@ val PulseFeedSettingsKey = stringPreferencesKey("pulseFeedSettings")
 val PulseFeedMemoryKey = stringPreferencesKey("pulseFeedMemory")
 val PulseLookKey = stringPreferencesKey("pulseLook")
 
+/** Pulse: look for a newer build at start, and whether test builds from branches count. */
+val PulseUpdateCheckKey = booleanPreferencesKey("pulseUpdateCheck")
+val PulseTestBuildsKey = booleanPreferencesKey("pulseTestBuilds")
+
 /** Pulse: whole-app look — palette, fonts and corner shapes. */
 enum class AppStyle {
     RADIO,

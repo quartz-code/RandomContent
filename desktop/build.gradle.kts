@@ -43,6 +43,7 @@ val sharedSources by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/recap/RecapStats.kt")
         include("com/metrolist/music/pulse/feed/PulseFeed.kt")
         include("com/metrolist/music/pulse/feed/YouTubePulseSource.kt")
+        include("com/metrolist/music/pulse/update/PulseReleases.kt")
         // "My pulse": its look and how it is drawn, plain Compose on both.
         include("com/metrolist/music/ui/screens/pulse/PulseLook.kt")
         include("com/metrolist/music/ui/screens/pulse/PulseVisuals.kt")
@@ -61,6 +62,7 @@ val sharedTests by tasks.registering(Sync::class) {
         include("com/metrolist/music/pulse/importer/VkMusicImportTest.kt")
         include("com/metrolist/music/pulse/recap/RecapCalculatorTest.kt")
         include("com/metrolist/music/pulse/feed/PulseFeedTest.kt")
+        include("com/metrolist/music/pulse/update/PulseReleasesTest.kt")
         include("com/metrolist/music/ui/screens/pulse/PulseLookTest.kt")
     }
     into(layout.buildDirectory.dir("shared-test"))

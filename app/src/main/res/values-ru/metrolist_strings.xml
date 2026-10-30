@@ -1403,4 +1403,26 @@
     <string name="app_corners_style">Как в стиле</string>
     <string name="app_corners_round">Круглые</string>
     <string name="app_corners_sharp">Острые</string>
+    <string name="pulse_updates">Обновления</string>
+    <string name="pulse_updates_desc">Новые сборки ставятся прямо из приложения</string>
+    <string name="pulse_updates_intro">Pulse сам смотрит, вышла ли новая сборка, скачивает её и открывает установку — искать APK не нужно. Всё сохраняется: сборки подписаны одним ключом.</string>
+    <string name="pulse_update_installed">Установлена сборка %1$d</string>
+    <string name="pulse_update_local">Эта сборка собрана вручную, поэтому обновления не проверяет</string>
+    <string name="pulse_update_auto">Проверять при запуске</string>
+    <string name="pulse_update_test">Тестовые сборки</string>
+    <string name="pulse_update_test_desc">Новое из веток, до того как оно попадёт в основную сборку. Может быть сырым.</string>
+    <string name="pulse_update_check">Проверить сейчас</string>
+    <string name="pulse_update_checking">Проверяю…</string>
+    <string name="pulse_update_latest">Стоит последняя сборка</string>
+    <string name="pulse_update_failed">Не получилось связаться с GitHub. Проверь интернет или VPN и попробуй ещё раз.</string>
+    <string name="pulse_update_title">Вышел новый Pulse</string>
+    <string name="pulse_update_build">Сборка %1$d</string>
+    <string name="pulse_update_whats_new">Что нового</string>
+    <string name="pulse_update_install">Обновить</string>
+    <string name="pulse_update_install_now">Установить</string>
+    <string name="pulse_update_retry">Повторить</string>
+    <string name="pulse_update_later">Позже</string>
+    <string name="pulse_update_downloading">Скачиваю… %1$d%%</string>
+    <string name="pulse_update_ready">Скачано. Если установка не открылась — разреши Pulse устанавливать приложения и нажми «Установить».</string>
+    <string name="pulse_update_download_failed">Не скачалось. Попробуй ещё раз.</string>
 </resources>

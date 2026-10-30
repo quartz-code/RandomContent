@@ -14,6 +14,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -197,6 +200,11 @@ fun PulseApp(
     LaunchedEffect(Unit) {
         offer = withContext(Dispatchers.IO) { Recaps.toOffer(History.default.all(), Settings.recapsOffered) }
     }
+    // A newer build, offered at every start until it is installed: the computer has no settings for it.
+    var update by remember { mutableStateOf<com.metrolist.music.pulse.update.PulseReleases.Update?>(null) }
+    LaunchedEffect(Unit) {
+        update = withContext(Dispatchers.IO) { DesktopUpdates.check() }
+    }
 
     MaterialTheme(colorScheme = darkColorScheme(primary = Color(0xFFB8C4FF), surface = Color(0xFF15161A), background = Color(0xFF101114))) {
         Box(Modifier.fillMaxSize()) {
@@ -233,6 +241,26 @@ fun PulseApp(
                 text = { Text(Strings.recapOfferText) },
                 confirmButton = { TextButton(onClick = { done(); openRecap(period) }) { Text(Strings.recapOfferOpen) } },
                 dismissButton = { TextButton(onClick = ::done) { Text(Strings.recapOfferLater) } },
+            )
+        }
+        update?.takeIf { offer == null }?.let { found ->
+            AlertDialog(
+                onDismissRequest = { update = null },
+                title = { Text(Strings.updateTitle) },
+                text = {
+                    Column {
+                        Text(Strings.updateBuild(found.release.build), color = MaterialTheme.colorScheme.primary)
+                        if (found.notes.isNotEmpty()) {
+                            Spacer(Modifier.height(10.dp))
+                            Text(Strings.updateWhatsNew, style = MaterialTheme.typography.labelLarge)
+                            Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                                found.notes.forEach { Text("•  $it", modifier = Modifier.padding(vertical = 3.dp)) }
+                            }
+                        }
+                    }
+                },
+                confirmButton = { TextButton(onClick = { DesktopUpdates.openPage(found); update = null }) { Text(Strings.updateDownload) } },
+                dismissButton = { TextButton(onClick = { update = null }) { Text(Strings.updateLater) } },
             )
         }
         if (showAccount) {

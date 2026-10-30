@@ -45,6 +45,8 @@ android {
         versionName = "13.7.0"
         val baseVersionName = requireNotNull(versionName)
         buildConfigField("String", "BASE_VERSION_NAME", "\"$baseVersionName\"")
+        // Pulse: the CI build number (build-N) for updates from the app; 0 when built by hand.
+        buildConfigField("int", "PULSE_BUILD", System.getenv("PULSE_BUILD")?.toIntOrNull()?.toString() ?: "0")
         buildCommit?.let { versionName = "$baseVersionName+$it" }
         resValue("string", "app_name", appNameOverride ?: "Pulse")
 

@@ -108,6 +108,12 @@ fun SettingsScreen(
                     description = { Text(stringResource(R.string.import_hub_desc)) },
                     onClick = { navController.navigate("settings/import") }
                 ),
+                Material3SettingsItem(
+                    icon = painterResource(R.drawable.update),
+                    title = { Text(stringResource(R.string.pulse_updates)) },
+                    description = { Text(stringResource(R.string.pulse_updates_desc)) },
+                    onClick = { navController.navigate("settings/pulse_updates") }
+                ),
             )
         )
 

@@ -30,6 +30,8 @@ jobs:
         run: ./gradlew :app:assembleIzzyRelease --no-daemon --console=plain
         env:
           METROLIST_BUILD_COMMIT: ${{ github.sha }}
+          # The app compares it with the newest release to offer updates (PulseUpdater).
+          PULSE_BUILD: ${{ github.run_number }}
 
       - name: Collect APK
         run: |
@@ -41,20 +43,33 @@ jobs:
           name: Pulse-apk
           path: dist/Pulse.apk
 
+      # What changed, from the newest changelog entry: the app shows it in its update dialog.
+      - name: Release notes
+        run: |
+          {
+            echo "Сборка из ветки \`${{ github.ref_name }}\` (${{ github.sha }})."
+            echo
+            echo "### Что нового"
+            python3 .github/scripts/release_notes.py app/src/main/kotlin/com/metrolist/music/pulse/PulseChangelog.kt
+            echo
+            echo "Скачай **Pulse.apk** и установи. Дальше Pulse обновляется сам: «Настройки → Pulse → Обновления»."
+            echo
+            echo "Pulse для ПК (файлы появятся через несколько минут после APK):"
+            echo "- Windows: **Pulse-windows-x64.msi** (установщик) или **Pulse-windows-x64-portable.zip** (без установки)."
+            echo "- Linux: **pulse-linux-x64.deb** (Ubuntu, Debian, Mint), **pulse-linux-x64.rpm** (Fedora, openSUSE) или **pulse-linux-x64.tar.gz** (любой дистрибутив)."
+          } > dist/notes.md
+
+      # Builds from main are the regular ones; other branches are test builds, marked pre-release,
+      # so "Latest" and the app's regular updates stay on main.
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
           name: Pulse (Metrolist) ${{ github.run_number }}
           target_commitish: ${{ github.sha }}
-          make_latest: true
-          body: |
-            Сборка из ветки `${{ github.ref_name }}` (${{ github.sha }}).
-            Скачай **Pulse.apk** и установи.
-
-            Pulse для ПК (файлы появятся через несколько минут после APK):
-            - Windows: **Pulse-windows-x64.msi** (установщик) или **Pulse-windows-x64-portable.zip** (без установки).
-            - Linux: **pulse-linux-x64.deb** (Ubuntu, Debian, Mint), **pulse-linux-x64.rpm** (Fedora, openSUSE) или **pulse-linux-x64.tar.gz** (любой дистрибутив).
+          prerelease: ${{ github.ref_name != 'main' }}
+          make_latest: ${{ github.ref_name == 'main' }}
+          body_path: dist/notes.md
           files: dist/Pulse.apk
 
   # Pulse for Windows and Linux: its own Gradle build in desktop/. It runs after the APK is
@@ -142,4 +157,6 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: build-${{ github.run_number }}
+          prerelease: ${{ github.ref_name != 'main' }}
+          make_latest: ${{ github.ref_name == 'main' }}
           files: dist/*

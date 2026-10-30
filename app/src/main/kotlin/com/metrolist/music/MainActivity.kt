@@ -5,6 +5,11 @@
 
 package com.metrolist.music
 
+import com.metrolist.music.constants.PulseTestBuildsKey
+import com.metrolist.music.constants.PulseUpdateCheckKey
+import com.metrolist.music.pulse.update.PulseReleases
+import com.metrolist.music.pulse.update.PulseUpdater
+import com.metrolist.music.ui.screens.settings.PulseUpdateDialog
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ForegroundServiceStartNotAllowedException
@@ -503,6 +508,16 @@ class MainActivity : FragmentActivity() {
     ) {
         val checkForUpdates by rememberPreference(CheckForUpdatesKey, defaultValue = true)
         var availableUpdate by remember { mutableStateOf<AvailableUpdate?>(null) }
+
+        // Pulse: our own builds from GitHub, offered once a run; Metrolist's updater stays off here.
+        var pulseUpdate by remember { mutableStateOf<PulseReleases.Update?>(null) }
+        LaunchedEffect(Unit) {
+            if (PulseUpdater.offeredThisRun || PulseUpdater.currentBuild <= 0) return@LaunchedEffect
+            val preferences = dataStore.data.first()
+            if (preferences[PulseUpdateCheckKey] == false) return@LaunchedEffect
+            PulseUpdater.offeredThisRun = true
+            pulseUpdate = PulseUpdater.check(preferences[PulseTestBuildsKey] ?: false)
+        }
 
         if (BuildConfig.UPDATER_AVAILABLE) {
             LaunchedEffect(checkForUpdates) {
@@ -1491,6 +1506,10 @@ class MainActivity : FragmentActivity() {
                                 }
                             }
                         }
+                    }
+
+                    if (!showChangelog.value) {
+                        pulseUpdate?.let { update -> PulseUpdateDialog(update) { pulseUpdate = null } }
                     }
 
                     if (!showChangelog.value) {

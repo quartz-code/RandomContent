@@ -250,6 +250,13 @@ object Strings {
     )
     val recapOfferOpen = t("Смотреть", "Open")
     val recapOfferLater = t("Позже", "Later")
+
+    // Updates
+    val updateTitle = t("Вышел новый Pulse", "A new Pulse is out")
+    fun updateBuild(build: Int) = t("Сборка $build", "Build $build")
+    val updateWhatsNew = t("Что нового", "What's new")
+    val updateDownload = t("Скачать", "Download")
+    val updateLater = t("Позже", "Later")
     // "My pulse": the same words as on the phone.
     val pulseTab = t("Мой пульс", "My pulse")
     val pulseListen = t("Слушать", "Listen")

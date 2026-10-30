@@ -393,6 +393,9 @@ fun NavGraphBuilder.navigationBuilder(
     composable("settings/telegram") {
         TelegramCloudScreen(navController)
     }
+    composable("settings/pulse_updates") {
+        com.metrolist.music.ui.screens.settings.PulseUpdatesScreen(navController)
+    }
     composable("settings/player_builder") {
         com.metrolist.music.ui.screens.settings.PlayerBuilderScreen(navController)
     }
