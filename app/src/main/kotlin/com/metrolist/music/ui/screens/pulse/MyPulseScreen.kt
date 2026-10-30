@@ -286,9 +286,12 @@ private fun pulseWords() = PulseWords(
                 PulseLook.Palette.SUNSET -> R.string.my_pulse_palette_sunset
                 PulseLook.Palette.ICE -> R.string.my_pulse_palette_ice
                 PulseLook.Palette.ARTWORK -> R.string.my_pulse_palette_artwork
+                PulseLook.Palette.CUSTOM -> R.string.my_pulse_palette_custom
             },
         )
     },
+    customStart = stringResource(R.string.my_pulse_custom_start),
+    customEnd = stringResource(R.string.my_pulse_custom_end),
     artworkLights = stringResource(R.string.my_pulse_artwork_lights),
     artworkLightsHint = stringResource(R.string.my_pulse_artwork_lights_hint),
     shape = stringResource(R.string.my_pulse_shape),
@@ -333,6 +336,7 @@ private fun pulseWords() = PulseWords(
     reaction = stringResource(R.string.my_pulse_reaction),
     reactionLess = stringResource(R.string.my_pulse_reaction_less),
     reactionMore = stringResource(R.string.my_pulse_reaction_more),
+    reactionDefault = stringResource(R.string.my_pulse_reaction_default),
     scheduleSwitch = stringResource(R.string.my_pulse_schedule_switch),
     scheduleHint = stringResource(R.string.my_pulse_schedule_hint),
     partHours = LocalContext.current.let { context -> { from, to -> context.getString(R.string.my_pulse_part_hours, from, to) } },

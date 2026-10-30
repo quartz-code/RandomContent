@@ -76,6 +76,9 @@ class PulseWords(
     val pages: Map<TunePage, String>,
     val colors: String,
     val palettes: Map<PulseLook.Palette, String>,
+    /** The two rows of colours for [PulseLook.Palette.CUSTOM]: where the gradient starts and ends. */
+    val customStart: String,
+    val customEnd: String,
     val artworkLights: String,
     val artworkLightsHint: String,
     val shape: String,
@@ -91,6 +94,8 @@ class PulseWords(
     val reaction: String,
     val reactionLess: String,
     val reactionMore: String,
+    /** Puts the slider back where the chosen background looks best. */
+    val reactionDefault: String,
     val scheduleSwitch: String,
     val scheduleHint: String,
     val partHours: (from: Int, to: Int) -> String,

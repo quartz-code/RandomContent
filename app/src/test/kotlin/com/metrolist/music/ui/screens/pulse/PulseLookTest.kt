@@ -24,4 +24,13 @@ class PulseLookTest {
         // A newer build's option is ignored, an unknown value falls back to the default.
         assertEquals(PulseLook(shape = PulseLook.Shape.FLOWER), PulseLook.fromJson("""{"shape":"FLOWER","sparkles":true,"palette":"RAINBOW"}"""))
     }
+
+    @Test
+    fun aFriendGetsTheOwnGradientAndEveryPaletteIsOffered() {
+        val look = PulseLook(PulseLook.Palette.CUSTOM, customFirst = PulseLook.swatches[3], customSecond = PulseLook.swatches[8])
+        assertEquals(look, PulseLook.fromCode(look.toCode()))
+        assertEquals(PulseLook.Palette.entries.toSet(), PulseLook.Palette.shown.toSet())
+        // The default look starts at its background's best reaction.
+        assertEquals(PulseLook().background.reaction, PulseLook().reaction)
+    }
 }

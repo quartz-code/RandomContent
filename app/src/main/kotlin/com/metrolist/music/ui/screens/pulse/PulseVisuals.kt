@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
+import kotlin.math.exp
 import kotlin.math.sin
 
 /*
@@ -73,6 +74,24 @@ data class PulseTint(val first: Color, val second: Color, val lights: List<Color
             Color(palette.second),
             listOf(Color(palette.first), Color(palette.fourth), Color(palette.second), Color(palette.third)),
         )
+
+        /** The look's palette; for [PulseLook.Palette.CUSTOM] the listener's own two colours. */
+        fun of(look: PulseLook): PulseTint {
+            if (look.palette != PulseLook.Palette.CUSTOM) return of(look.palette)
+            val first = Color(look.customFirst)
+            val second = Color(look.customSecond)
+            return PulseTint(first, second, listOf(first, lerp(second, PulseInk, 0.3f), second, lerp(first, PulseInk, 0.35f)))
+        }
+
+        /**
+         * For a black-and-white cover: silver, as the cover is. Its greys have no hue, and
+         * brightening them would make up a colour that is not on the cover.
+         */
+        internal val silver = PulseTint(
+            Color(0xFFE8EBF2),
+            Color(0xFF9EA8BC),
+            listOf(Color(0xFFB8C2D6), Color(0xFF4A5468), Color(0xFF8C96AA), Color(0xFF5E6478)),
+        )
     }
 }
 
@@ -85,8 +104,8 @@ internal val LocalPulseTint = compositionLocalOf { PulseTint.of(PulseLook.Palett
  */
 @Composable
 internal fun rememberPulseTint(look: PulseLook, artworkColors: List<Color>): PulseTint {
-    val target = remember(look.palette, artworkColors) {
-        if (look.palette == PulseLook.Palette.ARTWORK && artworkColors.isNotEmpty()) fromArtwork(artworkColors) else PulseTint.of(look.palette)
+    val target = remember(look.palette, look.customFirst, look.customSecond, artworkColors) {
+        if (look.palette == PulseLook.Palette.ARTWORK && artworkColors.isNotEmpty()) fromArtwork(artworkColors) else PulseTint.of(look)
     }
     val first by animateColorAsState(target.first, tween(900), label = "first")
     val second by animateColorAsState(target.second, tween(900), label = "second")
@@ -94,13 +113,18 @@ internal fun rememberPulseTint(look: PulseLook, artworkColors: List<Color>): Pul
     return remember(first, second, lights) { PulseTint(first, second, lights) }
 }
 
-private fun fromArtwork(colors: List<Color>): PulseTint {
+private fun fromArtwork(artworkColors: List<Color>): PulseTint {
+    val colors = vivid(artworkColors)
+    if (colors.isEmpty()) return PulseTint.silver
     val first = glowing(colors[0])
     // A one-colour cover would give a flat heart: the second colour is then the first, turned a little.
     val second = colors.drop(1).map(::glowing).firstOrNull { hueDistance(it, first) > 25f } ?: turned(first, 38f)
     val third = colors.getOrNull(2)?.let(::glowing) ?: turned(first, -55f)
     return PulseTint(first, second, listOf(first, lerp(third, PulseInk, 0.25f), second, lerp(first, PulseInk, 0.35f)))
 }
+
+/** Artwork colours with a hue to speak of; the greys and near-blacks of a cover are left out. */
+internal fun vivid(colors: List<Color>): List<Color> = colors.filter { hsvOf(it).let { (_, saturation, value) -> saturation > 0.2f && value > 0.15f } }
 
 private fun hsvOf(color: Color): FloatArray {
     val max = maxOf(color.red, color.green, color.blue)
@@ -163,7 +187,13 @@ internal fun PulseAura(
     artworkShade: Float = 0.55f,
 ) {
     val tint = LocalPulseTint.current
-    val source = if (look.artworkLights && artworkColors.size >= 2) artworkColors.map(::glowing) else tint.lights
+    val vivid = vivid(artworkColors).map(::glowing)
+    val source = when {
+        !look.artworkLights || vivid.isEmpty() -> tint.lights
+        vivid.size == 1 -> listOf(vivid[0], turned(vivid[0], 38f))
+        else -> vivid
+    }
+    val motion = remember { AuraMotion() }
     val lights = tint.lights.indices.map { i ->
         animateColorAsState(source[i % source.size], tween(1200), label = "light$i").value
     }
@@ -176,12 +206,13 @@ internal fun PulseAura(
             Canvas(Modifier.fillMaxSize()) {
                 drawRect(PulseInk)
                 val t = time()
-                val e = (energy() * reaction).coerceAtMost(1.5f)
+                motion.step(t, (energy() * reaction).coerceAtMost(1.5f))
+                val e = motion.energy
                 when (look.background) {
                     PulseLook.Background.CALM -> drawStill(lights)
                     PulseLook.Background.PARTICLES -> {
                         drawStill(lights, dim = 0.6f)
-                        drawParticles(lights, t, e)
+                        drawParticles(lights, t, motion.travel, e)
                     }
                     PulseLook.Background.AURORA -> {
                         drawStill(lights, dim = 0.45f)
@@ -200,6 +231,28 @@ internal fun PulseAura(
             drawRect(Brush.verticalGradient(0f to Color.Transparent, 0.5f to Color.Transparent, 0.82f to PulseInk.copy(alpha = 0.85f), 1f to PulseInk))
             drawRect(Brush.verticalGradient(0f to PulseInk.copy(alpha = 0.55f), 0.18f to Color.Transparent))
         }
+    }
+}
+
+/**
+ * The music as the background follows it, kept from frame to frame: loudness eased, so nothing
+ * flickers with every drum hit, and how far the sparks have flown. Their speed changes with the
+ * music, but where they are is the sum of all speeds so far: a loud bar speeds them up rather
+ * than throwing them along their path, which time × speed did.
+ */
+private class AuraMotion {
+    private var last = Float.NaN
+    var energy = 0f
+        private set
+    var travel = 0f
+        private set
+
+    fun step(t: Float, target: Float) {
+        val dt = if (last.isNaN()) 0f else (t - last).coerceIn(0f, 0.1f)
+        last = t
+        // Rises with a beat in about a tenth of a second, falls back over half a second.
+        energy += (target - energy) * (1f - exp(-dt / if (target > energy) 0.1f else 0.5f))
+        travel += dt * (1f + 1.5f * energy)
     }
 }
 
@@ -234,11 +287,11 @@ private fun noise(i: Int, salt: Float): Float {
     return x - kotlin.math.floor(x)
 }
 
-private fun DrawScope.drawParticles(lights: List<Color>, t: Float, e: Float) {
+private fun DrawScope.drawParticles(lights: List<Color>, t: Float, travel: Float, e: Float) {
     val unit = size.minDimension / 400f
     for (i in 0 until 54) {
         val speed = 0.035f + 0.07f * noise(i, 1f)
-        val p = (t * speed * (1f + e) + noise(i, 2f)) % 1f
+        val p = (travel * speed + noise(i, 2f)) % 1f
         val x = size.width * noise(i, 3f) + sin(t * 0.7f + i) * size.width * 0.025f
         val y = size.height * (1.04f - 1.1f * p)
         val fade = sin(p * PI.toFloat())

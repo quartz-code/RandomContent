@@ -23,6 +23,9 @@ data class PulseLook(
     val motion: Motion = Motion.NORMAL,
     /** How strongly the heart and the background answer the music: 0 still, 1 as designed, 2 wild. */
     val reaction: Float = 1f,
+    /** The two ends of the listener's own gradient, for [Palette.CUSTOM]. */
+    val customFirst: Long = 0xFFFF4F7B,
+    val customSecond: Long = 0xFF7C4DFF,
 ) {
     /**
      * Two colours for the heart and the buttons, two more for the lights behind. All are bright
@@ -38,23 +41,33 @@ data class PulseLook(
 
         /** The playing song's artwork gives every colour; until a song plays, the logo's. */
         ARTWORK(0xFFFF4F7B, 0xFFFFA24C, 0xFFC2306E, 0xFF5B3FD9),
+
+        /** The listener's own two colours ([customFirst], [customSecond]); these values are unused. */
+        CUSTOM(0xFFFF4F7B, 0xFF7C4DFF, 0xFFC2306E, 0xFF5B3FD9),
+        ;
+
+        companion object {
+            /** As the settings show them: the artwork first, the listener's own last. */
+            val shown = listOf(ARTWORK, PULSE, OCEAN, NEON, FOREST, SUNSET, ICE, CUSTOM)
+        }
     }
 
     enum class Shape { DROP, CIRCLE, FLOWER, STAR, HEART, WAVE }
 
-    enum class Background {
+    /** Each background with the [reaction] it looks best at; picking it sets that. */
+    enum class Background(val reaction: Float) {
         /** Soft lights drifting behind the page. */
-        LIGHTS,
+        LIGHTS(1f),
         /** The artwork itself, blurred; the lights while nothing plays. */
-        ARTWORK,
+        ARTWORK(1f),
         /** One still glow, nothing moving behind. */
-        CALM,
-        /** Sparks rising, more of them and brighter on the beat. */
-        PARTICLES,
+        CALM(1f),
+        /** Sparks rising, a little faster and brighter on the beat. */
+        PARTICLES(0.6f),
         /** Ribbons of light across the top, like the northern lights. */
-        AURORA,
+        AURORA(0.9f),
         /** Waves rolling along the bottom, higher with the music. */
-        WAVES,
+        WAVES(0.8f),
     }
 
     enum class Motion(val speed: Float) { CALM(0.55f), NORMAL(1f), LIVELY(1.6f) }
@@ -62,6 +75,12 @@ data class PulseLook(
     fun toJson(): String = json.encodeToString(serializer(), this)
 
     companion object {
+        /** Colours offered for [Palette.CUSTOM]: bright enough for the heart to glow and dark text to read. */
+        val swatches = listOf(
+            0xFFFF4F7B, 0xFFFF3EA5, 0xFFE040FB, 0xFFB46BFF, 0xFF7C4DFF, 0xFF4F8BFF, 0xFF35D0D6,
+            0xFF1DE9B6, 0xFF47E08E, 0xFFD4F45A, 0xFFFFC857, 0xFFFFA24C, 0xFFFF6A45, 0xFFC9EBFF,
+        )
+
         private val json = Json {
             ignoreUnknownKeys = true
             encodeDefaults = false
