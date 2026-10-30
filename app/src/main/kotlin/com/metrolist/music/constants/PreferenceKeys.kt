@@ -458,6 +458,25 @@ enum class AppStyle {
     TERMINAL,
 }
 
+/** Pulse: how vivid the app's colours are when made from a chosen colour or the artwork. */
+val AppColorStyleKey = stringPreferencesKey("pulseAppColorStyle")
+
+enum class AppColorStyle {
+    CALM,
+    VIBRANT,
+    EXPRESSIVE,
+    MONO,
+}
+
+/** Pulse: the corners of cards, buttons and sheets across the app, over what the style says. */
+val AppCornersKey = stringPreferencesKey("pulseAppCorners")
+
+enum class AppCorners {
+    STYLE,
+    ROUND,
+    SHARP,
+}
+
 /** Pulse: how the full-screen player looks; the three designs from the Figma board. */
 val PlayerDesignKey = stringPreferencesKey("pulsePlayerDesign")
 /** Pulse: the player builder's theme as JSON; when empty the preset of [PlayerDesignKey] is used. */

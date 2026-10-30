@@ -1374,4 +1374,23 @@
     <string name="my_pulse_now">сейчас</string>
     <string name="my_pulse_as_usual">Как обычно</string>
     <string name="my_pulse_mood_as_usual">Любое настроение</string>
+    <string name="my_pulse_palette_artwork">Обложка</string>
+    <string name="my_pulse_shape_heart">Сердечко</string>
+    <string name="my_pulse_shape_wave">Волна</string>
+    <string name="my_pulse_background_particles">Искры</string>
+    <string name="my_pulse_background_aurora">Сияние</string>
+    <string name="my_pulse_background_waves">Волны</string>
+    <string name="my_pulse_reaction">Реакция на музыку</string>
+    <string name="my_pulse_reaction_less">Спокойнее</string>
+    <string name="my_pulse_reaction_more">Сильнее</string>
+    <string name="app_color_style">Насыщенность цветов</string>
+    <string name="app_color_style_hint">Для выбранного цвета и для цвета из обложки.</string>
+    <string name="app_color_style_calm">Спокойные</string>
+    <string name="app_color_style_vibrant">Яркие</string>
+    <string name="app_color_style_expressive">Выразительные</string>
+    <string name="app_color_style_mono">Монохром</string>
+    <string name="app_corners">Углы</string>
+    <string name="app_corners_style">Как в стиле</string>
+    <string name="app_corners_round">Круглые</string>
+    <string name="app_corners_sharp">Острые</string>
 </resources>

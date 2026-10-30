@@ -9,7 +9,7 @@ import org.junit.Test
 class PulseLookTest {
     @Test
     fun aLookTravelsAsACodeInsideAMessage() {
-        val look = PulseLook(PulseLook.Palette.OCEAN, artworkLights = false, shape = PulseLook.Shape.STAR, background = PulseLook.Background.ARTWORK, echoes = false, motion = PulseLook.Motion.LIVELY)
+        val look = PulseLook(PulseLook.Palette.ARTWORK, artworkLights = false, shape = PulseLook.Shape.HEART, background = PulseLook.Background.AURORA, echoes = false, motion = PulseLook.Motion.LIVELY, reaction = 1.6f)
         val code = look.toCode()
         assertTrue(code.startsWith("PULSEWAVE1-"))
         assertEquals(look, PulseLook.fromCode("Смотри, какой у меня пульс: $code — вставь в Pulse"))

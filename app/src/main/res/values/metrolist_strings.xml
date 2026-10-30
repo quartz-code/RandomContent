@@ -1464,4 +1464,23 @@
     <string name="my_pulse_now">now</string>
     <string name="my_pulse_as_usual">As usual</string>
     <string name="my_pulse_mood_as_usual">Any mood</string>
+    <string name="my_pulse_palette_artwork">Artwork</string>
+    <string name="my_pulse_shape_heart">Heart</string>
+    <string name="my_pulse_shape_wave">Wave</string>
+    <string name="my_pulse_background_particles">Sparks</string>
+    <string name="my_pulse_background_aurora">Aurora</string>
+    <string name="my_pulse_background_waves">Waves</string>
+    <string name="my_pulse_reaction">Reaction to the music</string>
+    <string name="my_pulse_reaction_less">Calmer</string>
+    <string name="my_pulse_reaction_more">Stronger</string>
+    <string name="app_color_style">Colour intensity</string>
+    <string name="app_color_style_hint">For a chosen colour and for colours from the artwork.</string>
+    <string name="app_color_style_calm">Calm</string>
+    <string name="app_color_style_vibrant">Vivid</string>
+    <string name="app_color_style_expressive">Expressive</string>
+    <string name="app_color_style_mono">Monochrome</string>
+    <string name="app_corners">Corners</string>
+    <string name="app_corners_style">As the style</string>
+    <string name="app_corners_round">Round</string>
+    <string name="app_corners_sharp">Sharp</string>
 </resources>

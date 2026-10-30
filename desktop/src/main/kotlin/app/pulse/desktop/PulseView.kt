@@ -63,6 +63,7 @@ import com.metrolist.music.ui.screens.pulse.PulseWords
 import com.metrolist.music.ui.screens.pulse.TunePage
 import com.metrolist.music.ui.screens.pulse.TuneSheet
 import com.metrolist.music.ui.screens.pulse.rememberPulseClock
+import com.metrolist.music.ui.screens.pulse.rememberPulseTint
 import com.metrolist.music.ui.screens.pulse.withCharacterNow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -94,6 +95,8 @@ fun PulseTab(pulse: DesktopPulse, controller: PlayerController, library: Library
     val hour = remember(current?.videoId, settings) { LocalTime.now().hour }
     val beating = pulsePlaying && state.isPlaying
     val artworkColor = rememberArtworkColor(current?.thumbnail)
+    // The desktop finds one colour in the artwork; lighter and darker shades of it make the lights.
+    val artworkColors = remember(artworkColor) { artworkColor?.let { listOf(it, lerp(it, Color.White, 0.3f), lerp(it, Color.Black, 0.25f)) }.orEmpty() }
 
     fun apply(chosen: PulseSettings) {
         if (chosen == settings) return
@@ -122,8 +125,7 @@ fun PulseTab(pulse: DesktopPulse, controller: PlayerController, library: Library
             starting = starting,
             now = current?.let { NowPlaying(it.title, it.artists, it.videoId in likedIds) },
             signedIn = signedIn,
-            // The desktop finds one colour in the artwork; lighter and darker shades of it make the lights.
-            artworkColors = artworkColor?.let { listOf(it, lerp(it, Color.White, 0.3f), lerp(it, Color.Black, 0.25f)) }.orEmpty(),
+            artworkColors = artworkColors,
             time = rememberPulseClock(beating, look.motion.speed),
             levels = rememberPulseLevels(controller.levels, beating),
             contentPadding = PaddingValues(top = 6.dp, bottom = 8.dp),
@@ -154,7 +156,7 @@ fun PulseTab(pulse: DesktopPulse, controller: PlayerController, library: Library
     if (tuning) {
         Dialog(onDismissRequest = { tuning = false }) {
             Surface(color = PulseSheet, contentColor = Color.White, shape = RoundedCornerShape(24.dp), modifier = Modifier.widthIn(max = 560.dp).heightIn(max = 720.dp)) {
-                CompositionLocalProvider(LocalPulseTint provides PulseTint.of(look.palette)) {
+                CompositionLocalProvider(LocalPulseTint provides rememberPulseTint(look, artworkColors)) {
                     TuneSheet(
                         words = words,
                         icons = icons,
@@ -250,6 +252,7 @@ internal fun pulseWords() = PulseWords(
         PulseLook.Palette.FOREST to Strings.pulsePaletteForest,
         PulseLook.Palette.SUNSET to Strings.pulsePaletteSunset,
         PulseLook.Palette.ICE to Strings.pulsePaletteIce,
+        PulseLook.Palette.ARTWORK to Strings.pulsePaletteArtwork,
     ),
     artworkLights = Strings.pulseArtworkLights,
     artworkLightsHint = Strings.pulseArtworkLightsHint,
@@ -259,6 +262,8 @@ internal fun pulseWords() = PulseWords(
         PulseLook.Shape.CIRCLE to Strings.pulseShapeCircle,
         PulseLook.Shape.FLOWER to Strings.pulseShapeFlower,
         PulseLook.Shape.STAR to Strings.pulseShapeStar,
+        PulseLook.Shape.HEART to Strings.pulseShapeHeart,
+        PulseLook.Shape.WAVE to Strings.pulseShapeWave,
     ),
     echoes = Strings.pulseEchoes,
     background = Strings.pulseBackground,
@@ -266,6 +271,9 @@ internal fun pulseWords() = PulseWords(
         PulseLook.Background.LIGHTS to Strings.pulseBackgroundLights,
         PulseLook.Background.ARTWORK to Strings.pulseBackgroundArtwork,
         PulseLook.Background.CALM to Strings.pulseBackgroundCalm,
+        PulseLook.Background.PARTICLES to Strings.pulseBackgroundParticles,
+        PulseLook.Background.AURORA to Strings.pulseBackgroundAurora,
+        PulseLook.Background.WAVES to Strings.pulseBackgroundWaves,
     ),
     motion = Strings.pulseMotion,
     motions = mapOf(
@@ -275,6 +283,9 @@ internal fun pulseWords() = PulseWords(
     ),
     share = Strings.pulseShare,
     paste = Strings.pulsePaste,
+    reaction = Strings.pulseReaction,
+    reactionLess = Strings.pulseReactionLess,
+    reactionMore = Strings.pulseReactionMore,
     scheduleSwitch = Strings.pulseScheduleSwitch,
     scheduleHint = Strings.pulseScheduleHint,
     partHours = Strings::pulsePartHours,

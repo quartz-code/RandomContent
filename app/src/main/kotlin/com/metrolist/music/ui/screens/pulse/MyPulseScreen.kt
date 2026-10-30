@@ -132,6 +132,7 @@ fun MyPulseScreen(viewModel: MyPulseViewModel = hiltViewModel()) {
         if (empty) Toast.makeText(context, R.string.my_pulse_nothing, Toast.LENGTH_LONG).show()
     }
 
+    val artworkColors = rememberArtworkColors(current?.thumbnailUrl)
     val beating = pulsePlaying && isPlaying
     val sessionId = remember(metadata?.id) { playerConnection.player.audioSessionId }
     val statusBar = WindowInsets.statusBars.asPaddingValues()
@@ -146,7 +147,7 @@ fun MyPulseScreen(viewModel: MyPulseViewModel = hiltViewModel()) {
         starting = starting,
         now = current?.let { NowPlaying(it.title, it.artists.joinToString { a -> a.name }, song?.song?.liked == true) },
         signedIn = signedIn,
-        artworkColors = rememberArtworkColors(current?.thumbnailUrl),
+        artworkColors = artworkColors,
         time = rememberPulseClock(beating, look.motion.speed),
         levels = rememberAudioLevels(sessionId, beating),
         contentPadding = PaddingValues(top = statusBar.calculateTopPadding(), bottom = LocalPlayerAwareWindowInsets.current.asPaddingValues().calculateBottomPadding()),
@@ -184,7 +185,7 @@ fun MyPulseScreen(viewModel: MyPulseViewModel = hiltViewModel()) {
             contentColor = Color.White,
             dragHandle = { BottomSheetDefaults.DragHandle(color = Color.White.copy(alpha = 0.25f)) },
         ) {
-            CompositionLocalProvider(LocalPulseTint provides PulseTint.of(look.palette)) {
+            CompositionLocalProvider(LocalPulseTint provides rememberPulseTint(look, artworkColors)) {
                 TuneSheet(
                     words = words,
                     icons = icons,
@@ -284,6 +285,7 @@ private fun pulseWords() = PulseWords(
                 PulseLook.Palette.FOREST -> R.string.my_pulse_palette_forest
                 PulseLook.Palette.SUNSET -> R.string.my_pulse_palette_sunset
                 PulseLook.Palette.ICE -> R.string.my_pulse_palette_ice
+                PulseLook.Palette.ARTWORK -> R.string.my_pulse_palette_artwork
             },
         )
     },
@@ -297,6 +299,8 @@ private fun pulseWords() = PulseWords(
                 PulseLook.Shape.CIRCLE -> R.string.my_pulse_shape_circle
                 PulseLook.Shape.FLOWER -> R.string.my_pulse_shape_flower
                 PulseLook.Shape.STAR -> R.string.my_pulse_shape_star
+                PulseLook.Shape.HEART -> R.string.my_pulse_shape_heart
+                PulseLook.Shape.WAVE -> R.string.my_pulse_shape_wave
             },
         )
     },
@@ -308,6 +312,9 @@ private fun pulseWords() = PulseWords(
                 PulseLook.Background.LIGHTS -> R.string.my_pulse_background_lights
                 PulseLook.Background.ARTWORK -> R.string.my_pulse_background_artwork
                 PulseLook.Background.CALM -> R.string.my_pulse_background_calm
+                PulseLook.Background.PARTICLES -> R.string.my_pulse_background_particles
+                PulseLook.Background.AURORA -> R.string.my_pulse_background_aurora
+                PulseLook.Background.WAVES -> R.string.my_pulse_background_waves
             },
         )
     },
@@ -323,6 +330,9 @@ private fun pulseWords() = PulseWords(
     },
     share = stringResource(R.string.my_pulse_look_share),
     paste = stringResource(R.string.my_pulse_look_paste),
+    reaction = stringResource(R.string.my_pulse_reaction),
+    reactionLess = stringResource(R.string.my_pulse_reaction_less),
+    reactionMore = stringResource(R.string.my_pulse_reaction_more),
     scheduleSwitch = stringResource(R.string.my_pulse_schedule_switch),
     scheduleHint = stringResource(R.string.my_pulse_schedule_hint),
     partHours = LocalContext.current.let { context -> { from, to -> context.getString(R.string.my_pulse_part_hours, from, to) } },

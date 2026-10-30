@@ -21,6 +21,8 @@ data class PulseLook(
     /** Rings spreading out from the heart, as on the logo. */
     val echoes: Boolean = true,
     val motion: Motion = Motion.NORMAL,
+    /** How strongly the heart and the background answer the music: 0 still, 1 as designed, 2 wild. */
+    val reaction: Float = 1f,
 ) {
     /**
      * Two colours for the heart and the buttons, two more for the lights behind. All are bright
@@ -33,9 +35,12 @@ data class PulseLook(
         FOREST(0xFF47E08E, 0xFFD4F45A, 0xFF138A5A, 0xFF0F6E6E),
         SUNSET(0xFFFF6A45, 0xFFFFC857, 0xFFE0306A, 0xFF7A2E9E),
         ICE(0xFFC9EBFF, 0xFF8FB4FF, 0xFF4F6BD9, 0xFF4AB8D8),
+
+        /** The playing song's artwork gives every colour; until a song plays, the logo's. */
+        ARTWORK(0xFFFF4F7B, 0xFFFFA24C, 0xFFC2306E, 0xFF5B3FD9),
     }
 
-    enum class Shape { DROP, CIRCLE, FLOWER, STAR }
+    enum class Shape { DROP, CIRCLE, FLOWER, STAR, HEART, WAVE }
 
     enum class Background {
         /** Soft lights drifting behind the page. */
@@ -44,6 +49,12 @@ data class PulseLook(
         ARTWORK,
         /** One still glow, nothing moving behind. */
         CALM,
+        /** Sparks rising, more of them and brighter on the beat. */
+        PARTICLES,
+        /** Ribbons of light across the top, like the northern lights. */
+        AURORA,
+        /** Waves rolling along the bottom, higher with the music. */
+        WAVES,
     }
 
     enum class Motion(val speed: Float) { CALM(0.55f), NORMAL(1f), LIVELY(1.6f) }

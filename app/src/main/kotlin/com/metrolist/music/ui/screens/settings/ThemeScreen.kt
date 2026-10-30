@@ -35,6 +35,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.material3.FilterChip
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -80,6 +82,10 @@ import com.metrolist.music.constants.PureBlackMiniPlayerKey
 import com.metrolist.music.constants.SelectedThemeColorKey
 import com.metrolist.music.ui.theme.DefaultThemeColor
 import com.metrolist.music.ui.theme.colorScheme
+import com.metrolist.music.constants.AppColorStyle
+import com.metrolist.music.constants.AppColorStyleKey
+import com.metrolist.music.constants.AppCorners
+import com.metrolist.music.constants.AppCornersKey
 import com.metrolist.music.constants.AppStyle
 import com.metrolist.music.constants.AppStyleKey
 import com.metrolist.music.ui.theme.MetrolistTheme
@@ -93,6 +99,13 @@ data class ThemePalette(
 
 val PaletteColors = listOf(
     ThemePalette(R.string.palette_dynamic, Color.Transparent), // Sentinel for System/Dynamic colors
+    // Pulse: the "My pulse" palettes, so the whole app can match the pulse page.
+    ThemePalette(R.string.my_pulse_palette_pulse, Color(0xFFFF4F7B)),
+    ThemePalette(R.string.my_pulse_palette_ocean, Color(0xFF4F8BFF)),
+    ThemePalette(R.string.my_pulse_palette_neon, Color(0xFFB46BFF)),
+    ThemePalette(R.string.my_pulse_palette_forest, Color(0xFF47E08E)),
+    ThemePalette(R.string.my_pulse_palette_sunset, Color(0xFFFF6A45)),
+    ThemePalette(R.string.my_pulse_palette_ice, Color(0xFF8FB4FF)),
     ThemePalette(R.string.palette_crimson, Color(0xFFEC5464)), // Slightly shifted from DefaultThemeColor (0xFFED5564) to avoid conflict
     ThemePalette(R.string.palette_rose, Color(0xFFD81B60)),
     ThemePalette(R.string.palette_purple, Color(0xFF8E24AA)),
@@ -412,7 +425,58 @@ fun ThemeControls(
                     }
                 }
             }
+
+            // Pulse: how vivid the colours are, and the corners, for the whole app.
+            val (colorStyle, onColorStyleChange) = rememberEnumPreference(AppColorStyleKey, AppColorStyle.CALM)
+            val (corners, onCornersChange) = rememberEnumPreference(AppCornersKey, AppCorners.STYLE)
+            ThemeChoice(
+                title = stringResource(R.string.app_color_style),
+                hint = stringResource(R.string.app_color_style_hint),
+                options = AppColorStyle.entries,
+                selected = colorStyle,
+                label = {
+                    stringResource(
+                        when (it) {
+                            AppColorStyle.CALM -> R.string.app_color_style_calm
+                            AppColorStyle.VIBRANT -> R.string.app_color_style_vibrant
+                            AppColorStyle.EXPRESSIVE -> R.string.app_color_style_expressive
+                            AppColorStyle.MONO -> R.string.app_color_style_mono
+                        },
+                    )
+                },
+                onSelect = onColorStyleChange,
+            )
+            ThemeChoice(
+                title = stringResource(R.string.app_corners),
+                hint = null,
+                options = AppCorners.entries,
+                selected = corners,
+                label = {
+                    stringResource(
+                        when (it) {
+                            AppCorners.STYLE -> R.string.app_corners_style
+                            AppCorners.ROUND -> R.string.app_corners_round
+                            AppCorners.SHARP -> R.string.app_corners_sharp
+                        },
+                    )
+                },
+                onSelect = onCornersChange,
+            )
         }
+    }
+}
+
+/** Pulse: a titled row of chips for one theme choice. */
+@Composable
+private fun <T> ThemeChoice(title: String, hint: String?, options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(text = title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            options.forEach { option ->
+                FilterChip(selected = option == selected, onClick = { onSelect(option) }, label = { Text(label(option)) })
+            }
+        }
+        if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -678,10 +742,14 @@ fun ThemeMockup(
         DarkMode.OFF -> false
     }
 
+    val mockColorStyle by rememberEnumPreference(AppColorStyleKey, AppColorStyle.CALM)
+    val mockCorners by rememberEnumPreference(AppCornersKey, AppCorners.STYLE)
     MetrolistTheme(
         darkTheme = useDark,
         pureBlack = pureBlack,
-        themeColor = themeColor
+        themeColor = themeColor,
+        colorStyle = mockColorStyle,
+        corners = mockCorners,
     ) {
         Card(
             modifier = Modifier
@@ -786,10 +854,14 @@ fun ThemeMockupPortrait(
         DarkMode.OFF -> false
     }
 
+    val mockColorStyle by rememberEnumPreference(AppColorStyleKey, AppColorStyle.CALM)
+    val mockCorners by rememberEnumPreference(AppCornersKey, AppCorners.STYLE)
     MetrolistTheme(
         darkTheme = useDark,
         pureBlack = pureBlack,
-        themeColor = themeColor
+        themeColor = themeColor,
+        colorStyle = mockColorStyle,
+        corners = mockCorners,
     ) {
         Card(
             modifier = Modifier

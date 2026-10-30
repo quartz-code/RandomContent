@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
@@ -47,6 +49,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.metrolist.music.pulse.feed.PulseSettings
+import kotlin.math.roundToInt
 
 /** The three pages of "Tune": what plays, how the page looks, and when what plays. */
 enum class TunePage { MUSIC, LOOK, SCHEDULE }
@@ -126,6 +129,7 @@ private fun ColumnScope.MusicPage(words: PulseWords, icons: PulseIcons, chosen: 
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ColumnScope.LookPage(words: PulseWords, icons: PulseIcons, look: PulseLook, onLook: (PulseLook) -> Unit, onShare: (PulseLook) -> Unit, onPaste: () -> Unit) {
     Section(words.colors)
@@ -142,7 +146,14 @@ private fun ColumnScope.LookPage(words: PulseWords, icons: PulseIcons, look: Pul
                         .then(if (selected) Modifier.border(2.dp, Color.White, CircleShape) else Modifier)
                         .padding(5.dp)
                         .clip(CircleShape)
-                        .background(Brush.linearGradient(listOf(Color(palette.first), Color(palette.second), Color(palette.fourth)))),
+                        .background(
+                            // "From the artwork" shows every colour, since it may become any of them.
+                            if (palette == PulseLook.Palette.ARTWORK) {
+                                Brush.sweepGradient(listOf(Color(0xFFFF4F7B), Color(0xFFFFC857), Color(0xFF47E08E), Color(0xFF35D0D6), Color(0xFF5B3FD9), Color(0xFFFF4F7B)))
+                            } else {
+                                Brush.linearGradient(listOf(Color(palette.first), Color(palette.second), Color(palette.fourth)))
+                            },
+                        ),
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(words.palettes.getValue(palette), color = Color.White.copy(alpha = if (selected) 1f else 0.6f), fontSize = 12.sp, fontWeight = FontWeight.Medium)
@@ -153,22 +164,24 @@ private fun ColumnScope.LookPage(words: PulseWords, icons: PulseIcons, look: Pul
     Toggle(words.artworkLights, words.artworkLightsHint, look.artworkLights) { onLook(look.copy(artworkLights = it)) }
 
     Section(words.shape)
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        PulseLook.Shape.entries.forEach { shape ->
-            val selected = look.shape == shape
-            val corners = RoundedCornerShape(18.dp)
-            Column(
-                Modifier
-                    .weight(1f)
-                    .clip(corners)
-                    .then(if (selected) Modifier.background(Color.White.copy(alpha = 0.1f), corners).border(1.5.dp, LocalPulseTint.current.gradient, corners) else Modifier.glass(corners))
-                    .clickable(role = Role.RadioButton) { onLook(look.copy(shape = shape)) }
-                    .padding(vertical = 12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                HeartPreview(shape, Modifier.size(44.dp))
-                Spacer(Modifier.height(8.dp))
-                Text(words.shapes.getValue(shape), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+    PulseLook.Shape.entries.chunked(3).forEach { row ->
+        Row(Modifier.fillMaxWidth().padding(bottom = 10.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            row.forEach { shape ->
+                val selected = look.shape == shape
+                val corners = RoundedCornerShape(18.dp)
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .clip(corners)
+                        .then(if (selected) Modifier.background(Color.White.copy(alpha = 0.1f), corners).border(1.5.dp, LocalPulseTint.current.gradient, corners) else Modifier.glass(corners))
+                        .clickable(role = Role.RadioButton) { onLook(look.copy(shape = shape)) }
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    HeartPreview(shape, Modifier.size(44.dp))
+                    Spacer(Modifier.height(8.dp))
+                    Text(words.shapes.getValue(shape), color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                }
             }
         }
     }
@@ -176,7 +189,24 @@ private fun ColumnScope.LookPage(words: PulseWords, icons: PulseIcons, look: Pul
     Toggle(words.echoes, null, look.echoes) { onLook(look.copy(echoes = it)) }
 
     Section(words.background)
-    Segmented(PulseLook.Background.entries, look.background, { words.backgrounds.getValue(it) }) { onLook(look.copy(background = it)) }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        PulseLook.Background.entries.forEach { background ->
+            Pill(null, words.backgrounds.getValue(background), look.background == background) { onLook(look.copy(background = background)) }
+        }
+    }
+
+    Section(words.reaction)
+    val tint = LocalPulseTint.current
+    Slider(
+        value = look.reaction.coerceIn(0f, 2f),
+        onValueChange = { value -> ((value * 10).roundToInt() / 10f).let { if (it != look.reaction) onLook(look.copy(reaction = it)) } },
+        valueRange = 0f..2f,
+        colors = SliderDefaults.colors(thumbColor = tint.second, activeTrackColor = tint.first, inactiveTrackColor = Color.White.copy(alpha = 0.12f)),
+    )
+    Row(Modifier.fillMaxWidth()) {
+        Text(words.reactionLess, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(words.reactionMore, color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+    }
 
     Section(words.motion)
     Segmented(PulseLook.Motion.entries, look.motion, { words.motions.getValue(it) }) { onLook(look.copy(motion = it)) }
