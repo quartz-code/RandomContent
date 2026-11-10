@@ -4354,7 +4354,11 @@ class MusicService :
         }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        if (dataStore.get(StopMusicOnTaskClearKey, false)) {
+        // The service's own MediaController keeps it bound, so the default stopSelf() for a paused
+        // player never ends it: the notification and the process would stay until killed.
+        val playing = castConnectionHandler?.isCasting?.value == true ||
+            ::player.isInitialized && (player.isPlaying || player.playWhenReady && player.playbackState == Player.STATE_BUFFERING)
+        if (dataStore.get(StopMusicOnTaskClearKey, false) || !playing) {
             stopOnTaskClear()
         } else {
             super.onTaskRemoved(rootIntent)
