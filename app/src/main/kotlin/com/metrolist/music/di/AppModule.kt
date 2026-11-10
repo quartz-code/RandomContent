@@ -17,6 +17,7 @@ import com.metrolist.music.db.InternalDatabase
 import com.metrolist.music.db.MusicDatabase
 import com.metrolist.music.listentogether.ListenTogetherClient
 import com.metrolist.music.listentogether.ListenTogetherManager
+import com.metrolist.music.pulse.AccountLibrary
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.get
 import dagger.Module
@@ -50,7 +51,11 @@ object AppModule {
     @Provides
     fun provideInternalDatabase(
         @ApplicationContext context: Context,
-    ): InternalDatabase = InternalDatabase.newInternalDatabaseInstance(context)
+    ): InternalDatabase {
+        // Pulse: put the signed-in account's own library in place before Room opens it.
+        AccountLibrary.prepare(context)
+        return InternalDatabase.newInternalDatabaseInstance(context)
+    }
 
     @Singleton
     @Provides
