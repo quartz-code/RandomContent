@@ -17,6 +17,7 @@ import com.metrolist.music.constants.DataSyncIdKey
 import com.metrolist.music.constants.InnerTubeAuthUserKey
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.VisitorDataKey
+import com.metrolist.music.pulse.AccountLibrary
 import com.metrolist.music.utils.SyncUtils
 import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.safeDataStoreEdit
@@ -56,8 +57,10 @@ class AccountSettingsViewModel @Inject constructor(
             // Now clear the local database. Any sync coroutines that observe
             // the empty state will check isLoggedIn() and skip silently.
             syncUtils.clearAllLibraryData()
+            AccountLibrary.release(context)
         }
         Timber.d("[LOGOUT_CLEAR] ViewModel: logoutAndClearLibraryData completed")
+        restart(context)
     }
 
     /**
@@ -70,6 +73,21 @@ class AccountSettingsViewModel @Inject constructor(
         }
         Timber.d("[LOGOUT_KEEP] ViewModel: Account forgotten, clearing cookie in UI")
         onCookieChange("")
+        restart(context)
+    }
+
+    /**
+     * Account name, avatar, the queue, "My pulse" and the sync state all live in memory: a fresh
+     * process is the only way nothing of the old account is left on screen. The next start also
+     * opens the right account's library ([AccountLibrary]).
+     */
+    private suspend fun restart(context: Context) {
+        withContext(Dispatchers.Main) {
+            context.packageManager.getLaunchIntentForPackage(context.packageName)
+                ?.apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK) }
+                ?.let(context::startActivity)
+            Runtime.getRuntime().exit(0)
+        }
     }
 
     /**

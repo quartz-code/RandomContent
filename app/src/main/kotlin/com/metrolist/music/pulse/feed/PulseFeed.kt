@@ -75,20 +75,29 @@ data class PulseSettings(
 data class PulseMemory(
     val dislikedSongs: List<String> = emptyList(),
     val artistStrikes: Map<String, Int> = emptyMap(),
+    /** [PulseMixer.songKey] of turned-down songs: the same song under another video id stays away too. */
+    val dislikedKeys: List<String> = emptyList(),
+    /** [PulseMixer.songKey] of what the pulse played lately, so a new start does not begin with the same songs. */
+    val recent: List<String> = emptyList(),
 ) {
     val bannedArtists: Set<String> get() = artistStrikes.filterValues { it >= BAN_AFTER }.keys
 
     fun dislike(song: SongItem): PulseMemory = copy(
         dislikedSongs = (dislikedSongs - song.id + song.id).takeLast(MAX_SONGS),
+        dislikedKeys = PulseMixer.songKey(song).let { key -> (dislikedKeys - key + key).takeLast(MAX_SONGS) },
         artistStrikes = song.artists.map { PulseMixer.artistKey(it.name) }.filter { it.isNotEmpty() }
             .fold(artistStrikes) { strikes, key -> strikes + (key to (strikes[key] ?: 0) + 1) },
     )
+
+    fun played(songs: List<SongItem>): PulseMemory =
+        if (songs.isEmpty()) this else copy(recent = (recent + songs.map(PulseMixer::songKey)).distinct().takeLast(MAX_RECENT))
 
     fun toJson(): String = json.encodeToString(serializer(), this)
 
     companion object {
         const val BAN_AFTER = 2
         private const val MAX_SONGS = 1000
+        private const val MAX_RECENT = 300
         private val json = Json { ignoreUnknownKeys = true }
 
         fun fromJson(text: String?): PulseMemory =
@@ -110,9 +119,24 @@ object PulseMixer {
 
     fun hasCyrillic(text: String): Boolean = text.any { it in 'Ѐ'..'ӿ' }
 
+    private val brackets = Regex("""\s*[(\[][^)\]]*[)\]]""")
+    private val featuring = Regex("""\s+(feat\.?|ft\.?|featuring|при уч\.?)\s.*$""")
+    private val separators = Regex("""[^\p{L}\p{N}]+""")
+
+    /**
+     * The same song under any of its video ids: YouTube Music offers one track as the audio, the
+     * clip, a lyric video and uploads, each with its own id. "Title (Official Video)" by "Artist"
+     * and "Title" by "Artist feat. X" give the same key.
+     */
+    fun songKey(song: SongItem): String {
+        val title = song.title.lowercase().replace(brackets, "").replace(featuring, "").replace(separators, " ").trim()
+        val artist = song.artists.firstOrNull()?.name.orEmpty().lowercase().replace(featuring, "").replace(separators, " ").trim()
+        return "$artist|${title.ifEmpty { song.id }}"
+    }
+
     /** Whether [song] may play at all under [settings]; independent of what was picked before. */
     fun acceptable(song: SongItem, settings: PulseSettings, known: Set<String>, memory: PulseMemory, banned: Set<String> = memory.bannedArtists): Boolean {
-        if (song.id in memory.dislikedSongs) return false
+        if (song.id in memory.dislikedSongs || songKey(song) in memory.dislikedKeys) return false
         if (song.artists.any { artistKey(it.name) in banned }) return false
         if (settings.character == PulseSettings.Character.UNFAMILIAR && song.id in known) return false
         val text = song.title + " " + song.artists.joinToString(" ") { it.name }
@@ -134,7 +158,9 @@ object PulseMixer {
         random: Random = Random.Default,
     ): List<SongItem> {
         val banned = memory.bannedArtists
-        val fresh = candidates.distinctBy { it.id }.filter { it.id !in played && acceptable(it, settings, known, memory, banned) }
+        // [played] holds ids and [songKey]s alike.
+        val fresh = candidates.distinctBy { it.id }.distinctBy(::songKey)
+            .filter { it.id !in played && songKey(it) !in played && acceptable(it, settings, known, memory, banned) }
         // Proper songs before videos and uploads, which radios mix in; each kept in the sources' order.
         val ordered = lightlyShuffled(fresh, random).sortedBy { if (it.isVideoSong) 1 else 0 }
         val knownEvery = when (settings.character) {
@@ -238,6 +264,7 @@ class PulseFeed(
     private var popularTried = false
     private val pool = mutableListOf<SongItem>()
     private val emitted = LinkedHashSet<String>()
+    private val emittedKeys = HashSet<String>()
     private val recentArtists = ArrayDeque<String>()
 
     /** Songs this pulse has given out, so a song in the player can be recognised as the pulse's. */
@@ -250,10 +277,16 @@ class PulseFeed(
         while (out.size < limit && rounds < MAX_ROUNDS) {
             rounds++
             if (pool.size < limit * 2) pool += runCatching { fetch() }.getOrDefault(emptyList())
-            val picked = PulseMixer.pick(pool, settings, known, emitted, memory, recentArtists.toList(), limit - out.size, random)
+            val played = emitted + emittedKeys
+            // What earlier pulses played stays away too, unless nothing else is on offer.
+            val lately = if (settings.character == PulseSettings.Character.FAVORITE) emptySet() else memory.recent.toSet()
+            val fresh = PulseMixer.pick(pool, settings, known, played + lately, memory, recentArtists.toList(), limit - out.size, random)
+            val any = if (fresh.isEmpty() && lately.isNotEmpty()) PulseMixer.pick(pool, settings, known, played, memory, recentArtists.toList(), limit - out.size, random) else fresh
+            // Lately played songs only when the last round still found nothing else.
+            val picked = if (fresh.isEmpty() && rounds == MAX_ROUNDS) any else fresh
             // Nothing on offer fits (say, "Russian" while the seeds are all English): start over from
             // what is popular where the listener is, once, rather than fall silent.
-            if (picked.isEmpty() && !popularTried) {
+            if (any.isEmpty() && !popularTried) {
                 popularTried = true
                 val popular = runCatching { source.popularSongs() }.getOrDefault(emptyList())
                     .filter { PulseMixer.acceptable(it, settings, known, memory) }
@@ -262,13 +295,22 @@ class PulseFeed(
                 if (popular.isNotEmpty()) continue
             }
             if (picked.isEmpty() && pool.isEmpty() && seeds.isEmpty() && mixFinished) break
-            pool.removeAll { song -> picked.any { it.id == song.id } || song.id in emitted || !PulseMixer.acceptable(song, settings, known, memory) }
             for (song in picked) {
                 emitted += song.id
+                emittedKeys += PulseMixer.songKey(song)
                 song.artists.forEach { recentArtists.addLast(PulseMixer.artistKey(it.name)) }
                 while (recentArtists.size > 6) recentArtists.removeFirst()
             }
+            // Dropping lately played songs too makes room for fresh ones from the next fetch.
+            pool.removeAll { song ->
+                val key = PulseMixer.songKey(song)
+                song.id in emitted || key in emittedKeys || key in lately || !PulseMixer.acceptable(song, settings, known, memory)
+            }
             out += picked
+        }
+        if (out.isNotEmpty()) {
+            memory = memory.played(out)
+            runCatching { memoryStore.save(memory) }
         }
         // Wander: a song the pulse found becomes a seed too, so the stream drifts into new music
         // instead of circling the same few radios.
@@ -289,6 +331,9 @@ class PulseFeed(
         pool.clear()
         popularTried = false
     }
+
+    /** Whether [song] may still come, after what was turned down since it was queued. */
+    fun accepts(song: SongItem): Boolean = PulseMixer.acceptable(song, settings, known, memory)
 
     /** Songs this pulse already gave out before the app was closed: not again, and known as its own. */
     fun alreadyPlayed(ids: Collection<String>) {

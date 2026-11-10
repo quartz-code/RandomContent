@@ -41,6 +41,7 @@ import com.metrolist.music.LocalPlayerConnection
 import com.metrolist.music.R
 import com.metrolist.music.constants.InnerTubeCookieKey
 import com.metrolist.music.constants.PulseLookKey
+import com.metrolist.music.extensions.metadata
 import com.metrolist.music.playback.queues.PulseQueue
 import com.metrolist.music.pulse.feed.MyPulse
 import com.metrolist.music.pulse.feed.PulseSettings
@@ -164,8 +165,16 @@ fun MyPulseScreen(viewModel: MyPulseViewModel = hiltViewModel()) {
         },
         onDislike = {
             current?.let { playing ->
-                scope.launch { viewModel.pulse.disliked(playing) }
-                playerConnection.seekToNext()
+                scope.launch {
+                    viewModel.pulse.disliked(playing)
+                    // Songs already queued by this artist or this song under another id go too.
+                    val player = playerConnection.player
+                    for (index in player.mediaItemCount - 1 downTo player.currentMediaItemIndex + 1) {
+                        val queued = player.getMediaItemAt(index).metadata ?: continue
+                        if (viewModel.pulse.unwanted(queued)) player.removeMediaItem(index)
+                    }
+                    playerConnection.seekToNext()
+                }
                 Toast.makeText(context, R.string.my_pulse_disliked, Toast.LENGTH_SHORT).show()
             }
         },

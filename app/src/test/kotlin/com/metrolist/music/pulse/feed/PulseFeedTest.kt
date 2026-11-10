@@ -70,12 +70,12 @@ class PulseFeedTest {
         override suspend fun radio(seedId: String, continuation: String?): PulseFeed.Page {
             radioCalls += seedId
             val page = if (continuation == null) 0 else 1
-            val items = (0 until 30).map { i -> SongItem(id = "$seedId-$page-$i", title = "T$i", artists = listOf(Artist("$seedId artist ${i % 10}", null)), thumbnail = "") }
+            val items = (0 until 30).map { i -> SongItem(id = "$seedId-$page-$i", title = "T$page-$i", artists = listOf(Artist("$seedId artist ${i % 10}", null)), thumbnail = "") }
             return PulseFeed.Page(items, if (page == 0) "next" else null)
         }
         override suspend fun personalMix(continuation: String?): PulseFeed.Page {
             mixCalls++
-            return PulseFeed.Page((0 until 20).map { SongItem(id = "mix$mixCalls-$it", title = "M$it", artists = listOf(Artist("Mix $it", null)), thumbnail = "") }, "more")
+            return PulseFeed.Page((0 until 20).map { SongItem(id = "mix$mixCalls-$it", title = "M$mixCalls-$it", artists = listOf(Artist("Mix $it", null)), thumbnail = "") }, "more")
         }
         override suspend fun moodSongs(mood: PulseSettings.Mood) = (0 until 10).map { SongItem(id = "mood$it", title = "Mood $it", artists = listOf(Artist("Mood artist $it", null)), thumbnail = "") }
         override suspend fun popularSongs() = (0 until 10).map { SongItem(id = "top$it", title = "Top $it", artists = listOf(Artist("Top artist $it", null)), thumbnail = "") }
@@ -209,5 +209,46 @@ class PulseFeedTest {
         val after = (1..3).flatMap { restored.next() }
         assertTrue(after.isNotEmpty())
         assertTrue(after.none { it.id in before })
+    }
+
+    @Test
+    fun theSameSongUnderAnotherIdIsOneSong() {
+        val audio = song("audio", "Artist", "Song")
+        val clip = song("clip", "Artist", "Song (Official Video)", video = true)
+        val featuring = SongItem(id = "feat", title = "Song", artists = listOf(Artist("Artist feat. Other", null)), thumbnail = "")
+        assertEquals(PulseMixer.songKey(audio), PulseMixer.songKey(clip))
+        assertEquals(PulseMixer.songKey(audio), PulseMixer.songKey(featuring))
+        assertEquals(1, PulseMixer.pick(listOf(audio, clip, featuring), PulseSettings(), emptySet(), emptySet(), none, emptyList(), 5).size)
+        // Turned down once, it stays away under every id.
+        val memory = PulseMemory().dislike(audio)
+        assertFalse(PulseMixer.acceptable(clip, PulseSettings(), emptySet(), memory))
+        // Played under one id, it does not come back under another.
+        assertTrue(PulseMixer.pick(listOf(clip), PulseSettings(), emptySet(), setOf(PulseMixer.songKey(audio)), none, emptyList(), 5).isEmpty())
+    }
+
+    @Test
+    fun aNewPulseDoesNotStartWithWhatThePreviousOnePlayed() = runBlocking {
+        val memory = FakeMemory()
+        val first = PulseFeed(FakeSource(), FakeLibrary(listOf("seedA", "seedB")), memory, PulseSettings(), Random(5))
+        val before = (1..2).flatMap { first.next() }.map { PulseMixer.songKey(it) }.toSet()
+        assertTrue(memory.saved.recent.containsAll(before))
+        // Same seeds, same order of radios: without the memory it would play the same songs again.
+        val second = PulseFeed(FakeSource(), FakeLibrary(listOf("seedA", "seedB")), memory, PulseSettings(), Random(5))
+        val after = second.next().map { PulseMixer.songKey(it) }
+        assertTrue(after.isNotEmpty())
+        assertTrue(after.none { it in before })
+        assertEquals(memory.saved, PulseMemory.fromJson(memory.saved.toJson()))
+    }
+
+    @Test
+    fun aRefusalReachesSongsAlreadyQueued() = runBlocking {
+        val feed = PulseFeed(FakeSource(), FakeLibrary(listOf("seedA")), FakeMemory(), PulseSettings(), Random(2))
+        val batch = feed.next()
+        val bad = batch.first()
+        val sameArtist = SongItem(id = "x", title = "Other", artists = bad.artists, thumbnail = "")
+        assertTrue(feed.accepts(sameArtist))
+        feed.disliked(bad)
+        feed.disliked(SongItem(id = "y", title = "Third", artists = bad.artists, thumbnail = ""))
+        assertFalse(feed.accepts(sameArtist))
     }
 }

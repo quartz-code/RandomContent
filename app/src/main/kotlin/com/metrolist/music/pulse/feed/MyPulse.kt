@@ -62,12 +62,27 @@ class MyPulse @Inject constructor(
     @Volatile
     private var pending: PulseFeed? = null
 
-    /** A new pulse with the stored settings; it becomes "the one playing" once its first songs arrive. */
+    /** The pulse that played last, kept for a while after something else took the player. */
+    @Volatile
+    private var last: PulseFeed? = null
+    @Volatile
+    private var lastStoppedAt = 0L
+
+    /**
+     * The pulse to play with the stored settings; it becomes "the one playing" once its first songs
+     * arrive. Back from the downloads or an album, the last pulse goes on with new songs instead of
+     * starting over from the same seeds; new settings start a new one.
+     */
     suspend fun newFeed(): PulseFeed {
         _empty.value = false
         _starting.value = true
         val current = storedSettings().at(LocalTime.now().hour)
-        return PulseFeed(YouTubePulseSource(), DatabaseLibrary(), DataStoreMemory(), current).also { pending = it }
+        val previous = last
+        val resumable = previous != null && previous.settings == current.picking() &&
+            System.currentTimeMillis() - lastStoppedAt < RESUME_WITHIN_MS
+        val feed = if (resumable) previous else PulseFeed(YouTubePulseSource(), DatabaseLibrary(), DataStoreMemory(), current)
+        last = feed
+        return feed.also { pending = it }
     }
 
     /**
@@ -97,7 +112,10 @@ class MyPulse @Inject constructor(
 
     /** The restored pulse is in the player again: it is the one playing, unless a start came first. */
     fun resumed(feed: PulseFeed) {
-        if (pending == null) _feed.value = feed
+        if (pending == null) {
+            _feed.value = feed
+            last = feed
+        }
     }
 
     /** More songs, only while [feed] is still the one playing. */
@@ -106,6 +124,7 @@ class MyPulse @Inject constructor(
 
     /** The player moved on to an album, a playlist, a search result: the pulse is not playing. */
     fun stopped() {
+        if (_feed.value != null) lastStoppedAt = System.currentTimeMillis()
         _feed.value = null
         if (pending != null) {
             pending = null
@@ -137,11 +156,18 @@ class MyPulse @Inject constructor(
     /** "Not for me": remembered here and, signed in, told to YouTube Music too. */
     suspend fun disliked(song: MediaMetadata) {
         val item = SongItem(id = song.id, title = song.title, artists = song.artists.map { Artist(it.name, it.id) }, thumbnail = song.thumbnailUrl.orEmpty())
-        val feed = _feed.value
+        val feed = _feed.value ?: last
         withContext(Dispatchers.IO) {
             if (feed != null) lock.withLock { feed.disliked(item) } else DataStoreMemory().let { it.save(it.load().dislike(item)) }
             YouTube.dislikeVideo(song.id)
         }
+    }
+
+    /** Whether a song already queued should go after what was turned down; false outside a pulse. */
+    fun unwanted(song: MediaMetadata): Boolean {
+        val feed = _feed.value ?: return false
+        val item = SongItem(id = song.id, title = song.title, artists = song.artists.map { Artist(it.name, it.id) }, thumbnail = "")
+        return !feed.accepts(item)
     }
 
     /** YouTube Music's own moods and genres, in the app's language; empty when it does not answer. */
@@ -169,5 +195,6 @@ class MyPulse @Inject constructor(
     private companion object {
         const val SEEDS = 25
         const val RECENT_LIKES = 5
+        const val RESUME_WITHIN_MS = 6 * 60 * 60 * 1000L
     }
 }

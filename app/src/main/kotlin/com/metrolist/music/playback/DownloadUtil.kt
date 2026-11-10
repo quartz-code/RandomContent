@@ -313,6 +313,10 @@ constructor(
         }
         downloads.value = result
         scope.launch {
+            // Removed while another account's library was in use: not downloaded here either.
+            runCatching {
+                database.downloadedSongIds().filter { it !in result }.forEach { database.updateDownloadedInfo(it, false, null) }
+            }.onFailure { Timber.tag(TAG).w(it, "Could not reconcile downloaded songs") }
             result.values
                 .filter { it.state == Download.STATE_COMPLETED }
                 .forEach { removeFromPlayerCache(it.request.id) }
@@ -330,7 +334,18 @@ constructor(
     fun download(mediaMetadata: MediaMetadata) {
         scope.launch {
             downloadPreparations.withPermit {
-                if (!shouldPrepareDownload(downloads.value[mediaMetadata.id]?.state)) return@withPermit
+                if (!shouldPrepareDownload(downloads.value[mediaMetadata.id]?.state)) {
+                    // Downloaded while another account was signed in: the file is here, this
+                    // account's library only has to know it.
+                    val known = database.getSongByIdBlocking(mediaMetadata.id)
+                    if (known != null) {
+                        if (!known.song.isDownloaded) database.updateDownloadedInfo(mediaMetadata.id, true, LocalDateTime.now())
+                        return@withPermit
+                    }
+                    database.insert(mediaMetadata)
+                    database.updateDownloadedInfo(mediaMetadata.id, true, LocalDateTime.now())
+                    return@withPermit
+                }
 
                 mediaMetadata.album?.let { album ->
                     if (database.albumEntity(album.id) == null) {

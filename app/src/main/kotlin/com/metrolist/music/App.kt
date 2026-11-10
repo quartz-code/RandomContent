@@ -40,6 +40,7 @@ import com.metrolist.music.utils.dataStore
 import com.metrolist.music.utils.safeDataStoreEdit
 import com.metrolist.music.utils.reportException
 import dagger.hilt.android.HiltAndroidApp
+import kotlin.coroutines.resume
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -48,7 +49,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Credentials
 import timber.log.Timber
 import java.io.File
@@ -364,13 +367,18 @@ class App :
 
             // Clear WebView cookies to prevent auto-relogin
             Timber.d("forgetAccount: Clearing WebView CookieManager")
+            // Wait for the removal: the app restarts right after, and a cookie still on disk
+            // would sign the next login straight back into the old account.
             withContext(Dispatchers.Main) {
-                android.webkit.CookieManager.getInstance().apply {
-                    removeAllCookies { removed ->
-                        Timber.d("forgetAccount: CookieManager.removeAllCookies callback: removed=$removed")
+                withTimeoutOrNull(3_000) {
+                    suspendCancellableCoroutine<Unit> { done ->
+                        android.webkit.CookieManager.getInstance().removeAllCookies { removed ->
+                            Timber.d("forgetAccount: CookieManager.removeAllCookies callback: removed=$removed")
+                            if (done.isActive) done.resume(Unit)
+                        }
                     }
-                    flush()
                 }
+                android.webkit.CookieManager.getInstance().flush()
             }
             Timber.d("forgetAccount: Logout process complete")
         }
